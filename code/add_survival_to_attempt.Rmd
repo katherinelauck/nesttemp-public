@@ -1,0 +1,301 @@
+---
+title: "Survival data"
+output: html_notebook
+---
+
+
+
+
+```{r setup, include = FALSE}
+require(tidyverse)
+require(lubridate)
+require(furrr)
+source('../code/helper_functions.R')
+
+t_preloaded <- read_rds("../data/heatindex.rds") %>%
+  mutate(boxyear = paste0(year(date),"_",box))
+
+# eggs_nestlings_to_numeric <- function(string) {
+#   strip <- str_match(string,"([0-9]+)|(Skipped)|(skipped)") %>% replace_na("0")
+#   strip[which(strip %in% c("Skipped","skipped"))] <- NA
+#   return(as.numeric(strip[,1]))
+# }
+# d <- nestbox_drive_get("nest_checks") %>%
+#   mutate(Eggs = eggs_nestlings_to_numeric(Eggs),Nestlings = eggs_nestlings_to_numeric(Nestlings),
+#          year = year(Date)) %>%
+#   group_by(Nestbox,year) %>%
+#   mutate(Species = ifelse(Species == "ATFL!","ATFL",Species),
+#          Species = ifelse(Species == "HOFI (?)","HOFI",Species),
+#          `Wing chords` = as.character(`Wing chords`),
+#          `Wing chords` = ifelse(`Wing chords` == "NULL",NA,`Wing chords`)) %>%
+#   mutate(site = str_extract(Nestbox,"([:alpha:]|[:punct:])+")) %>%
+#   filter(site %in% c('MBNG','MBNR','PICG','PICO','PICR',"RRRG","RRRR"))
+# 
+# dead_nestlings <- filter(d,!is.na(dead_nestlings))
+```
+
+
+<!-- ## List individual nestlings that died -->
+
+<!-- ### Pull all nest checks for each nest-year with dead nestlings -->
+
+<!-- We will assume that any nestlings without a band number as an ID either died or disappeared. In addition to that, we want to detect the nestlings that did not successfully fledge by making a list of band numbers of nestlings that were found dead in the nest at equipment removal. -->
+
+<!-- This will only be for non-MFWB nests. Need to also access nest checks for non-MFWB nests. -->
+
+<!-- First step is to try to understand how to parse comments by looking at the context around dead nestling records -->
+
+<!-- # ```{r} -->
+<!-- # box_years <- dead_nestlings %>% select(year,Nestbox) %>% distinct() %>% mutate(combined = paste(year,Nestbox,sep = "_")) -->
+<!-- #  -->
+<!-- # dead_checks <- filter(d, paste0(year,"_",Nestbox) %in% box_years$combined) %>% arrange(year, Nestbox, Date) -->
+<!-- # write_csv(dead_checks,"../data/dead_nestlings_nonmfwb.csv") -->
+<!-- #  -->
+<!-- #  -->
+<!-- # ``` -->
+
+<!-- Looks like there are few enough that I can just list them manually. Whole nest banded 2023-07-13 RRRR3 dead next check -->
+<!-- 2941-94712 -->
+<!-- 2941-94713 -->
+<!-- 2941-94714 -->
+
+
+<!-- ```{r} -->
+<!-- dead_bands <- c("2631-20722","2631-20648","2631-20707","2631-20647","2881-65934","2881-65923","2881-65926","2941-94708","2941-94712","2941-94713","2941-94714","1351-53375","2631-20886","2631-20887","2941-18490","2811-15883") -->
+<!-- ``` -->
+
+<!-- Next step is to mark nestling as survived or not -->
+
+<!-- ```{r} -->
+<!-- g <- read_rds("../data/growth_and_provis_combined_mobilenetv3-original_dataset.h5.rds") %>% -->
+<!--   mutate(abs_change_cort = cort_s2-cort_s1, -->
+<!--          prop_change_cort = (cort_s2-cort_s1)/cort_s1, -->
+<!--          year_fct = as.factor(year)) -->
+<!-- p <- read_rds("../data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>% -->
+<!--   mutate(year = year(date), -->
+<!--          year_fct = as.factor(year)) -->
+
+<!-- c <- read_rds("../data/cort_with_id.rds") -->
+<!-- ``` -->
+
+<!-- Because we aren't able to track all individuals across occasions, we should also exclude attempts where there are any "color2"s in the nestling color column. This will prevent us from underestimating survival by assuming that all chicks without a band number died. This assumes that the correct unit of replication is the individual. There could be other units of replication - each nest-week?  -->
+
+<!-- ```{r} -->
+<!-- exclude_attempts <- filter(g,grepl("2",color)) %>% dplyr::select(attempt_id) %>% distinct() -->
+<!-- print(nrow(exclude_attempts)) -->
+
+<!-- g <- g %>% mutate(survive_to_fledge = if_else(str_detect(ind_id,"[:digit:]{4}-[:digit:]{5}") & !(ind_id %in% dead_bands), -->
+<!--                                           1, -->
+<!--                                           0), -->
+<!--                   survive_to_fledge = if_else(attempt_id %in% exclude_attempts$attempt_id,NA_integer_,survive_to_fledge), -->
+<!--                   survive_to_next_week = if_else(survive_to_fledge == 1,1,0), # all the nestlings that were banded survived all the weeks -->
+<!--                   survive_to_next_week = if_else(is.na(survive_to_fledge),NA_integer_,survive_to_next_week)) # when there was some mismatch in the colors, hard to tell if specific nestlings made it all the way through or not. -->
+
+<!-- ``` -->
+
+<!-- ## Next I need to write a function that will take each attempt's history and mark nestlings that didn't survive the next week. -->
+
+<!-- I think I need to restructure survival. For each individual, we want to know: did it live to the next measuring occasion, what is its current cort condition, and what was the next week's provis? So if we're wanting to have provis and cort in the same model, we only have current cort and future provis at one time point (occasion 2). At occasion 3 we get another cort point but no more provis and no way to assess survival past banding. So,, this makes it pretty easy to determine whether a nestling survives occasion 2 to occasion 3: is its individual ID a band number? If so, then it lived. The tougher part will be distinguishing non survivors from nestlings where individual id was lost (i.e. there is a color2). I think we won't be able to know which occasion 2 nestlings were banded if there was any color 2s in that attempt. -->
+
+<!-- And, I don't have to go back to the morphometrics to do this. -->
+
+<!-- So we already have did the nestling survive to next week? Now we just need to pull provis from occasion 3 to occasion 2. -->
+
+<!-- ```{r} -->
+<!-- get_future_provis <- function(attempt){ -->
+<!--   if((3 %in% c(pull(attempt,occasion) %>% unique())) & (2 %in% c(pull(attempt,occasion) %>% unique()))){ -->
+<!--     occ3_mean_provis <- filter(attempt, occasion == 3) %>% slice(1) %>% pull(provis_mean) -->
+<!--     occ3_mean_aft_provis <- filter(attempt, occasion == 3) %>% slice(1) %>% pull(provis_aft) -->
+<!--     occ3_mean_morn_provis <- filter(attempt, occasion == 3) %>% slice(1) %>% pull(provis_morn) -->
+<!--     occ3_mean_meanmaxt <- filter(attempt, occasion == 3) %>% slice(1) %>% pull(meanmaxtempI) -->
+<!--     occ3_mean_meanmint <- filter(attempt, occasion == 3) %>% slice(1) %>% pull(meanmintempI) -->
+<!--   } else { -->
+<!--     occ3_mean_provis = NA -->
+<!--     occ3_mean_aft_provis = NA -->
+<!--     occ3_mean_morn_provis = NA -->
+<!--     occ3_mean_meanmaxt = NA -->
+<!--     occ3_mean_meanmint = NA -->
+<!--   } -->
+<!--   attempt <- attempt %>%  -->
+<!--       mutate(occ3_mean_provis = occ3_mean_provis, -->
+<!--              occ3_mean_aft_provis = occ3_mean_aft_provis, -->
+<!--              occ3_mean_morn_provis = occ3_mean_morn_provis, -->
+<!--              occ3_mean_meanmaxt = occ3_mean_meanmaxt, -->
+<!--              occ3_mean_meanmint = occ3_mean_meanmint) -->
+
+<!-- } -->
+
+<!-- g_indiv_surv <- g %>% group_by(attempt_id) %>% group_map(~ get_future_provis(.x)) %>% list_rbind() -->
+
+<!-- filter(g_indiv_surv,occasion == 2,!is.na(occ3_mean_provis),Species == "WEBL",!is.na(cort_s1)) -->
+
+<!-- ``` -->
+
+<!-- That's a pretty dang small sample size................................... At least we don't have to break this up by habitat. -->
+
+<!-- All of the nestlings that were banded survived  -->
+
+<!-- ```{r} -->
+<!-- write_rds(g_indiv_surv,"../data/growth_with_survival_indiv.rds") -->
+<!-- ``` -->
+
+## create attempt-level survival measures
+
+### Pull together dataset of comp logs, clean so 1. numeric columns are numeric 2. date columns are useable
+
+```{r}
+# lauck_comp_logs <- read_csv("../data/comprehensive_logs_Lauck.csv")
+
+# s <- get_nest_checks() %>% write_rds("data/survival_katieboxes.rds")
+g <- read_rds("../data/growth.rds")
+col_names <- read_csv("../data/pcnh_comp_logs/mbn_2022.csv")[,c(5:22,26:27)] %>% names() # need to include band or fledge date
+read_survival_data_csvs <- function(file) {
+ read_csv(file) %>% dplyr::select(all_of(col_names)) %>%
+   mutate(across(everything(),
+                 ~ as.character(.x) %>% str_replace_all(pattern=" ", repl="")))
+}
+files <- c("../data/pcnh_comp_logs/mbn_2022.csv","../data/pcnh_comp_logs/sfp_2023.csv","../data/pcnh_comp_logs/pic_2022.csv","../data/pcnh_comp_logs/pic_2023.csv","../data/pcnh_comp_logs/rrr_2022.csv","../data/pcnh_comp_logs/rrr_2023.csv","../data/pcnh_comp_logs/bro_2022.csv","../data/pcnh_comp_logs/bro_2023.csv","../data/pcnh_comp_logs/mcn_2022.csv","../data/pcnh_comp_logs/all_2021.csv","../data/comprehensive_logs_lauck.csv")
+s <- files %>% map(read_survival_data_csvs) %>% bind_rows() %>%
+  filter(if_any(everything(), ~ !is.na(.x))) %>%
+  filter(!is.na(Nestbox))
+s_cleaned <- s %>%
+  mutate(across(c(`Clutch Size`,`Eggs Hatched`, `Brood Size`,`Nestlings Fledging`),
+                ~ str_trim(.x) %>% as.numeric(),
+                .names = "{.col}_num")) %>%
+  mutate(across(c(`First Egg Date`,`Incubation Begins Date`,`Hatch Date`,`Date Banded`),
+                ~ str_trim(.x) %>% parse_date_time(orders = c("mdy","ymd"),tz = "America/Los_Angeles"),
+                .names = "{col}_lubridate")) %>%
+  mutate(year = year(`First Egg Date_lubridate`),
+        boxyear = str_c(year,"_",str_trim(Nestbox))) %>%
+#   filter(boxyear %in% str_c(g$Nestbox,g$year)) %>%
+  mutate(site = str_extract(Nestbox,"([:alpha:]|[:punct:])+") %>% factor() %>%
+          fct_collapse(PCC = c("PCC","PCT"),
+                       RRC = c("RRE","RRC"),
+                       MBNC = c("MBNC","SFP"),
+                       WI = c("BRO","MCE","MCO")), # extract site from nestbox
+        habitat = fct_collapse(site,
+                               Orchard = c("WI","PICO"),
+                               Grassland = c("MBNG","RRRG","PICG"),
+                               `Row crop` = c("MBNR","PICR","RRRR"),
+                               Forest = c("MBNC","PCC","RRC")),
+        habitat = factor(habitat,levels = c("Forest","Orchard","Grassland","Row crop")),
+        ) %>%
+  mutate(p_eggs_hatched = `Eggs Hatched_num`/`Clutch Size_num`,
+         p_nest_fledged = `Nestlings Fledging_num`/`Eggs Hatched_num`,
+         p_eggs_fledged = `Nestlings Fledging_num`/`Clutch Size_num`#,
+         #boxyear = paste0(year(`Hatch Date_lubridate`),"_",Nestbox)
+         )
+levels(s_cleaned$site)
+
+```
+
+
+
+### Calculate three temp measurements for each attempt: meanmax beginning of incubation to banding, meanmax beginning of incubation to hatching, and hatching to banding.
+
+```{r}
+
+
+
+boxyears <- t_preloaded$boxyear %>% unique()
+
+s_cleaned <- s_cleaned %>% filter(boxyear %in% boxyears)
+
+get_survival_temp_data <- function(row){
+  # print(row)
+  nestbox <- row$Nestbox
+  egg_start <- row$`First Egg Date_lubridate`
+  inc_start <- row$`Incubation Begins Date_lubridate`
+  egg_end <- row$`Hatch Date_lubridate`
+  if(is.na(egg_end)){
+    egg_end <- egg_start + ddays(14)
+  }
+  nest_end <- row$`Date Banded_lubridate`
+  if(is.na(nest_end)){
+      nest_end <- egg_start + ddays(30)
+    }
+  temp <- filter(t_preloaded,box == nestbox,date >= egg_start & date <= nest_end,logger_position == "I")
+  if(nrow(temp) == 0){
+    meanmaxt_inc <- NA
+    meant_inc <- NA
+    meanmint_inc <- NA
+    meanmaxt_nest <- NA
+    meant_nest <- NA
+    meanmint_nest <- NA
+    meanmaxt_nestpd <- NA
+    meant_nestpd <- NA
+    meanmint_nestpd <- NA
+    meanhi_nestpd <- NA
+    meanmaxhi_nestpd <- NA
+    meanminhi_nestpd <- NA
+    deghr_30 <- NA
+    hihr_30 <- NA
+  } else {
+    temp_inc <- filter(temp,date <= egg_end)
+    meanmaxt_inc <- temp_inc %>% pull(maxt) %>% mean(na.rm = TRUE)
+    meant_inc <- temp_inc %>% pull(meant) %>% mean(na.rm = TRUE)
+    meanmint_inc <- temp_inc %>% pull(mint) %>% mean(na.rm = TRUE)
+    temp_nest <- filter(temp, date >= egg_end)
+    meanmaxt_nest <- temp_nest %>% pull(maxt) %>% mean(na.rm = TRUE)
+    meant_nest <- temp_nest %>% pull(meant) %>% mean(na.rm = TRUE)
+    meanmint_nest <- temp_nest %>% pull(mint) %>% mean(na.rm = TRUE)
+    meanmaxt_nestpd <- temp %>% pull(maxt) %>% mean(na.rm = TRUE)
+    meant_nestpd <- temp %>% pull(meant) %>% mean(na.rm = TRUE)
+    meanmint_nestpd <- temp %>% pull(mint) %>% mean(na.rm = TRUE)
+    meanhi_nestpd <- temp %>% pull(meanhi) %>% mean(na.rm = TRUE)
+    meanmaxhi_nestpd <- temp %>% pull(maxhi) %>% mean(na.rm = TRUE)
+    meanminhi_nestpd <- temp %>% pull(minhi) %>% mean(na.rm = TRUE)
+    deghr_30 <- temp %>% pull(degreehours_over_30) %>% sum(na.rm = TRUE)
+    hihr_30 <- temp %>% pull(hihours_over_30) %>% sum(na.rm = TRUE)
+  }
+  row <- bind_cols(row,
+                   meant_inc = meant_inc,
+                   meanmaxt_inc = meanmaxt_inc,
+                   meanmint_inc = meanmint_inc,
+                   meant_nest = meant_nest,
+                   meanmaxt_nest = meanmaxt_nest,
+                   meanmint_nest = meanmint_nest,
+                   meant_nestpd = meant_nestpd,
+                   meanmaxt_nestpd = meanmaxt_nestpd,
+                   meanmint_nestpd = meanmint_nestpd,
+                   meanhi_nestpd = meanhi_nestpd,
+                   meanmaxhi_nestpd = meanmaxhi_nestpd,
+                   meanminhi_nestpd = meanminhi_nestpd,
+                   deghr_30 = deghr_30,
+                   hihr_30 = hihr_30,
+                   lay_date = egg_start,
+                   inc_date = inc_start,
+                   hatch_date = egg_end,
+                   band_date = nest_end
+              )
+  return(row)
+}
+
+future::plan(multisession,workers = availableCores()-2)
+
+s_with_temp <- s_cleaned %>% rowwise() %>% group_split() %>% future_map(~ get_survival_temp_data(.x),.progress = TRUE) %>% list_rbind()
+```
+
+### Filter to just rows that have temp data
+
+```{r}
+s_with_temp_cleaned <- s_with_temp %>% filter(if_any(c(meant_inc:meanmint_nestpd), ~ !is.na(.x)))
+
+filter(s_with_temp_cleaned,is.na(habitat))
+
+s_with_temp_cleaned$habitat[which(is.na(s_with_temp_cleaned$habitat))] <- "Forest"
+
+```
+
+### Write file
+
+```{r}
+write_rds(s_with_temp_cleaned,"../data/survival_attempt.rds")
+```
+
+
+
+### Run survival models as above for each measure
+
+
+

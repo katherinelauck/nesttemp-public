@@ -1,0 +1,119 @@
+---
+title: "Are current temp patterns significantly different from historical?"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r setup, include=FALSE}
+require(tidyverse)
+require(ggplot2)
+require(lubridate)
+require(scales)
+require(viridis)
+require(ggeffects)
+require(ggimage)
+require(magick)
+require(cowplot)
+require(ggggeffects)
+require(emmeans)
+require(multcomp)
+require(gt)
+library(glmmTMB)
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+library(igraph)
+library(tidyverse)
+library(performance)
+library(modelsummary)
+library(car)
+library(lme4)
+library(hms)
+library(weathermetrics)
+library(future)
+
+```
+
+Objective: Test whether current max temps are significantly higher than historical max temps
+
+Steps:
+
+1. Collect raw max temps measured during field season
+2. Pull in raw historical data
+3. Trim raw historical data to max/min of field season julian date
+4. Run model temp ~ julian date (continuous) + present/historical (discrete)
+5. Evaluate: if CI of coefficient of present/historical overlaps 0, no significant difference.
+6. May need to include interaction julian date * present/historical, if we think that it's important to consider that the slope of temp on julian date might be different between present and past (maybe we do think this, I'll just include it to be safe.)
+
+Step 1: Collect raw max temps measured during field season
+Step 2: Pull in raw historical data
+Step 3: Trim raw historical data to max/min of field season julian date
+
+```{r}
+t <- read_rds("../data/temp.rds") %>%
+  filter(logger_position == "O") %>%
+  dplyr::select(date, maxt) %>%
+  mutate(jdate = yday(date),
+         era = "present") %>%
+  dplyr::select(jdate,maxt,era)
+
+maxjdate <- max(t$jdate, na.rm = TRUE)
+minjdate <- min(t$jdate, na.rm = TRUE)
+
+h <- read_rds("../data/cimis_1883_dailymax.rds") %>%
+  mutate(jdate = yday(date)) %>%
+  filter(jdate > minjdate, jdate < maxjdate) %>%
+  dplyr::select(jdate,maxt) %>%
+  mutate(era = "historical")
+
+t_full <- t %>% rbind(h)
+```
+
+Step 4: Run model temp ~ julian date (continuous) + present/historical (discrete)
+Step 5: Evaluate: if CI of coefficient of present/historical overlaps 0, no significant difference.
+Step 6: May need to include interaction julian date * present/historical, if we think that it's important to consider that the slope of temp on julian date might be different between present and past (maybe we do think this, I'll just include it to be safe.)
+
+```{r}
+
+ggplot(data = t_full,
+       mapping = aes(x = jdate,y = maxt,color = era)) +
+  geom_point()
+
+m <- lm(maxt ~ jdate_scaled * era + era, data = t_full %>% mutate(jdate_scaled = scale(jdate)))
+summary(m)
+```
+
+2021-2023 temps appear to be elevated over historical temps. However, it's possible that differences in measurement devices could cause this difference. To check, I'll repeat this analysis with cimis data 2021-2023.
+
+```{r}
+t <- read_rds("../data/temp.rds") %>%
+  filter(logger_position == "O") %>%
+  dplyr::select(date, maxt) %>%
+  mutate(jdate = yday(date),
+         era = "nestbox") %>%
+  dplyr::select(jdate,maxt,era)
+
+maxjdate <- max(t$jdate, na.rm = TRUE)
+minjdate <- min(t$jdate, na.rm = TRUE)
+
+h <- read_csv("../data/Davis_CIMIS_2021-2023.csv") %>%
+  dplyr::select(Date,`Max Air Temp (C)`) %>%
+  rename(date = Date, maxt = `Max Air Temp (C)`) %>%
+  mutate(date = mdy(date)) %>%
+  mutate(jdate = yday(date)) %>%
+  filter(jdate > minjdate, jdate < maxjdate) %>%
+  dplyr::select(jdate,maxt) %>%
+  mutate(era = "cimis")
+
+t_full <- t %>% rbind(h)
+
+ggplot(data = t_full,
+       mapping = aes(x = jdate,y = maxt,color = era)) +
+  geom_point()
+
+m <- lm(maxt ~ jdate_scaled * era + era, data = t_full %>% mutate(jdate_scaled = scale(jdate)))
+summary(m)
+```
+
+So in fact the differences between past and present were probe differences entirely!

@@ -1,0 +1,32 @@
+<gpiozero.MotionSensor object on pin GPIO23, pull_up=False>
+starting camera
+1036
+PIR Module Test (CTRL-C to exit)
+Waiting for PIR to settle ..
+streaming
+looking for motion
+looking for motion
+looking for motion
+looking for motion
+looking for motion
+looking for motion
+Traceback (most recent call last):
+  File "/home/cam3/diurnal.py", line 71, in <module>
+    if pir.motion_detected:
+  File "/usr/lib/python3/dist-packages/gpiozero/input_devices.py", line 350, in is_active
+    return self.value > self.threshold
+  File "/usr/lib/python3/dist-packages/gpiozero/input_devices.py", line 604, in value
+    return super(MotionSensor, self).value
+  File "/usr/lib/python3/dist-packages/gpiozero/input_devices.py", line 325, in value
+    return self._queue.value
+  File "/usr/lib/python3/dist-packages/gpiozero/mixins.py", line 587, in value
+    return self.average(self.queue)
+  File "/home/cam3/statistics.py", line 320, in mean
+    T, total, count = _sum(data)
+  File "/home/cam3/statistics.py", line 161, in _sum
+    my_data = copy.deepcopy(data)
+  File "/usr/lib/python3.9/copy.py", line 172, in deepcopy
+    y = _reconstruct(x, memo, *rv)
+  File "/usr/lib/python3.9/copy.py", line 286, in _reconstruct
+    for item in listiter:
+RuntimeError: deque mutated during iteration

@@ -1,0 +1,471 @@
+---
+title: "dag_draft"
+author: "Katherine Lauck"
+date: "2024-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+library(igraph)
+library(tidyverse)
+```
+
+## Proposed DAG
+
+```{r,fig.width=7,fig.height=5}
+#set.seed(seed_value)
+#seed_value <- get(".Random.seed", .GlobalEnv)
+```
+```{r,fig.width=7,fig.height=5}
+g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + surftemp_humint_growth + attempt,
+            s1_cort ~ site + mother_s1 + habitat + foodprovis + surftemp_humint_cort + broodsize,
+            nestcond ~ s1_cort + foodprovis + broodsize,
+            foodprovis ~ habitat + year + mother_s1 + site + surftemp_humint_foodprovis + broodsize,
+            mother_s1 ~ site + surftemp + attempt + habitat  + jul_date + broodsize,
+            surftemp ~ year + habitat + jul_date,
+            surftemp_humint_cort ~ surftemp + humidity,
+            surftemp_humint_growth ~ surftemp + humidity,
+            surftemp_humint_foodprovis ~ surftemp + humidity,
+            exposure = c("surftemp","habitat","s1_cort","foodprovis"),
+            outcome = "nestgrowth")
+
+(g <- ggdag_status(g,layout = "nicely",node_size = 10) + 
+  geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
+
+ggsave("../figures/dag2.png",plot = g)
+
+```
+
+
+# DAG without the explicit interactions
+
+```{r,fig.width=7,fig.height=5}
+g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + humidity + surftemp + attempt,
+            s1_cort ~ site + mother_s1 + habitat + foodprovis + humidity + surftemp + broodsize,
+            nestcond ~ s1_cort + foodprovis + broodsize,
+            foodprovis ~ habitat + year + mother_s1 + site + humidity + surftemp + broodsize,
+            mother_s1 ~ site + surftemp + attempt + habitat  + jul_date + broodsize,
+            surftemp ~ year + habitat + jul_date,
+            exposure = c("surftemp","habitat"),
+            outcome = "nestgrowth"#,
+            #latent = "foodprovis"
+            )
+
+(p <- ggdag_status(g,layout = "nicely",node_size = 10) + 
+  geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
+
+ggsave("../figures/dag3.png",plot = p)
+
+```
+
+## Exposure = local temp, habitat. outcome: nestling growth
+
+```{r}
+adjSet_canon <- adjustmentSets(g)
+# direct_canon <- adjustmentSets(g,type = 'canonical',effect = "direct")
+adjSet_minimal <- adjustmentSets(g)
+# direct_minimal <- adjustmentSets(g,effect = "direct")
+print(adjSet_canon)
+print(adjSet_minimal)
+
+impliedConditionalIndependencies(g)
+```
+
+## Testing implied conditional independencies, when food provisioning is unobserved (which which is true right now DX)
+
+```{r}
+d <- read_rds("../data/growth.rds") %>%
+  filter(!is.na(gweight),!is.infinite(gweight),!is.infinite(meanmaxtempI),
+         !is.infinite(meanmaxtempO))
+```
+
+
+```{r}
+#brds _||_ hbtt
+summary(lm(brood_size ~ habitat, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ habitat, data = filter(d, Species == "TRES", occasion == 2)))
+
+# brds _||_ hmdt
+summary(lm(brood_size ~ meanh, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ meanh, data = filter(d, Species == "TRES", occasion == 2)))
+
+# brds _||_ jl_d
+summary(lm(brood_size ~ juliandate, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ juliandate, data = filter(d, Species == "TRES", occasion == 2)))
+
+# brds _||_ site
+# brds _||_ srft
+# brds _||_ year
+# hbtt _||_ hmdt
+# hbtt _||_ jl_d
+# hbtt _||_ site
+# hbtt _||_ year
+# hmdt _||_ jl_d
+# hmdt _||_ mt_1
+# hmdt _||_ site
+# hmdt _||_ srft
+# hmdt _||_ year
+# jl_d _||_ nstc | brds, hbtt, mt_1, site, srft, year
+# jl_d _||_ nstg | attm, brds, hbtt, mt_1, site, srft, year
+# jl_d _||_ s1_c | brds, hbtt, mt_1, site, srft, year
+# jl_d _||_ site
+# jl_d _||_ year
+# mt_1 _||_ year | hbtt, jl_d, srft
+# site _||_ srft
+# site _||_ year
+```
+
+# DAG with adjustments to brood size links
+
+```{r,fig.width=7,fig.height=5}
+g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + humidity + surftemp + attempt,
+            s1_cort ~ site + mother_s1 + habitat + foodprovis + humidity + surftemp + broodsize,
+            nestcond ~ s1_cort + foodprovis + broodsize,
+            foodprovis ~ habitat + year + mother_s1 + site + humidity + surftemp + broodsize,
+            mother_s1 ~ site + surftemp + attempt + habitat  + jul_date + broodsize,
+            surftemp ~ year + habitat + jul_date,
+            broodsize ~ jul_date + surftemp + humidity,
+            exposure = c("surftemp","habitat"),
+            outcome = "nestgrowth")
+
+(p <- ggdag_status(g,layout = "nicely",node_size = 10) + 
+  geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
+
+ggsave("../figures/dag3_ugly.png",plot = p)
+
+## Exposure = local temp, habitat. outcome: nestling growth
+
+adjSet_canon <- adjustmentSets(g)
+# direct_canon <- adjustmentSets(g,type = 'canonical',effect = "direct")
+adjSet_minimal <- adjustmentSets(g)
+# direct_minimal <- adjustmentSets(g,effect = "direct")
+print(adjSet_canon)
+print(adjSet_minimal)
+
+impliedConditionalIndependencies(g)
+
+```
+## I don't think these make a lot of sense to check. 
+
+attm _||_ brds
+attm _||_ hbtt
+attm _||_ hmdt
+attm _||_ jl_d
+attm _||_ nstc | brds, hbtt, hmdt, mt_1, site, srft, year
+attm _||_ nstc | brds, hbtt, jl_d, mt_1, site, srft
+attm _||_ s1_c | brds, hbtt, hmdt, mt_1, site, srft, year
+attm _||_ s1_c | brds, hbtt, jl_d, mt_1, site, srft
+attm _||_ site
+attm _||_ srft
+attm _||_ year
+
+## These should be true given how we designed the experiment, but it doesn't make a lot of sense to me to test.
+
+hbtt _||_ site
+hbtt _||_ year
+
+
+## brds _||_ hbtt | jl_d, srft
+
+```{r}
+summary(lm(brood_size ~ habitat + juliandate, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ habitat + juliandate, data = filter(d, Species == "TRES", occasion == 2)))
+```
+
+
+## brds _||_ site
+
+```{r}
+summary(lm(brood_size ~ site, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ site, data = filter(d, Species == "TRES", occasion == 2)))
+```
+
+The sites are different for WEBL. Do we think this matters?
+
+## brds _||_ year | jl_d, srft
+
+```{r}
+summary(lm(brood_size ~ year + juliandate + meanmaxtempI, data = filter(d, Species == "WEBL", occasion == 2)))
+summary(lm(brood_size ~ year + juliandate + meanmaxtempI, data = filter(d, Species == "TRES", occasion == 2)))
+```
+
+The years are different as well. I think this just means adding in these connections.
+
+## hbtt _||_ hmdt
+
+```{r}
+summary(lm(meanh ~ habitat, data = filter(d, Species == "WEBL")))
+summary(lm(meanh ~ habitat, data = filter(d, Species == "TRES")))
+```
+
+Yeah I'm not sure why we left out this connection.
+
+## hbtt _||_ jl_d
+
+```{r}
+summary(lm(juliandate ~ habitat, data = filter(d, Species == "WEBL")))
+summary(lm(juliandate ~ habitat, data = filter(d, Species == "TRES")))
+```
+
+This probably points to a selection problem - WEBL were nesting later in orchard and grassland than forest.
+
+
+## hmdt _||_ jl_d
+
+```{r}
+summary(lm(meanh ~ juliandate, data = d))
+# summary(lm(meanh ~ juliandate, data = filter(d, Species == "TRES")))
+```
+
+Later in the summer it's more humid???
+
+## hmdt _||_ mt_1 | brds, jl_d, srft
+
+```{r}
+summary(lm(meanh ~ cort_s1_mother + brood_size + juliandate + meanmaxtempI, data = filter(d, Species == "WEBL")))
+summary(lm(meanh ~ cort_s1_mother + brood_size + juliandate + meanmaxtempI, data = filter(d, Species == "TRES")))
+```
+
+Looks like there might be some missing humidity connections
+
+## hmdt _||_ site
+
+```{r}
+summary(lm(meanh ~ site, data = d))
+```
+
+This could be a connection to add
+
+## hmdt _||_ srft
+
+```{r}
+summary(lm(meanh ~ meanmaxtempI, data = d))
+```
+
+This assumption is definitely violated and needs to be added to the DAG
+
+## hmdt _||_ year
+
+```{r}
+summary(lm(meanh ~ year, data = d))
+```
+Also maybe needs to be added 
+
+
+## jl_d _||_ nstc | brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lm(juliandate ~ condition + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "WEBL")))
+summary(lm(juliandate ~ condition + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "TRES")))
+```
+
+## jl_d _||_ nstg | attm, brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lm(juliandate ~ gweight + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "WEBL")))
+summary(lm(juliandate ~ gweight + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "TRES")))
+```
+## jl_d _||_ s1_c | brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "WEBL")))
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d, Species == "TRES")))
+```
+
+## jl_d _||_ site
+
+```{r}
+summary(lm(juliandate ~ site, data = filter(d,Species == "WEBL", occasion == 2)))
+summary(lm(juliandate ~ site, data = filter(d,Species == "TRES", occasion == 2)))
+```
+
+Another selection artifact?
+
+## jl_d _||_ year
+
+```{r}
+summary(lm(juliandate ~ year, data = filter(d, occasion == 2)))
+```
+
+2023 was much later? Another selection artifact. Good to include.
+
+## mt_1 _||_ year | hbtt, jl_d, srft
+
+```{r}
+summary(lm(cort_s1_mother ~ year + habitat + juliandate + meanmaxtempI, data = filter(d,Species == "WEBL", occasion == 2)))
+summary(lm(cort_s1_mother ~ year + habitat + juliandate + meanmaxtempI, data = filter(d,Species == "TRES", occasion == 2)))
+```
+
+Hmm. Also might be a selection artifact that would be good to include in the DAG.
+
+
+## site _||_ srft
+```{r}
+summary(lm(meanmaxtempI ~ site, data = filter(d, Species == "WEBL")))
+summary(lm(meanmaxtempI ~ site, data = filter(d, Species == "TRES")))
+```
+
+Weird. Independent for WEBL but not for TRES. I guess that's selection bias again??
+
+## site _||_ year
+
+Not sure how to test this one given that both are factors. Actually, given that one of the winters sites closed down in 2023, maybe this would be good to include.
+
+
+# DAG 3rd iteration
+
+```{r,fig.width=7,fig.height=5}
+g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + humidity + surftemp + attempt + nest_age,
+            s1_cort ~ site + mother_s1 + habitat + foodprovis + humidity + surftemp + broodsize + nest_age,
+            nestcond ~ s1_cort + foodprovis + broodsize,
+            foodprovis ~ habitat + year + mother_s1 + site + humidity + surftemp + broodsize + nest_age,
+            mother_s1 ~ site + surftemp + attempt + habitat  + jul_date + broodsize + humidity + year,
+            surftemp ~ year + habitat + jul_date + site + attempt,
+            broodsize ~ jul_date + surftemp + humidity + site + year + attempt + habitat,
+            humidity ~ surftemp + habitat + year + jul_date + site,
+            jul_date ~~ habitat,
+            jul_date ~ site + year,
+            attempt ~~ year,
+            nest_age ~ attempt,
+            site ~ year,
+            exposure = c("surftemp","habitat"),
+            outcome = "nestgrowth"#,
+            # latent = "attempt"#,
+            # latent = "foodprovis"
+            )
+
+(p <- ggdag_status(g,layout = "nicely",node_size = 10) + 
+  geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
+
+# ggsave("../figures/dag3.png",plot = p)
+
+## Exposure = local temp, habitat. outcome: nestling growth
+
+adjSet_canon <- adjustmentSets(g)
+# direct_canon <- adjustmentSets(g,type = 'canonical',effect = "direct")
+adjSet_minimal <- adjustmentSets(g)
+# direct_minimal <- adjustmentSets(g,effect = "direct")
+print(adjSet_canon)
+print(adjSet_minimal)
+
+impliedConditionalIndependencies(g)
+
+```
+## I'm not sure how to test these
+
+attm _||_ hbtt
+attm _||_ hmdt | hbtt, jl_d, srft, year
+attm _||_ jl_d | year
+attm _||_ nstc | brds, hbtt, hmdt, mt_1, site, srft, year
+attm _||_ s1_c | brds, hbtt, hmdt, mt_1, site, srft, year
+attm _||_ site | year
+hbtt _||_ site
+hbtt _||_ year
+
+## jl_d _||_ nstc | brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "WEBL")))
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "TRES")))
+```
+
+## jl_d _||_ nstg | attm, brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lmer(juliandate ~ gweight + (1|attempt) + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "WEBL")))
+summary(lmer(juliandate ~ gweight + (1|attempt) + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "TRES")))
+```
+
+## jl_d _||_ s1_c | brds, hbtt, hmdt, mt_1, site, srft, year
+
+```{r}
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "WEBL")))
+summary(lm(juliandate ~ cort_s1 + brood_size + habitat + meanh + cort_s1_mother + site + meanmaxtempI + year, data = filter(d,Species == "TRES")))
+```
+
+This DAG seems better supported. Lots of forgotten connections that in retrospect make sense.
+
+
+## Adjustment sets: sets of variables that allow unbiased estimate of causal relationship by closing backdoor paths that could confound the estimate
+
+### For exposure = all four of our focal variables, i.e. local temp, habitat, nestling stress, and food provisioning
+
+```{r}
+adjSet_canon <- adjustmentSets(g,type = 'canonical',exposure = c("foodprovis","surftemp","habitat","s1_cort"))
+# direct_canon <- adjustmentSets(g,type = 'canonical',effect = "direct")
+adjSet_minimal <- adjustmentSets(g)
+direct_minimal <- adjustmentSets(g,effect = "direct")
+print(adjSet_canon)
+# print(direct_canon)
+```
+```{r}
+print(adjSet_minimal)
+print(direct_minimal)
+```
+
+### For exposure = just the two proximate variables, i.e. nestling stress and food provisioning
+
+```{r}
+adjSet_canon <- adjustmentSets(g,type = 'canonical',exposure = c("s1_cort","foodprovis"))
+#adjSet_minimal <- adjustmentSets(g,exposure = c("s1_cort","foodprovis"))
+#direct_minimal <- adjustmentSets(g,exposure = c("s1_cort","foodprovis","habitat"),effect = "direct")
+print(adjSet_canon)
+
+```
+```{r}
+dag <- dagify(Growth ~ Nestling_cort + Condition + Provisioning + Humidity + Temperature + Nest_ID + Age,
+            Nestling_cort ~ Site + Mother_cort + Land_cover + Provisioning + Humidity + Temperature + Brood_size + Age,
+            Condition ~ Nestling_cort + Provisioning + Brood_size,
+            Provisioning ~ Land_cover + Year + Mother_cort + Site + Humidity + Temperature + Brood_size + Age,
+            Mother_cort ~ Site + Temperature + Nest_ID + Land_cover  + Julian_date + Brood_size + Humidity + Year,
+            Temperature ~ Year + Land_cover + Julian_date + Site + Nest_ID,
+            Brood_size ~ Julian_date + Temperature + Humidity + Site + Year + Nest_ID + Land_cover,
+            Humidity ~ Temperature + Land_cover + Year + Julian_date + Site,
+            Julian_date ~~ Land_cover,
+            Julian_date ~ Site + Year,
+            Nest_ID ~~ Year,
+            Age ~ Nest_ID,
+            Site ~ Year,
+            # exposure = c("Provisioning","Nestling_cort"),
+            outcome = "Growth"#,
+            # latent = "Nest_ID"#,
+            # latent = "Provisioning"
+            )
+
+(p <- ggdag_status(dag,layout = "nicely",node_size = 10) + 
+  geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
+
+ggsave("../figures/dag3.png",plot = p)
+
+adjSet_minimal <- adjustmentSets(dag,exposure = c("foodprovis","s1_cort")) # total effect
+direct_minimal <- adjustmentSets(dag,exposure = c("foodprovis","s1_cort"),effect = "direct") # direct effect
+print("total effect of provis + cort")
+print(adjSet_minimal)
+print("direct effect of provis + cort")
+print(direct_minimal)
+
+print("canonical adjustment set for total effect of provis + cort")
+adjustmentSets(dag,exposure = c("foodprovis","s1_cort"),type = "canonical") # total effect + precision. I'll try this one too.
+
+
+adjSet_minimal <- adjustmentSets(dag,exposure = c("foodprovis")) # total effect
+direct_minimal <- adjustmentSets(dag,exposure = c("foodprovis"),effect = "direct") # total effect
+print("total effect of provis")
+print(adjSet_minimal)
+print("direct effect of provis")
+print(direct_minimal)
+
+```
+
+### For outcome = provisioning rate, and exposure = habitat and temp
+
+```{r}
+adjSet_canon <- adjustmentSets(g,type = 'canonical',outcome = c("nestgrowth"),exposure = c("habitat","surftemp"))
+adjSet_minimal <- adjustmentSets(g,outcome = c("foodprovis"),exposure = c("habitat","surftemp"))
+direct_minimal <- adjustmentSets(g,exposure = c("s1_cort","foodprovis"),effect = "direct")
+print(adjSet_canon)
+```

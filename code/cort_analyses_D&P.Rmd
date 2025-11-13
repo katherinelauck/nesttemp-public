@@ -1,0 +1,106 @@
+---
+title: "Cort models with final set of predictors"
+author: "Katherine Lauck"
+date: "2024-04-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE,message = FALSE)
+library(tidyverse)
+require(ggeffects)
+require(lme4)
+require(viridis)
+library(car)
+library(gt)
+g <- read_rds("../data/growth.rds")
+```
+
+## Does the interaction of temp and land cover affect cort?
+
+```{r, echo = TRUE}
+cortbytemp_WEBL_poly <- lmerTest::lmer(log(cort_s1) ~ poly(meanmaxtempI_scaled,2,raw = TRUE) * habitat + poly(meanmintempI_scaled,2) * habitat + poly(meanmaxtempI_scaled,2,raw = TRUE) * meanh_scaled + brood_size + age_scaled + juliandate_scaled + (1|year) + (1|site/attempt_id),
+                                       data = (filter(g,Species == "WEBL",
+                                                     # !is.nan(cort_s1),
+                                                     !is.na(meanmaxtempI),
+                                                     !is.na(cort_s1)) %>%
+                                    mutate(across(c(cort_s1,
+                                                    meanmaxtempI,
+                                                    meanmintempI,
+                                                    meanh,
+                                                    cort_s1_mother,
+                                                    age,
+                                                    juliandate),
+                                                  ~ scale(.x)[,1],
+                                                  .names = "{.col}_scaled"),
+                                           meanmaxtempI_scaled_sq = 
+                                             meanmaxtempI_scaled * meanmaxtempI_scaled)))
+
+model <- cortbytemp_WEBL_poly
+```
+
+## Summary
+
+```{r}
+t <- summary(model) %>% coef()
+p <- row.names(t)
+t <- t %>% data.frame()
+names(t) <- c("Estimate","SE","df","t","P-value")
+t %>% mutate(Predictor = p, .before = Estimate) %>% tibble() %>%
+  dplyr::select(!c(t,df)) %>%
+  mutate_at(c("Estimate", "SE"), round, digits = 2) %>%
+  mutate_at("P-value",round, digits = 4) %>%
+  gt() %>% tab_options(data_row.padding = px(4))
+```
+
+## Plot
+
+```{r}
+
+
+p <- ggpredict(model,terms = c("meanmaxtempI_scaled [all]","habitat")) %>% plot(line.size = 1.5,
+                                                                                            alpha = .2,show_data = TRUE) +
+    theme_classic() +
+    xlab("Maximum temperature (\u00B0C)") +
+    ylab("Nestling cort (\U00B5g/mL)") +
+    labs(title = element_blank(),color = "Cover type") +
+   # ggtitle("Predicted growth across habitat and mean max daily temp") +
+    scale_fill_viridis(discrete = TRUE) +
+    scale_color_viridis(discrete = TRUE) +
+    theme(text = element_text(size = 13)) +
+  ylim(-2,20)
+
+mround <- function(x,base){
+	base*round(x/base)
+}
+
+unscale_x <- function(axis_break) {
+  if(is.na(axis_break)) {
+    return(NA)
+  } else {
+    sd_x = getData(model) %>% pull(meanmaxtempI) %>% sd(na.rm = TRUE)
+    mean_x = getData(model) %>% pull(meanmaxtempI) %>% mean(na.rm = TRUE)
+    out <- (axis_break * sd_x + mean_x) %>% mround(5)
+  }
+}
+
+unscale_y <- function(axis_break) {
+  if(is.na(axis_break)) {
+    return(0)
+  } else {
+    sd_y = getData(model) %>% pull(cort_s1) %>% sd(na.rm = TRUE)
+    mean_y = getData(model) %>% pull(cort_s1) %>% mean(na.rm = TRUE)
+    out <- (axis_break * sd_y + mean_y) %>% round(digits = 1)
+  }
+}
+
+p_rescaled <- p +
+   scale_x_continuous(labels = map(layer_scales(p)$x$break_positions(),unscale_x) %>% unlist())#  +
+   # scale_y_continuous(labels = map(layer_scales(p)$y$break_positions(),unscale_y) %>% unlist()))
+
+p_rescaled
+
+ggsave("../figures/cortbytemp.png",p_rescaled)
+```
+
+

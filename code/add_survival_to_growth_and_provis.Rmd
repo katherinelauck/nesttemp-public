@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r setup, include = FALSE}
+require(tidyverse)
+require(lubridate)
+source('../code/helper_functions.R')
+
+eggs_nestlings_to_numeric <- function(string) {
+  strip <- str_match(string,"([0-9]+)|(Skipped)|(skipped)") %>% replace_na("0")
+  strip[which(strip %in% c("Skipped","skipped"))] <- NA
+  return(as.numeric(strip[,1]))
+}
+d <- nestbox_drive_get("nest_checks") %>%
+  mutate(Eggs = eggs_nestlings_to_numeric(Eggs),Nestlings = eggs_nestlings_to_numeric(Nestlings),
+         year = year(Date)) %>%
+  group_by(Nestbox,year) %>%
+  mutate(Species = ifelse(Species == "ATFL!","ATFL",Species),
+         Species = ifelse(Species == "HOFI (?)","HOFI",Species),
+         `Wing chords` = as.character(`Wing chords`),
+         `Wing chords` = ifelse(`Wing chords` == "NULL",NA,`Wing chords`)) %>%
+  mutate(site = str_extract(Nestbox,"([:alpha:]|[:punct:])+")) %>%
+  filter(site %in% c('MBNG','MBNR','PICG','PICO','PICR',"RRRG","RRRR"))
+
+dead_nestlings <- filter(d,!is.na(dead_nestlings))
+```
+
+
+### Pull all nest checks for each nest-year with dead nestlings
+
+We will assume that any nestlings without a band number as an ID either died or disappeared. In addition to that, we want to detect the nestlings that did not successfully fledge by making a list of band numbers of nestlings that were found dead in the nest at equipment removal.
+
+This will only be for non-MFWB nests. Need to also access nest checks for non-MFWB nests.
+
+First step is to try to understand how to parse comments by looking at the context around dead nestling records
+
+```{r}
+box_years <- dead_nestlings %>% select(year,Nestbox) %>% distinct() %>% mutate(combined = paste(year,Nestbox,sep = "_"))
+
+dead_checks <- filter(d, paste0(year,"_",Nestbox) %in% box_years$combined) %>% arrange(year, Nestbox, Date)
+write_csv(dead_checks,"../data/dead_nestlings_nonmfwb.csv")
+
+
+```
+
+Looks like there are few enough that I can just list them manually. Whole nest banded 2023-07-13 RRRR3 dead next check
+2941-94712
+2941-94713
+2941-94714
+
+
+```{r}
+dead_bands <- c("2631-20722","2631-20648","2631-20707","2631-20647","2881-65934","2881-65923","2881-65926","2941-94708","2941-94712","2941-94713","2941-94714","1351-53375","2631-20886","2631-20887","2941-18490","2811-15883")
+```
+
+Next step is to mark nestling as survived or not
+
+```{r}
+g <- read_rds("../data/growth_and_provis.rds") %>%
+  mutate(abs_change_cort = cort_s2-cort_s1,
+         prop_change_cort = (cort_s2-cort_s1)/cort_s1,
+         year_fct = as.factor(year))
+p <- read_rds("../data/provis_with_attempt_1h.rds") %>%
+  mutate(year = year(date),
+         year_fct = as.factor(year))
+
+c <- read_rds("../data/cort_with_id.rds")
+```
+
+Because we aren't able to track all individuals across occasions, we should also exclude attempts where there are any "color2"s in the nestling color column. This will prevent us from underestimating survival by assuming that all chicks without a band number died. This assumes that the correct unit of replication is the individual. There could be other units of replication - each nest-week? 
+
+```{r}
+exclude_attempts <- filter(g,grepl("2",color)) %>% select(attempt_id) %>% distinct()
+print(nrow(exclude_attempts))
+
+g <- g %>% mutate(survive_to_fledge = if_else(str_detect(ind_id,"[:digit:]{4}-[:digit:]{5}") & !(ind_id %in% dead_bands),
+                                          1,
+                                          0),
+                  survive_to_fledge = if_else(attempt_id %in% exclude_attempts$attempt_id,NA_integer_,survive_to_fledge))
+```
+
+```{r}
+write_rds(g,"../data/growth_with_survival.rds")
+```
+
