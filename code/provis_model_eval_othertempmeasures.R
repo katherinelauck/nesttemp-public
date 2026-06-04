@@ -29,9 +29,9 @@ library(hms)
 library(emmeans)
 library(future)
 
-instant_temp <- read_rds("../data/provis_manytempmeasures.rds")
+instant_temp <- read_rds("data/provis_manytempmeasures.rds")
 
-b <- read_csv("data/banding-and-morphometrics_proofed.csv")
+# b <- read_csv("data/banding-and-morphometrics_proofed.csv")  # unused
 
 
 g <- read_rds("data/growth_cort_provis_manytempmeasures.rds")

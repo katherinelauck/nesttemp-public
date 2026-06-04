@@ -12,6 +12,7 @@ library(ggdag)
 library(ggplot2)
 library(igraph)
 library(tidyverse)
+library(lme4)
 ```
 
 ## Proposed DAG
@@ -441,19 +442,19 @@ dag <- dagify(Growth ~ Nestling_cort + Condition + Provisioning + Humidity + Tem
 
 ggsave("../figures/dag3.png",plot = p)
 
-adjSet_minimal <- adjustmentSets(dag,exposure = c("foodprovis","s1_cort")) # total effect
-direct_minimal <- adjustmentSets(dag,exposure = c("foodprovis","s1_cort"),effect = "direct") # direct effect
+adjSet_minimal <- adjustmentSets(dag,exposure = c("Provisioning","Nestling_cort")) # total effect
+direct_minimal <- adjustmentSets(dag,exposure = c("Provisioning","Nestling_cort"),effect = "direct") # direct effect
 print("total effect of provis + cort")
 print(adjSet_minimal)
 print("direct effect of provis + cort")
 print(direct_minimal)
 
 print("canonical adjustment set for total effect of provis + cort")
-adjustmentSets(dag,exposure = c("foodprovis","s1_cort"),type = "canonical") # total effect + precision. I'll try this one too.
+adjustmentSets(dag,exposure = c("Provisioning","Nestling_cort"),type = "canonical") # total effect + precision. I'll try this one too.
 
 
-adjSet_minimal <- adjustmentSets(dag,exposure = c("foodprovis")) # total effect
-direct_minimal <- adjustmentSets(dag,exposure = c("foodprovis"),effect = "direct") # total effect
+adjSet_minimal <- adjustmentSets(dag,exposure = c("Provisioning")) # total effect
+direct_minimal <- adjustmentSets(dag,exposure = c("Provisioning"),effect = "direct") # total effect
 print("total effect of provis")
 print(adjSet_minimal)
 print("direct effect of provis")

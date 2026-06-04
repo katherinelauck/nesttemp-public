@@ -6,4 +6,14 @@ desktop.ini
 *.gform
 *.img
 ~*
+# Generated outputs (reproduced by running Snakemake)
+figures/*.png
+figures/*.html
+!figures/Figure 1 nestbox-monitoring.png
+# Snakemake internals
+.snakemake/
+# R render artifacts
+Rplots.pdf
+code/*.html
+code/*.nb.html
 

@@ -11,7 +11,6 @@ require(tidyverse)
 require(lubridate)
 require(ggeffects)
 require(lme4)
-library(hemispheR)
 library(viridis)
 library(ggpubr)
 library(patchwork)
@@ -43,11 +42,11 @@ g <- read_rds('../data/morph.rds')
 ```{r,echo=TRUE}
 wmean <- t %>%
   group_by(date,habitat,logger_position) %>%
-  summarize(meanmax = mean(max),n = n(),.groups = "keep") %>%
+  summarize(meanmax = mean(maxt),n = n(),.groups = "keep") %>%
   ungroup(habitat) %>%
   summarize(wmean = weighted.mean(meanmax,n)) %>%
   right_join(t,by = c("date","logger_position")) %>%
-  mutate(resid = max - wmean)
+  mutate(resid = maxt - wmean)
 ```
 
 ```{r,echo=TRUE}
@@ -103,9 +102,12 @@ ann_text <- data.frame(habitat = factor(rep(c("Forest",
   theme(strip.background = element_blank(),legend.position = "none",strip.text.x = element_text(angle = 0, hjust = 0,size = 16)))
 ggsave("../figures/max-weightedmean_combined.png",p2,width = 6, height = 4)
 ```
+```{r, include=FALSE}
+knitr::opts_chunk$set(eval=FALSE)
+```
 ## Implement 3
 ```{r,echo=TRUE}
-lmresid <- tibble(lmresid = resid(aov(max~yday(date),wmean)))
+lmresid <- tibble(lmresid = resid(aov(maxt~yday(date),wmean)))
 lmresid <- wmean %>% ungroup() %>% mutate(lmresid = pull(lmresid,lmresid))
 ```
 ### Outside loggers
@@ -172,7 +174,7 @@ TukeyHSD(aov(resid40~habitat, filter(lmresid,logger_position == "I")),conf.level
 # Clean & build growth dataset
 
 ## Calculate weekly growth by matching colors/names and boxes
-```{r,echo=TRUE}
+```{r,echo=TRUE,eval=FALSE}
 growth <- function(d,...) {
   out <- d %>% select(year,Nestbox,color,date,Species,
                       `Weight (g)`,
@@ -289,19 +291,19 @@ dg <- gr %>%
   mutate(juliandate = yday(date)) %>%
   left_join(cc,by = join_by(year == year,Nestbox == nestbox)))
 ```
-```{r,include=TRUE}
+```{r,include=TRUE,eval=FALSE}
 filtertemp <- map2(pull(dg,interval),pull(dg,Nestbox),function(x,y){filter(t,date %within% x,box == y)})
 dg <- dg %>%
     mutate(meanmaxtempI = filtertemp %>%
-             map_dbl(function(x){filter(x,logger_position == "I") %>% pull(max) %>% mean()}),
+             map_dbl(function(x){filter(x,logger_position == "I") %>% pull(maxt) %>% mean()}),
            maxmaxtempI = filtertemp %>%
-             map_dbl(function(x){filter(x,logger_position == "I") %>% pull(max) %>% max(na.rm = TRUE)}),
+             map_dbl(function(x){filter(x,logger_position == "I") %>% pull(maxt) %>% max(na.rm = TRUE)}),
            cumulativeover40I = filtertemp %>%
              map_dbl(function(x){filter(x,logger_position == "I") %>% pull(time_above_40) %>% sum()}),
            meanmaxtempO = filtertemp %>%
-             map_dbl(function(x){filter(x,logger_position == "O") %>% pull(max) %>% mean()}),
+             map_dbl(function(x){filter(x,logger_position == "O") %>% pull(maxt) %>% mean()}),
            maxmaxtempO = filtertemp %>%
-             map_dbl(function(x){filter(x,logger_position == "O") %>% pull(max) %>% max(na.rm = TRUE)}),
+             map_dbl(function(x){filter(x,logger_position == "O") %>% pull(maxt) %>% max(na.rm = TRUE)}),
            cumulativeover40O = filtertemp %>%
              map_dbl(function(x){filter(x,logger_position == "O") %>% pull(time_above_40) %>% sum}))
 # write_rds(dg,"../data/growth.rds")
@@ -363,8 +365,7 @@ over40I_canopy <- lmerTest::lmer(gweight~cumulativeover40I * canopy_cover + cumu
 ### Outside loggers
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanO,terms = c("meanmaxtempO","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanO,terms = c("meanmaxtempO","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum temperature") +
     ylab("Weekly nestling growth") +
@@ -377,8 +378,7 @@ summary(meanO)
 ```
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat","Species")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat","Species")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Maximum temperature (z-scaled)") +
     ylab("Nestling growth (z-scaled)") +
@@ -390,8 +390,7 @@ summary(meanO)
 ggsave("../figures/growthbymeanI.png",p,width = 6,height = 4)
 summary(meanI)
 
-(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Maximum temperature (z-scaled)") +
     ylab("Nestling growth (z-scaled)") +
@@ -402,8 +401,7 @@ summary(meanI)
     legend.text = element_text(color = "transparent"),axis.text = element_text(color = "transparent"),axis.ticks = element_line(color = "transparent"),axis.line = element_line(color = "transparent"),axis.title = element_text(color = "transparent"),panel.background = element_rect(fill = "transparent"),plot.background = element_rect(fill = "transparent"),panel.border = element_rect(color = "transparent",fill = "transparent"),legend.background = element_rect(fill = "transparent"),legend.box.background = element_rect(color = "transparent",fill = "transparent"))
    )
 ggsave("../figures/growthbymeanI_rowcrop.png",p,bg = "transparent",width = 6,height = 4)
-(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Maximum temperature (z-scaled)") +
     ylab("Nestling growth (z-scaled)") +
@@ -414,8 +412,7 @@ ggsave("../figures/growthbymeanI_rowcrop.png",p,bg = "transparent",width = 6,hei
     legend.text = element_text(color = "transparent"),axis.text = element_text(color = "transparent"),axis.ticks = element_line(color = "transparent"),axis.line = element_line(color = "transparent"),axis.title = element_text(color = "transparent"),panel.background = element_rect(fill = "transparent"),plot.background = element_rect(fill = "transparent"),panel.border = element_rect(color = "transparent",fill = "transparent"),legend.background = element_rect(fill = "transparent"),legend.box.background = element_rect(color = "transparent",fill = "transparent"))
    )
 ggsave("../figures/growthbymeanI_rowcropforest.png",p,bg = "transparent",width = 6,height = 4)
-(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI,terms = c("meanmaxtempI","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum temperature") +
     ylab("Weekly nestling growth") +
@@ -429,8 +426,7 @@ ggsave("../figures/growthbymeanI_rowcropforestgrassland.png",p,bg = "transparent
 ```
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanI_WEBL,terms = c("meanmaxtempI","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI_WEBL,terms = c("meanmaxtempI","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum internal temperature") +
     ylab("Predicted weekly WEBL nestling growth") +
@@ -442,8 +438,7 @@ summary(meanI_WEBL)
 ```
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanO_TRES,terms = c("meanmaxtempO","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanO_TRES,terms = c("meanmaxtempO","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum external temperature") +
     ylab("Predicted weekly TRES nestling growth") +
@@ -471,8 +466,7 @@ summary(meanI)
 ```
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanI_TRES,terms = c("meanmaxtempI","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanI_TRES,terms = c("meanmaxtempI","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum internal temperature") +
     ylab("Predicted weekly TRES nestling growth") +
@@ -484,8 +478,7 @@ summary(meanI_TRES)
 ```
 ```{r,echo=TRUE}
 
-(p <- ggpredict(meanO_canopy,terms = c("meanmaxtempO","canopy_cover","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanO_canopy,terms = c("meanmaxtempO","canopy_cover","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum external temperature") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -497,7 +490,7 @@ summary(meanO_canopy)
 
 (p <- ggpredict(meanI_canopy,terms = c("meanmaxtempI","canopy_cover")) %>% 
     filter(group != "0.03") %>%
-    plot(line.size = 1.5,alpha = .2) + 
+    plot(alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum temperature") +
     ylab("Weekly nestling growth") +
@@ -509,7 +502,7 @@ summary(meanI_canopy)
 
 (p <- ggpredict(meanI_canopy,terms = c("meanmaxtempI","canopy_cover")) %>% 
     filter(group != "0.03") %>%
-    plot(line.size = 1.5,alpha = .2) + 
+    plot(alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum temperature") +
     ylab("Weekly nestling growth") +
@@ -519,8 +512,7 @@ summary(meanI_canopy)
 ggsave("../figures/growthbymeanI_canopy.png",p,width = 6,height = 4)
 summary(meanI_canopy)
 
-(p <- ggpredict(meanO_canopy_nohabitat,terms = c("meanmaxtempO","canopy_cover")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(meanO_canopy_nohabitat,terms = c("meanmaxtempO","canopy_cover")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly mean maximum external temperature") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -532,7 +524,7 @@ summary(meanO_canopy_nohabitat)
 
 (p <- ggpredict(meanI_canopy_nohabitat,terms = c("meanmaxtempI","canopy_cover")) %>% 
     filter(group != "0.03") %>%
-    plot(line.size = 1.5,alpha = .2) + 
+    plot(alpha = .2) + 
   theme_classic() +
     xlab("Maximum temperature (z-scaled)") +
     ylab("Weekly nestling growth (z-scaled)") +
@@ -543,8 +535,7 @@ summary(meanO_canopy_nohabitat)
 ggsave("../figures/growthbymeanI_canopy_nohabitat.png",p,width = 6,height = 4)
 summary(meanI_canopy_nohabitat)
 
-(p <- ggpredict(canopyxhabitat,terms = c("canopy_cover","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(canopyxhabitat,terms = c("canopy_cover","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Canopy cover") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -596,8 +587,7 @@ ggsave("../figures/growthbyspecies.png",box,width = 6,height = 4)
 
 ```
 ```{r,echo=TRUE}
-(p <- ggpredict(over40O_canopy,terms = c("cumulativeover40O","canopy_cover","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40O_canopy,terms = c("cumulativeover40O","canopy_cover","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative external temperature over 40C") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -606,8 +596,7 @@ ggsave("../figures/growthbyspecies.png",box,width = 6,height = 4)
    scale_color_viridis(discrete = TRUE))
 ggsave("../figures/growthbycumulative40O_canopy.png",p,width = 6,height = 4)
 summary(over40O_canopy)
-(p <- ggpredict(over40O_canopy,terms = c("cumulativeover40O","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40O_canopy,terms = c("cumulativeover40O","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative external temperature over 40C") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -629,8 +618,7 @@ lm(cumulativeover40O ~ canopy_cover,data = dg) %>% summary()
 ```
 ### Inside loggers
 ```{r,echo=TRUE}
-(p <- ggpredict(over40I,terms = c("cumulativeover40I","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40I,terms = c("cumulativeover40I","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative internal temperature over 40C") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -640,8 +628,7 @@ lm(cumulativeover40O ~ canopy_cover,data = dg) %>% summary()
 ggsave("../figures/growthbycumulative40I.png",p,width = 6,height = 4)
 summary(over40I)
 
-(p <- ggpredict(over40I_canopy,terms = c("cumulativeover40I","canopy_cover","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40I_canopy,terms = c("cumulativeover40I","canopy_cover","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative internal temperature over 40C") +
     ylab("Predicted weekly nestling growth (TRES and WEBL)") +
@@ -652,8 +639,7 @@ ggsave("../figures/growthbycumulative40I_canopy.png",p,width = 6,height = 4)
 summary(over40I_canopy)
 ```
 ```{r,echo=TRUE}
-(p <- ggpredict(over40I_WEBL,terms = c("cumulativeover40I","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40I_WEBL,terms = c("cumulativeover40I","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative internal temperature over 40C") +
     ylab("Predicted weekly WEBL nestling growth") +
@@ -664,8 +650,7 @@ ggsave("../figures/growthbycumulative40I_WEBL.png",p,width = 6,height = 4)
 summary(over40I_WEBL)
 ```
 ```{r,echo=TRUE}
-(p <- ggpredict(over40O_WEBL,terms = c("cumulativeover40O","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40O_WEBL,terms = c("cumulativeover40O","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative external temperature over 40C") +
     ylab("Predicted weekly WEBL nestling growth") +
@@ -676,8 +661,7 @@ ggsave("../figures/growthbycumulative40O_WEBL.png",p,width = 6,height = 4)
 summary(over40O_WEBL)
 ```
 ```{r,echo=TRUE}
-(p <- ggpredict(over40I_TRES,terms = c("cumulativeover40I","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40I_TRES,terms = c("cumulativeover40I","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative internal temperature over 40C") +
     ylab("Predicted weekly TRES nestling growth") +
@@ -688,8 +672,7 @@ ggsave("../figures/growthbycumulative40I_TRES.png",p,width = 6,height = 4)
 summary(over40I_TRES)
 ```
 ```{r,echo=TRUE}
-(p <- ggpredict(over40O_TRES,terms = c("cumulativeover40O","habitat")) %>% plot(line.size = 1.5,
-                                                                         alpha = .2) + 
+(p <- ggpredict(over40O_TRES,terms = c("cumulativeover40O","habitat")) %>% plot(                                                                         alpha = .2) + 
   theme_classic() +
     xlab("Weekly cumulative external temperature over 40C") +
     ylab("Predicted weekly TRES nestling growth") +

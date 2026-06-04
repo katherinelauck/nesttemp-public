@@ -29,17 +29,16 @@ library(hms)
 library(emmeans)
 # modelsummary::get_gof(my_model)
 # performance::model_performance(my_model)
-wmean <- read_rds("data/wmean.rds")
-
-g <- read_rds("data/growth_and_provis_mobilenetv3-original_dataset.h5.rds")
-p2 <- read_rds("data/provis_with_attempt_1h_mobilenetv3-original_dataset.h5.rds") %>%
-  mutate(year = year(date),
-         year_fct = as.factor(year)) %>%
-  mutate(model = "mobilenetv3",.before = start)
-p1 <- read_rds("data/provis_with_attempt_1h.rds") %>%
-  mutate(year = year(date),
-         year_fct = as.factor(year)) %>%
-  mutate(model = "squeezenet",.before = start)
+# wmean <- read_rds("data/wmean.rds")  # unused
+# g <- read_rds("data/growth_and_provis_mobilenetv3-original_dataset.h5.rds")  # superseded
+# p2 <- read_rds("data/provis_with_attempt_1h_mobilenetv3-original_dataset.h5.rds") %>%  # superseded
+#   mutate(year = year(date),
+#          year_fct = as.factor(year)) %>%
+#   mutate(model = "mobilenetv3",.before = start)
+# p1 <- read_rds("data/provis_with_attempt_1h.rds") %>%  # superseded
+#   mutate(year = year(date),
+#          year_fct = as.factor(year)) %>%
+#   mutate(model = "squeezenet",.before = start)
 
 p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),

@@ -450,7 +450,8 @@ name_key_growth <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
                "Max temp slope in row crops",
                "Min temp slope in orchards",
                "Min temp slope in grasslands",
-               "Min temp slope in row crops"))
+               "Min temp slope in row crops",
+               "Max temp × Julian date"))
 ```
 
 

@@ -31,7 +31,7 @@ library(emmeans)
 library(patchwork)
 # modelsummary::get_gof(my_model)
 # performance::model_performance(my_model)
-wmean <- read_rds("data/wmean.rds")
+# wmean <- read_rds("data/wmean.rds")  # unused
 
 # g <- read_rds("data/growth_and_provis_combined_mobilenetv3-original_dataset.h5.rds") %>%
 #   mutate(abs_change_cort = cort_s2-cort_s1,
@@ -41,7 +41,7 @@ p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset
   mutate(year = year(date),
          year_fct = as.factor(year))
 
-b <- read_csv("data/banding-and-morphometrics_proofed.csv")
+# b <- read_csv("data/banding-and-morphometrics_proofed.csv")  # unused
 
 
 g <- read_rds("data/growth_cort_provis_manytempmeasures.rds")

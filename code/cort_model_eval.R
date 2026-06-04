@@ -29,7 +29,7 @@ library(weathermetrics)
 library(future)
 # modelsummary::get_gof(my_model)
 # performance::model_performance(my_model)
-wmean <- read_rds("data/wmean.rds")
+# wmean <- read_rds("data/wmean.rds")  # unused
 
 g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))

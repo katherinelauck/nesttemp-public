@@ -88,10 +88,10 @@ ggsave("figures/figs2_s1cort_by_priordayt_hab.png",p_full,width = 6.25,height = 
 
 library(egg)
 ggplot_build(fig_priordayt_webl_s2)$layout$panel_scales_y
-ggplot_build(fig_priordayt_tres_S2)$layout$panel_scales_y
+ggplot_build(fig_priordayt_tres_s2)$layout$panel_scales_y
 (p_full <- ggarrange(fig_priordayt_webl_s2 + ylim(1.3,133) + labs(title = element_blank()) + theme(text = element_text(size = 12),
                                                                                          axis.title.x = element_blank()),
-                     fig_priordayt_tres_S2 + ylim(1.3,133) + labs(title = element_blank()) + theme(text = element_text(size = 12),axis.ticks.y = element_blank(),
+                     fig_priordayt_tres_s2 + ylim(1.3,133) + labs(title = element_blank()) + theme(text = element_text(size = 12),axis.ticks.y = element_blank(),
                                                                                          axis.text.y = element_blank(),
                                                                                          axis.title.y = element_blank(),
                                                                                          axis.title.x = element_text(hjust = -1)),ncol = 2,
