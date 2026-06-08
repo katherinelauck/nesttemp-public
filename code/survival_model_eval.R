@@ -999,7 +999,7 @@ c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_webl,"figures/int_tab_survival_nestpd_webl.html")
+# gtsave(int_tab_survival_nestpd_webl,"figures/int_tab_survival_nestpd_webl.html")
 
 
 
@@ -1011,7 +1011,7 @@ summary(s_nestpd_WEBL_addmin)
    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_webl,"figures/survivalbyhabitat_summary_webl.html")
+# gtsave(survivalbyhabitat_summary_webl,"figures/survivalbyhabitat_summary_webl.html")
 
 
 
@@ -1028,7 +1028,7 @@ gtsave(survivalbyhabitat_summary_webl,"figures/survivalbyhabitat_summary_webl.ht
    gt())
 
 
-gtsave(weblsurvival_nestpd_trendmax,"figures/weblsurvival_nestpd_trendmax.html")
+# gtsave(weblsurvival_nestpd_trendmax,"figures/weblsurvival_nestpd_trendmax.html")
 
 data = s_nestpd_WEBL_addmin$data
 
@@ -1069,7 +1069,7 @@ data = s_nestpd_WEBL_addmin$data
 (survival_nestpd_byhabitat_webl <- emmeans(s_nestpd_WEBL_addmin,"habitat") %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_webl,"figures/survival_nestpd_byhabitat_webl.html")
+# gtsave(survival_nestpd_byhabitat_webl,"figures/survival_nestpd_byhabitat_webl.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -1536,7 +1536,7 @@ c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_tres,"figures/int_tab_survival_nestpd_tres.html")
+# gtsave(int_tab_survival_nestpd_tres,"figures/int_tab_survival_nestpd_tres.html")
 
 
 
@@ -1551,7 +1551,7 @@ gtsave(int_tab_survival_nestpd_tres,"figures/int_tab_survival_nestpd_tres.html")
     gt())
 
 
-gtsave(tressurvival_nestpd_trendmax,"figures/tressurvival_nestpd_trendmax.html")
+# gtsave(tressurvival_nestpd_trendmax,"figures/tressurvival_nestpd_trendmax.html")
 
 
 summary(s_nestpd_TRES_noint)
@@ -1563,7 +1563,7 @@ summary(s_nestpd_TRES_noint)
 (survival_nestpd_byhabitat_tres <- emmeans(s_nestpd_TRES_noint,"habitat") %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_tres,"figures/survival_nestpd_byhabitat_tres.html")
+# gtsave(survival_nestpd_byhabitat_tres,"figures/survival_nestpd_byhabitat_tres.html")
 
 
 

@@ -378,7 +378,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
          across(c(AIC,Chisq), ~ round(.x, digits = 2)),
          P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
   group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_webl,"figures/int_tab_growth_webl.html")
+# gtsave(int_tab_growth_webl,"figures/int_tab_growth_webl.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -527,7 +527,7 @@ summary(g_lintemp)
    gt())
 
 
-gtsave(weblgrowthtrendmax,"figures/weblgrowthtrendmax.html")
+# gtsave(weblgrowthtrendmax,"figures/weblgrowthtrendmax.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
@@ -571,7 +571,7 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
 (growthbyhabitat_webl <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_webl,"figures/growthbyhabitat_webl.html")
+# gtsave(growthbyhabitat_webl,"figures/growthbyhabitat_webl.html")
 
 
 ### Check for effect of temperature
@@ -581,7 +581,7 @@ gtsave(growthbyhabitat_webl,"figures/growthbyhabitat_webl.html")
    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_webl,"figures/growthbyhabitat_summary_webl.html")
+# gtsave(growthbyhabitat_summary_webl,"figures/growthbyhabitat_summary_webl.html")
 
 
 ## min temp
@@ -647,7 +647,7 @@ summary(g_lintemp)
    gt())
 
 
-gtsave(t,"figures/weblgrowthtrendmin.html")
+# gtsave(t,"figures/weblgrowthtrendmin.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
@@ -676,7 +676,7 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintemp
     delim="_"
   ))
 
-gtsave(t,"figures/weblgrowthdeltamin.html")
+# gtsave(t,"figures/weblgrowthdeltamin.html")
 
 ((emmeans(g_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
 
@@ -806,7 +806,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
          across(c(AIC,Chisq), ~ round(.x, digits = 2)),
          P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
   group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_tres,"figures/int_tab_growth_tres.html")
+# gtsave(int_tab_growth_tres,"figures/int_tab_growth_tres.html")
 
 
 check_collinearity(g_lintemp_noint)
@@ -1028,7 +1028,7 @@ summary(g_lintemp_addmin)
    gt())
 
 
-gtsave(tresgrowthtrendmax,"figures/tresgrowthtrendmax.html")
+# gtsave(tresgrowthtrendmax,"figures/tresgrowthtrendmax.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
@@ -1072,7 +1072,7 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,
 (growthbyhabitat_tres <- emmeans(g_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_tres,"figures/growthbyhabitat_tres.html")
+# gtsave(growthbyhabitat_tres,"figures/growthbyhabitat_tres.html")
 
 
 ## min temp
@@ -1136,7 +1136,7 @@ summary(g_lintemp_addmin)
    gt())
 
 
-gtsave(t,"figures/tresgrowthtrendmin.html")
+# gtsave(t,"figures/tresgrowthtrendmin.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
@@ -1165,7 +1165,7 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),meanmaxtempI < 45,
     delim="_"
   ))
 
-gtsave(t,"figures/tresgrowthdeltamin.html")
+# gtsave(t,"figures/tresgrowthdeltamin.html")
 
 ((emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
 
@@ -1219,7 +1219,7 @@ summary(g_provis_cort)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growth_by_cort_provis_summary_webl,"figures/growth_by_cort_provis_summary_webl.html")
+# gtsave(growth_by_cort_provis_summary_webl,"figures/growth_by_cort_provis_summary_webl.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
@@ -1260,7 +1260,7 @@ summary(g_provis_abscort)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growth_by_abscort_provis_summary_webl,"figures/growth_by_abscort_provis_summary_webl.html")
+# gtsave(growth_by_abscort_provis_summary_webl,"figures/growth_by_abscort_provis_summary_webl.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
@@ -1280,7 +1280,7 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(abs_change_cort)
     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
     gt() %>% tab_options(data_row.padding = px(1)))
-gtsave(t,"figures/growth_by_abscort_provis_delta_webl.html")
+# gtsave(t,"figures/growth_by_abscort_provis_delta_webl.html")
 
 
 
@@ -1521,7 +1521,7 @@ g_provis_cort_tres <- g_provis_cort
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growth_by_cort_provis_summary_tres,"figures/growth_by_cort_provis_summary_tres.html")
+# gtsave(growth_by_cort_provis_summary_tres,"figures/growth_by_cort_provis_summary_tres.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
@@ -1563,7 +1563,7 @@ g_provis_abscort_tres <- g_provis_abscort
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growth_by_abscort_provis_summary_tres,"figures/growth_by_abscort_provis_summary_tres.html")
+# gtsave(growth_by_abscort_provis_summary_tres,"figures/growth_by_abscort_provis_summary_tres.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
@@ -1583,7 +1583,7 @@ data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort)
     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
     gt() %>% tab_options(data_row.padding = px(1)))
-gtsave(t,"figures/growth_by_abscort_provis_delta_tres.html")
+# gtsave(t,"figures/growth_by_abscort_provis_delta_tres.html")
 
 ((emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
 

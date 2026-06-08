@@ -111,7 +111,7 @@ c <- anova(m,m_linint,m_noint) %>% tibble() %>% mutate(Model = c("No temp * LC i
     dplyr::select(Model,AIC,Chisq,instant_temp) %>%
     mutate(across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            instant_temp = if_else(instant_temp < 0.001,"<0.001",as.character(instant_temp))) %>% gt())
-gtsave(int_tab_provis_webl_hi,"figures/int_tab_provis_webl_hi.html")
+# gtsave(int_tab_provis_webl_hi,"figures/int_tab_provis_webl_hi.html")
 
 summary(m)
 check_collinearity(m_noint)
@@ -212,7 +212,7 @@ hi_30min_trans_webl <- trans_new("hi_30min_trans_webl",
     gt())
 
 
-gtsave(weblprovistrend_hi,"figures/weblprovistrend_hi.html")
+# gtsave(weblprovistrend_hi,"figures/weblprovistrend_hi.html")
 
 data = dplyr::filter(instant_temp,!is.na(hi_30min),
                             !is.na(julian_date),
@@ -238,7 +238,7 @@ data = dplyr::filter(instant_temp,!is.na(hi_30min),
 (provisbyhabitat_webl_hi <- emmeans(m,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_webl_hi,"figures/provisbyhabitat_webl_hi.html")
+# gtsave(provisbyhabitat_webl_hi,"figures/provisbyhabitat_webl_hi.html")
 
 
 ### Check for effect of temperature
@@ -248,7 +248,7 @@ gtsave(provisbyhabitat_webl_hi,"figures/provisbyhabitat_webl_hi.html")
     # dplyr::filter(Covariate != "poly(hi_30min_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_summary_webl_hi,"figures/provisbyhabitat_summary_webl_hi.html")
+# gtsave(provisbyhabitat_summary_webl_hi,"figures/provisbyhabitat_summary_webl_hi.html")
 
 ### TRES
 #### maxhi of closest 30 min period to start time of hour
@@ -322,7 +322,7 @@ c <- anova(m,m_linint,m_noint) %>% tibble() %>% mutate(Model = c("No temp * LC i
     dplyr::select(Model,AIC,Chisq,instant_temp) %>%
     mutate(across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            instant_temp = if_else(instant_temp < 0.001,"<0.001",as.character(instant_temp))) %>% gt())
-gtsave(int_tab_provis_tres_hi,"figures/int_tab_provis_tres_hi.html")
+# gtsave(int_tab_provis_tres_hi,"figures/int_tab_provis_tres_hi.html")
 
 summary(m)
 check_collinearity(m_noint)
@@ -423,7 +423,7 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
     gt())
 
 
-gtsave(tresprovistrend_hi,"figures/tresprovistrend_hi.html")
+# gtsave(tresprovistrend_hi,"figures/tresprovistrend_hi.html")
 
 data = data = dplyr::filter(instant_temp,!is.na(hi_30min),
                             !is.na(julian_date),
@@ -449,7 +449,7 @@ data = data = dplyr::filter(instant_temp,!is.na(hi_30min),
 (provisbyhabitat_tres_hi <- emmeans(m,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_tres_hi,"figures/provisbyhabitat_tres_hi.html")
+# gtsave(provisbyhabitat_tres_hi,"figures/provisbyhabitat_tres_hi.html")
 
 
 ### Check for effect of temperature
@@ -459,7 +459,7 @@ gtsave(provisbyhabitat_tres_hi,"figures/provisbyhabitat_tres_hi.html")
     # dplyr::filter(Covariate != "poly(hi_30min_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_summary_tres_hi,"figures/provisbyhabitat_summary_tres_hi.html")
+# gtsave(provisbyhabitat_summary_tres_hi,"figures/provisbyhabitat_summary_tres_hi.html")
 
 
 ## combined figure for fig5

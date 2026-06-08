@@ -88,7 +88,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_maxhiweek_webl,"figures/int_tab_growth_maxhiweek_webl.html")
+# gtsave(int_tab_growth_maxhiweek_webl,"figures/int_tab_growth_maxhiweek_webl.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -179,7 +179,7 @@ summary(g_lintemp)
     gt())
 
 
-gtsave(weblgrowthtrendmaxhiweek,"figures/weblgrowthtrendmaxhiweek.html")
+# gtsave(weblgrowthtrendmaxhiweek,"figures/weblgrowthtrendmaxhiweek.html")
 
 data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
@@ -223,7 +223,7 @@ data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.n
 (growthbyhabitat_maxhiweek_webl <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_maxhiweek_webl,"figures/growthbyhabitat_maxhiweek_webl.html")
+# gtsave(growthbyhabitat_maxhiweek_webl,"figures/growthbyhabitat_maxhiweek_webl.html")
 
 
 ### Check for effect of temperature
@@ -233,7 +233,7 @@ gtsave(growthbyhabitat_maxhiweek_webl,"figures/growthbyhabitat_maxhiweek_webl.ht
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_maxhiweek_webl,"figures/growthbyhabitat_summary_maxhiweek_webl.html")
+# gtsave(growthbyhabitat_summary_maxhiweek_webl,"figures/growthbyhabitat_summary_maxhiweek_webl.html")
 
 
 
@@ -357,7 +357,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_maxhiday_webl,"figures/int_tab_growth_maxhiday_webl.html")
+# gtsave(int_tab_growth_maxhiday_webl,"figures/int_tab_growth_maxhiday_webl.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -448,7 +448,7 @@ summary(g_lintemp)
     gt())
 
 
-gtsave(weblgrowthtrendmaxhiday,"figures/weblgrowthtrendmaxhiday.html")
+# gtsave(weblgrowthtrendmaxhiday,"figures/weblgrowthtrendmaxhiday.html")
 
 data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
@@ -492,7 +492,7 @@ data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.n
 (growthbyhabitat_maxhiday_webl <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_maxhiday_webl,"figures/growthbyhabitat_maxhiday_webl.html")
+# gtsave(growthbyhabitat_maxhiday_webl,"figures/growthbyhabitat_maxhiday_webl.html")
 
 
 ### Check for effect of temperature
@@ -502,7 +502,7 @@ gtsave(growthbyhabitat_maxhiday_webl,"figures/growthbyhabitat_maxhiday_webl.html
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_maxhiday_webl,"figures/growthbyhabitat_summary_maxhiday_webl.html")
+# gtsave(growthbyhabitat_summary_maxhiday_webl,"figures/growthbyhabitat_summary_maxhiday_webl.html")
 
 
 #### degreehours_over_30C_priorweek
@@ -545,7 +545,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_deghr30week_webl,"figures/int_tab_growth_deghr30week_webl.html")
+# gtsave(int_tab_growth_deghr30week_webl,"figures/int_tab_growth_deghr30week_webl.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -636,7 +636,7 @@ summary(g_lintemp)
     gt())
 
 
-gtsave(weblgrowthtrenddeghr30week,"figures/weblgrowthtrenddeghr30week.html")
+# gtsave(weblgrowthtrenddeghr30week,"figures/weblgrowthtrenddeghr30week.html")
 
 data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
@@ -680,7 +680,7 @@ data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_ove
 (growthbyhabitat_deghr30week_webl <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_deghr30week_webl,"figures/growthbyhabitat_deghr30week_webl.html")
+# gtsave(growthbyhabitat_deghr30week_webl,"figures/growthbyhabitat_deghr30week_webl.html")
 
 
 ### Check for effect of temperature
@@ -690,7 +690,7 @@ gtsave(growthbyhabitat_deghr30week_webl,"figures/growthbyhabitat_deghr30week_web
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_deghr30week_webl,"figures/growthbyhabitat_summary_deghr30week_webl.html")
+# gtsave(growthbyhabitat_summary_deghr30week_webl,"figures/growthbyhabitat_summary_deghr30week_webl.html")
 
 #### hihours_over_30hi_priorweek
 
@@ -732,7 +732,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_hihr25week_webl,"figures/int_tab_growth_hihr25week_webl.html")
+# gtsave(int_tab_growth_hihr25week_webl,"figures/int_tab_growth_hihr25week_webl.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -823,7 +823,7 @@ summary(g_lintemp)
     gt())
 
 
-gtsave(weblgrowthtrendhihr25week,"figures/weblgrowthtrendhihr25week.html")
+# gtsave(weblgrowthtrendhihr25week,"figures/weblgrowthtrendhihr25week.html")
 
 data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
@@ -867,7 +867,7 @@ data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30h
 (growthbyhabitat_hihr25week_webl <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_hihr25week_webl,"figures/growthbyhabitat_hihr25week_webl.html")
+# gtsave(growthbyhabitat_hihr25week_webl,"figures/growthbyhabitat_hihr25week_webl.html")
 
 
 ### Check for effect of temperature
@@ -877,7 +877,7 @@ gtsave(growthbyhabitat_hihr25week_webl,"figures/growthbyhabitat_hihr25week_webl.
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_hihr25week_webl,"figures/growthbyhabitat_summary_hihr25week_webl.html")
+# gtsave(growthbyhabitat_summary_hihr25week_webl,"figures/growthbyhabitat_summary_hihr25week_webl.html")
 
 
 
@@ -921,7 +921,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_maxhiweek_tres,"figures/int_tab_growth_maxhiweek_tres.html")
+# gtsave(int_tab_growth_maxhiweek_tres,"figures/int_tab_growth_maxhiweek_tres.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -1012,7 +1012,7 @@ summary(g_lintemp_addmin)
     gt())
 
 
-gtsave(tresgrowthtrendmaxhiweek,"figures/tresgrowthtrendmaxhiweek.html")
+# gtsave(tresgrowthtrendmaxhiweek,"figures/tresgrowthtrendmaxhiweek.html")
 
 data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
@@ -1056,7 +1056,7 @@ data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.n
 (growthbyhabitat_maxhiweek_tres <- emmeans(g_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_maxhiweek_tres,"figures/growthbyhabitat_maxhiweek_tres.html")
+# gtsave(growthbyhabitat_maxhiweek_tres,"figures/growthbyhabitat_maxhiweek_tres.html")
 
 
 ### Check for effect of temperature
@@ -1066,7 +1066,7 @@ gtsave(growthbyhabitat_maxhiweek_tres,"figures/growthbyhabitat_maxhiweek_tres.ht
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_maxhiweek_tres,"figures/growthbyhabitat_summary_maxhiweek_tres.html")
+# gtsave(growthbyhabitat_summary_maxhiweek_tres,"figures/growthbyhabitat_summary_maxhiweek_tres.html")
 
 
 #### maxhi_prior
@@ -1109,7 +1109,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_maxhiday_tres,"figures/int_tab_growth_maxhiday_tres.html")
+# gtsave(int_tab_growth_maxhiday_tres,"figures/int_tab_growth_maxhiday_tres.html")
 summary(g_lintemp_addmin)
 check_collinearity(g_lintemp_noint)
 
@@ -1200,7 +1200,7 @@ summary(g_lintemp_addmin)
     gt())
 
 
-gtsave(tresgrowthtrendmaxhiday,"figures/tresgrowthtrendmaxhiday.html")
+# gtsave(tresgrowthtrendmaxhiday,"figures/tresgrowthtrendmaxhiday.html")
 
 data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
@@ -1244,7 +1244,7 @@ data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.n
 (growthbyhabitat_maxhiday_tres <- emmeans(g_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_maxhiday_tres,"figures/growthbyhabitat_maxhiday_tres.html")
+# gtsave(growthbyhabitat_maxhiday_tres,"figures/growthbyhabitat_maxhiday_tres.html")
 
 
 ### Check for effect of temperature
@@ -1254,7 +1254,7 @@ gtsave(growthbyhabitat_maxhiday_tres,"figures/growthbyhabitat_maxhiday_tres.html
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_maxhiday_tres,"figures/growthbyhabitat_summary_maxhiday_tres.html")
+# gtsave(growthbyhabitat_summary_maxhiday_tres,"figures/growthbyhabitat_summary_maxhiday_tres.html")
 
 
 #### degreehours_over_30C_priorweek
@@ -1297,7 +1297,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_deghr30week_tres,"figures/int_tab_growth_deghr30week_tres.html")
+# gtsave(int_tab_growth_deghr30week_tres,"figures/int_tab_growth_deghr30week_tres.html")
 summary(g_lintemp)
 check_collinearity(g_lintemp_noint)
 
@@ -1388,7 +1388,7 @@ summary(g_lintemp_addmin)
     gt())
 
 
-gtsave(tresgrowthtrenddeghr30week,"figures/tresgrowthtrenddeghr30week.html")
+# gtsave(tresgrowthtrenddeghr30week,"figures/tresgrowthtrenddeghr30week.html")
 
 data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
@@ -1432,7 +1432,7 @@ data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_ove
 (growthbyhabitat_deghr30week_tres <- emmeans(g_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_deghr30week_tres,"figures/growthbyhabitat_deghr30week_tres.html")
+# gtsave(growthbyhabitat_deghr30week_tres,"figures/growthbyhabitat_deghr30week_tres.html")
 
 
 ### Check for effect of temperature
@@ -1442,7 +1442,7 @@ gtsave(growthbyhabitat_deghr30week_tres,"figures/growthbyhabitat_deghr30week_tre
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_deghr30week_tres,"figures/growthbyhabitat_summary_deghr30week_tres.html")
+# gtsave(growthbyhabitat_summary_deghr30week_tres,"figures/growthbyhabitat_summary_deghr30week_tres.html")
 
 #### hihours_over_30hi_priorweek
 
@@ -1484,7 +1484,7 @@ c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_growth_hihr25week_tres,"figures/int_tab_growth_hihr25week_tres.html")
+# gtsave(int_tab_growth_hihr25week_tres,"figures/int_tab_growth_hihr25week_tres.html")
 summary(g_lintemp_addmin)
 check_collinearity(g_lintemp_noint)
 
@@ -1575,7 +1575,7 @@ summary(g_lintemp_addmin)
     gt())
 
 
-gtsave(tresgrowthtrendhihr25week,"figures/tresgrowthtrendhihr25week.html")
+# gtsave(tresgrowthtrendhihr25week,"figures/tresgrowthtrendhihr25week.html")
 
 data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
@@ -1619,7 +1619,7 @@ data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30h
 (growthbyhabitat_hihr25week_tres <- emmeans(g_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_hihr25week_tres,"figures/growthbyhabitat_hihr25week_tres.html")
+# gtsave(growthbyhabitat_hihr25week_tres,"figures/growthbyhabitat_hihr25week_tres.html")
 
 
 ### Check for effect of temperature
@@ -1629,7 +1629,7 @@ gtsave(growthbyhabitat_hihr25week_tres,"figures/growthbyhabitat_hihr25week_tres.
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(growthbyhabitat_summary_hihr25week_tres,"figures/growthbyhabitat_summary_hihr25week_tres.html")
+# gtsave(growthbyhabitat_summary_hihr25week_tres,"figures/growthbyhabitat_summary_hihr25week_tres.html")
 
 
 ## Combined WEBL and TRES growth plots

@@ -161,7 +161,7 @@ c <- anova(m,m_linint,m_noint) %>% tibble() %>% mutate(Model = c("No temp * LC i
     dplyr::select(Model,AIC,Chisq,P) %>%
     mutate(across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>% gt())
-gtsave(int_tab_provis_webl,"figures/int_tab_provis_webl.html")
+# gtsave(int_tab_provis_webl,"figures/int_tab_provis_webl.html")
 
 summary(m_linint)
 check_collinearity(m_noint)
@@ -315,7 +315,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
     gt())
 
 
-gtsave(weblprovistrend,"figures/weblprovistrend.html")
+# gtsave(weblprovistrend,"figures/weblprovistrend.html")
 
 data = data = dplyr::filter(p,!is.na(mean_temp),
                             !is.na(julian_date),
@@ -369,7 +369,7 @@ data = data = dplyr::filter(p,!is.na(mean_temp),
 (provisbyhabitat_webl <- emmeans(m_linint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_webl,"figures/provisbyhabitat_webl.html")
+# gtsave(provisbyhabitat_webl,"figures/provisbyhabitat_webl.html")
 
 
 ### Check for effect of temperature
@@ -379,7 +379,7 @@ gtsave(provisbyhabitat_webl,"figures/provisbyhabitat_webl.html")
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_summary_webl,"figures/provisbyhabitat_summary_webl.html")
+# gtsave(provisbyhabitat_summary_webl,"figures/provisbyhabitat_summary_webl.html")
 
 
 
@@ -455,7 +455,7 @@ c <- anova(m,m_linint,m_noint) %>% tibble() %>% mutate(Model = c("No temp * LC i
     dplyr::select(Model,AIC,Chisq,P) %>%
     mutate(across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>% gt())
-gtsave(int_tab_provis_tres,"figures/int_tab_provis_tres.html")
+# gtsave(int_tab_provis_tres,"figures/int_tab_provis_tres.html")
 
 summary(m)
 check_collinearity(m)
@@ -603,7 +603,7 @@ ggsave("figures/fig5_provis_by_temp_hab.png",p_full,width = 6.25,height = 4)
 (provisbyhabitat_tres <- emmeans(m,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_tres,"figures/provisbyhabitat_tres.html")
+# gtsave(provisbyhabitat_tres,"figures/provisbyhabitat_tres.html")
 
 
 ### Check for effect of temperature
@@ -613,7 +613,7 @@ gtsave(provisbyhabitat_tres,"figures/provisbyhabitat_tres.html")
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(provisbyhabitat_summary_tres,"figures/provisbyhabitat_summary_tres.html")
+# gtsave(provisbyhabitat_summary_tres,"figures/provisbyhabitat_summary_tres.html")
 
 
 
@@ -627,7 +627,7 @@ gtsave(provisbyhabitat_summary_tres,"figures/provisbyhabitat_summary_tres.html")
     gt())
 
 
-gtsave(tresprovistrend,"figures/tresprovistrend.html")
+# gtsave(tresprovistrend,"figures/tresprovistrend.html")
 
 data = dplyr::filter(p,!is.na(mean_temp),
                      !is.na(julian_date),

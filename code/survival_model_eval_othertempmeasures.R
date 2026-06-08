@@ -135,7 +135,7 @@ c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_webl_meanmaxhi,"figures/int_tab_survival_nestpd_webl_meanmaxhi.html")
+# gtsave(int_tab_survival_nestpd_webl_meanmaxhi,"figures/int_tab_survival_nestpd_webl_meanmaxhi.html")
 
 
 
@@ -147,7 +147,7 @@ summary(s_nestpd_WEBL_addmax)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_webl_meanmaxhi,"figures/survivalbyhabitat_summary_webl_meanmaxhi.html")
+# gtsave(survivalbyhabitat_summary_webl_meanmaxhi,"figures/survivalbyhabitat_summary_webl_meanmaxhi.html")
 
 
 
@@ -164,7 +164,7 @@ gtsave(survivalbyhabitat_summary_webl_meanmaxhi,"figures/survivalbyhabitat_summa
     gt())
 
 
-gtsave(weblsurvival_nestpd_trendmax_meanmaxhi,"figures/weblsurvival_nestpd_trendmax_meanmaxhi.html")
+# gtsave(weblsurvival_nestpd_trendmax_meanmaxhi,"figures/weblsurvival_nestpd_trendmax_meanmaxhi.html")
 
 data = s_nestpd_WEBL_addmax$data
 
@@ -175,7 +175,7 @@ data = s_nestpd_WEBL_addmax$data
 (survival_nestpd_byhabitat_webl_meanmaxhi <- emmeans(s_nestpd_WEBL_addmin,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_webl_meanmaxhi,"figures/survival_nestpd_byhabitat_webl_meanmaxhi.html")
+# gtsave(survival_nestpd_byhabitat_webl_meanmaxhi,"figures/survival_nestpd_byhabitat_webl_meanmaxhi.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -325,7 +325,7 @@ c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_webl_deghr_30,"figures/int_tab_survival_nestpd_webl_deghr_30.html")
+# gtsave(int_tab_survival_nestpd_webl_deghr_30,"figures/int_tab_survival_nestpd_webl_deghr_30.html")
 
 
 
@@ -337,7 +337,7 @@ summary(s_nestpd_WEBL_addmin)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_webl_deghr_30,"figures/survivalbyhabitat_summary_webl_deghr_30.html")
+# gtsave(survivalbyhabitat_summary_webl_deghr_30,"figures/survivalbyhabitat_summary_webl_deghr_30.html")
 
 
 
@@ -354,7 +354,7 @@ gtsave(survivalbyhabitat_summary_webl_deghr_30,"figures/survivalbyhabitat_summar
     gt())
 
 
-gtsave(weblsurvival_nestpd_trendmax_deghr_30,"figures/weblsurvival_nestpd_trendmax_deghr_30.html")
+# gtsave(weblsurvival_nestpd_trendmax_deghr_30,"figures/weblsurvival_nestpd_trendmax_deghr_30.html")
 
 data = s_nestpd_WEBL_addmin$data
 
@@ -365,7 +365,7 @@ data = s_nestpd_WEBL_addmin$data
 (survival_nestpd_byhabitat_webl_deghr_30 <- emmeans(s_nestpd_WEBL_addmin,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_webl_deghr_30,"figures/survival_nestpd_byhabitat_webl_deghr_30.html")
+# gtsave(survival_nestpd_byhabitat_webl_deghr_30,"figures/survival_nestpd_byhabitat_webl_deghr_30.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -514,7 +514,7 @@ c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_webl_hihr_30,"figures/int_tab_survival_nestpd_webl_hihr_30.html")
+# gtsave(int_tab_survival_nestpd_webl_hihr_30,"figures/int_tab_survival_nestpd_webl_hihr_30.html")
 
 
 
@@ -526,7 +526,7 @@ summary(s_nestpd_WEBL_addmax)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_webl_hihr_30,"figures/survivalbyhabitat_summary_webl_hihr_30.html")
+# gtsave(survivalbyhabitat_summary_webl_hihr_30,"figures/survivalbyhabitat_summary_webl_hihr_30.html")
 
 
 
@@ -543,7 +543,7 @@ gtsave(survivalbyhabitat_summary_webl_hihr_30,"figures/survivalbyhabitat_summary
     gt())
 
 
-gtsave(weblsurvival_nestpd_trendmax_hihr_30,"figures/weblsurvival_nestpd_trendmax_hihr_30.html")
+# gtsave(weblsurvival_nestpd_trendmax_hihr_30,"figures/weblsurvival_nestpd_trendmax_hihr_30.html")
 
 data = s_nestpd_WEBL_addmax$data
 
@@ -554,7 +554,7 @@ data = s_nestpd_WEBL_addmax$data
 (survival_nestpd_byhabitat_webl_hihr_30 <- emmeans(s_nestpd_WEBL_addmax,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_webl_hihr_30,"figures/survival_nestpd_byhabitat_webl_hihr_30.html")
+# gtsave(survival_nestpd_byhabitat_webl_hihr_30,"figures/survival_nestpd_byhabitat_webl_hihr_30.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -705,7 +705,7 @@ c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_tres_meanmaxhi,"figures/int_tab_survival_nestpd_tres_meanmaxhi.html")
+# gtsave(int_tab_survival_nestpd_tres_meanmaxhi,"figures/int_tab_survival_nestpd_tres_meanmaxhi.html")
 
 
 
@@ -717,7 +717,7 @@ summary(s_nestpd_TRES_addmax)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_tres_meanmaxhi,"figures/survivalbyhabitat_summary_tres_meanmaxhi.html")
+# gtsave(survivalbyhabitat_summary_tres_meanmaxhi,"figures/survivalbyhabitat_summary_tres_meanmaxhi.html")
 
 
 
@@ -734,7 +734,7 @@ gtsave(survivalbyhabitat_summary_tres_meanmaxhi,"figures/survivalbyhabitat_summa
     gt())
 
 
-gtsave(tressurvival_nestpd_trendmax_meanmaxhi,"figures/tressurvival_nestpd_trendmax_meanmaxhi.html")
+# gtsave(tressurvival_nestpd_trendmax_meanmaxhi,"figures/tressurvival_nestpd_trendmax_meanmaxhi.html")
 
 data = s_nestpd_TRES_addmax$data
 
@@ -745,7 +745,7 @@ data = s_nestpd_TRES_addmax$data
 (survival_nestpd_byhabitat_tres_meanmaxhi <- emmeans(s_nestpd_TRES_addmax,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_tres_meanmaxhi,"figures/survival_nestpd_byhabitat_tres_meanmaxhi.html")
+# gtsave(survival_nestpd_byhabitat_tres_meanmaxhi,"figures/survival_nestpd_byhabitat_tres_meanmaxhi.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -895,7 +895,7 @@ c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_tres_deghr_30,"figures/int_tab_survival_nestpd_tres_deghr_30.html")
+# gtsave(int_tab_survival_nestpd_tres_deghr_30,"figures/int_tab_survival_nestpd_tres_deghr_30.html")
 
 
 
@@ -907,7 +907,7 @@ summary(s_nestpd_TRES_noint)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_tres_deghr_30,"figures/survivalbyhabitat_summary_tres_deghr_30.html")
+# gtsave(survivalbyhabitat_summary_tres_deghr_30,"figures/survivalbyhabitat_summary_tres_deghr_30.html")
 
 
 
@@ -924,7 +924,7 @@ gtsave(survivalbyhabitat_summary_tres_deghr_30,"figures/survivalbyhabitat_summar
     gt())
 
 
-gtsave(tressurvival_nestpd_trendmax_deghr_30,"figures/tressurvival_nestpd_trendmax_deghr_30.html")
+# gtsave(tressurvival_nestpd_trendmax_deghr_30,"figures/tressurvival_nestpd_trendmax_deghr_30.html")
 
 data = s_nestpd_TRES_noint$data
 
@@ -935,7 +935,7 @@ data = s_nestpd_TRES_noint$data
 (survival_nestpd_byhabitat_tres_deghr_30 <- emmeans(s_nestpd_TRES_noint,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_tres_deghr_30,"figures/survival_nestpd_byhabitat_tres_deghr_30.html")
+# gtsave(survival_nestpd_byhabitat_tres_deghr_30,"figures/survival_nestpd_byhabitat_tres_deghr_30.html")
 
 
 # Forest survival is lower than in the other land covers.
@@ -1084,7 +1084,7 @@ c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq")
            across(c(Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_survival_nestpd_tres_hihr_30,"figures/int_tab_survival_nestpd_tres_hihr_30.html")
+# gtsave(int_tab_survival_nestpd_tres_hihr_30,"figures/int_tab_survival_nestpd_tres_hihr_30.html")
 
 
 
@@ -1096,7 +1096,7 @@ summary(s_nestpd_TRES_noint)
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-gtsave(survivalbyhabitat_summary_tres_hihr_30,"figures/survivalbyhabitat_summary_tres_hihr_30.html")
+# gtsave(survivalbyhabitat_summary_tres_hihr_30,"figures/survivalbyhabitat_summary_tres_hihr_30.html")
 
 
 
@@ -1113,7 +1113,7 @@ gtsave(survivalbyhabitat_summary_tres_hihr_30,"figures/survivalbyhabitat_summary
     gt())
 
 
-gtsave(tressurvival_nestpd_trendmax_hihr_30,"figures/tressurvival_nestpd_trendmax_hihr_30.html")
+# gtsave(tressurvival_nestpd_trendmax_hihr_30,"figures/tressurvival_nestpd_trendmax_hihr_30.html")
 
 data = s_nestpd_TRES_noint$data
 
@@ -1124,7 +1124,7 @@ data = s_nestpd_TRES_noint$data
 (survival_nestpd_byhabitat_tres_hihr_30 <- emmeans(s_nestpd_TRES_noint,"habitat") %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(survival_nestpd_byhabitat_tres_hihr_30,"figures/survival_nestpd_byhabitat_tres_hihr_30.html")
+# gtsave(survival_nestpd_byhabitat_tres_hihr_30,"figures/survival_nestpd_byhabitat_tres_hihr_30.html")
 
 
 # Forest survival is lower than in the other land covers.

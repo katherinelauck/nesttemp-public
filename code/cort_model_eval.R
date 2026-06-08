@@ -789,7 +789,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_webl,"figures/int_tab_s1_webl.html")
+# gtsave(int_tab_s1_webl,"figures/int_tab_s1_webl.html")
 
 s1_webl <- s1_lintemp_noint
 
@@ -801,7 +801,7 @@ s1_webl <- s1_lintemp_noint
 (s1byhabitat_webl <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_webl,"figures/s1byhabitat_webl.html")
+# gtsave(s1byhabitat_webl,"figures/s1byhabitat_webl.html")
 
 
 ## trends
@@ -814,7 +814,7 @@ gtsave(s1byhabitat_webl,"figures/s1byhabitat_webl.html")
     gt())
 
 
-gtsave(webls1trendmax,"figures/webls1trendmax.html")
+# gtsave(webls1trendmax,"figures/webls1trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -1010,7 +1010,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_webl,"figures/int_tab_abs_webl.html")
+# gtsave(int_tab_abs_webl,"figures/int_tab_abs_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -1070,7 +1070,7 @@ dat_text_webl <- data.frame(
 (absbyhabitat_webl <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(absbyhabitat_webl,"figures/absbyhabitat_webl.html")
+# gtsave(absbyhabitat_webl,"figures/absbyhabitat_webl.html")
 
 
 
@@ -1189,7 +1189,7 @@ summary(abs_lintemp)
     gt())
 
 
-gtsave(weblabstrendmax,"figures/weblabstrendmax.html")
+# gtsave(weblabstrendmax,"figures/weblabstrendmax.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
@@ -1237,7 +1237,7 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
     gt())
 
 
-gtsave(t,"figures/weblabstrendmin.html")
+# gtsave(t,"figures/weblabstrendmin.html")
 
 data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
@@ -1311,7 +1311,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_webl,"figures/int_tab_s2_webl.html")
+# gtsave(int_tab_s2_webl,"figures/int_tab_s2_webl.html")
 
 s2_webl <- s2_lintemp
 
@@ -1323,7 +1323,7 @@ s2_webl <- s2_lintemp
 (s2byhabitat_webl <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_webl,"figures/s2byhabitat_webl.html")
+# gtsave(s2byhabitat_webl,"figures/s2byhabitat_webl.html")
 
 
 ## trends
@@ -1336,7 +1336,7 @@ gtsave(s2byhabitat_webl,"figures/s2byhabitat_webl.html")
     gt())
 
 
-gtsave(webls2trendmax,"figures/webls2trendmax.html")
+# gtsave(webls2trendmax,"figures/webls2trendmax.html")
 
 
 summary(s2_lintemp)
@@ -1480,7 +1480,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_priordayt_webl,"figures/int_tab_s1_priordayt_webl.html")
+# gtsave(int_tab_s1_priordayt_webl,"figures/int_tab_s1_priordayt_webl.html")
 
 s1_prior_day_webl <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_addmax)
@@ -1493,7 +1493,7 @@ check_collinearity(s1_lintemp_addmax)
 (s1byhabitat_priordayt_webl <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_priordayt_webl,"figures/s1byhabitat_priordayt_webl.html")
+# gtsave(s1byhabitat_priordayt_webl,"figures/s1byhabitat_priordayt_webl.html")
 
 
 ## trends
@@ -1506,7 +1506,7 @@ gtsave(s1byhabitat_priordayt_webl,"figures/s1byhabitat_priordayt_webl.html")
     gt())
 
 
-gtsave(webls1_priordayt_trendmax,"figures/webls1_priordayt_trendmax.html")
+# gtsave(webls1_priordayt_trendmax,"figures/webls1_priordayt_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -1620,7 +1620,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_priordayt_webl,"figures/int_tab_s2_priordayt_webl.html")
+# gtsave(int_tab_s2_priordayt_webl,"figures/int_tab_s2_priordayt_webl.html")
 
 s2_prior_day_webl <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -1633,7 +1633,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_priordayt_webl <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_priordayt_webl,"figures/s2byhabitat_priordayt_webl.html")
+# gtsave(s2byhabitat_priordayt_webl,"figures/s2byhabitat_priordayt_webl.html")
 
 
 ## trends
@@ -1646,7 +1646,7 @@ gtsave(s2byhabitat_priordayt_webl,"figures/s2byhabitat_priordayt_webl.html")
     gt())
 
 
-gtsave(webls2_priordayt_trendmax,"figures/webls2_priordayt_trendmax.html")
+# gtsave(webls2_priordayt_trendmax,"figures/webls2_priordayt_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -1761,7 +1761,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_priordayt_webl,"figures/int_tab_abs_priordayt_webl.html")
+# gtsave(int_tab_abs_priordayt_webl,"figures/int_tab_abs_priordayt_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -1793,7 +1793,7 @@ dat_text_webl <- data.frame(
 (abspriordayt_byhabitat_webl <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abspriordayt_byhabitat_webl,"figures/abspriordayt_byhabitat_webl.html")
+# gtsave(abspriordayt_byhabitat_webl,"figures/abspriordayt_byhabitat_webl.html")
 
 
 
@@ -1860,7 +1860,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
     gt())
 
 
-gtsave(weblabs_priordayt_trendmax,"figures/weblabs_priordayt_trendmax.html")
+# gtsave(weblabs_priordayt_trendmax,"figures/weblabs_priordayt_trendmax.html")
 
 
 #### use prior day heat index to predict cort instead
@@ -1903,7 +1903,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_priordaymaxhhi_webl,"figures/int_tab_s1_priordaymaxhhi_webl.html")
+# gtsave(int_tab_s1_priordaymaxhhi_webl,"figures/int_tab_s1_priordaymaxhhi_webl.html")
 
 s1_priordaymaxhhi_webl <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -1916,7 +1916,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_priordaymaxhhi_webl <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_priordaymaxhhi_webl,"figures/s1byhabitat_priordaymaxhhi_webl.html")
+# gtsave(s1byhabitat_priordaymaxhhi_webl,"figures/s1byhabitat_priordaymaxhhi_webl.html")
 
 
 ## trends
@@ -1929,7 +1929,7 @@ gtsave(s1byhabitat_priordaymaxhhi_webl,"figures/s1byhabitat_priordaymaxhhi_webl.
     gt())
 
 
-gtsave(webls1_priordaymaxhhi_trendmax,"figures/webls1_priordaymaxhhi_trendmax.html")
+# gtsave(webls1_priordaymaxhhi_trendmax,"figures/webls1_priordaymaxhhi_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -2042,7 +2042,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_priordaymaxhhi_webl,"figures/int_tab_s2_priordaymaxhhi_webl.html")
+# gtsave(int_tab_s2_priordaymaxhhi_webl,"figures/int_tab_s2_priordaymaxhhi_webl.html")
 
 s2_priordaymaxhhi_webl <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -2055,7 +2055,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_priordaymaxhhi_webl <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_priordaymaxhhi_webl,"figures/s2byhabitat_priordaymaxhhi_webl.html")
+# gtsave(s2byhabitat_priordaymaxhhi_webl,"figures/s2byhabitat_priordaymaxhhi_webl.html")
 
 
 ## trends
@@ -2068,7 +2068,7 @@ gtsave(s2byhabitat_priordaymaxhhi_webl,"figures/s2byhabitat_priordaymaxhhi_webl.
     gt())
 
 
-gtsave(webls2_priordaymaxhhi_trendmax,"figures/webls2_priordaymaxhhi_trendmax.html")
+# gtsave(webls2_priordaymaxhhi_trendmax,"figures/webls2_priordaymaxhhi_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -2182,7 +2182,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_priordaymaxhhi_webl,"figures/int_tab_abs_priordaymaxhhi_webl.html")
+# gtsave(int_tab_abs_priordaymaxhhi_webl,"figures/int_tab_abs_priordaymaxhhi_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -2214,7 +2214,7 @@ dat_text_priordaymaxhhi_webl <- data.frame(
 (abspriordaymaxhhi_byhabitat_webl <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abspriordaymaxhhi_byhabitat_webl,"figures/abspriordaymaxhhi_byhabitat_webl.html")
+# gtsave(abspriordaymaxhhi_byhabitat_webl,"figures/abspriordaymaxhhi_byhabitat_webl.html")
 
 
 
@@ -2281,7 +2281,7 @@ temp_trans_webl_priordaymaxhhi <- trans_new("temp_trans_webl_priordaymaxhhi",
     gt())
 
 
-gtsave(weblabs_priordaymaxhhi_trendmax,"figures/weblabs_priordaymaxhhi_trendmax.html")
+# gtsave(weblabs_priordaymaxhhi_trendmax,"figures/weblabs_priordaymaxhhi_trendmax.html")
 
 #### use prior week heat index to predict cort instead
 
@@ -2323,7 +2323,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_weekhi_webl,"figures/int_tab_s1_weekhi_webl.html")
+# gtsave(int_tab_s1_weekhi_webl,"figures/int_tab_s1_weekhi_webl.html")
 
 s1_weekhi_webl <- s1_lintemp_noint
 check_collinearity(s1_lintemp_noint)
@@ -2336,7 +2336,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_weekhi_webl <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_weekhi_webl,"figures/s1byhabitat_weekhi_webl.html")
+# gtsave(s1byhabitat_weekhi_webl,"figures/s1byhabitat_weekhi_webl.html")
 
 
 ## trends
@@ -2349,7 +2349,7 @@ gtsave(s1byhabitat_weekhi_webl,"figures/s1byhabitat_weekhi_webl.html")
     gt())
 
 
-gtsave(webls1_weekhi_trendmax,"figures/webls1_weekhi_trendmax.html")
+# gtsave(webls1_weekhi_trendmax,"figures/webls1_weekhi_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -2464,7 +2464,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_weekhi_webl,"figures/int_tab_s2_weekhi_webl.html")
+# gtsave(int_tab_s2_weekhi_webl,"figures/int_tab_s2_weekhi_webl.html")
 
 s2_weekhi_webl <- s2_lintemp
 check_collinearity(s2_lintemp_noint)
@@ -2477,7 +2477,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_weekhi_webl <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_weekhi_webl,"figures/s2byhabitat_weekhi_webl.html")
+# gtsave(s2byhabitat_weekhi_webl,"figures/s2byhabitat_weekhi_webl.html")
 
 
 ## trends
@@ -2490,7 +2490,7 @@ gtsave(s2byhabitat_weekhi_webl,"figures/s2byhabitat_weekhi_webl.html")
     gt())
 
 
-gtsave(webls2_weekhi_trendmax,"figures/webls2_weekhi_trendmax.html")
+# gtsave(webls2_weekhi_trendmax,"figures/webls2_weekhi_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -2604,7 +2604,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_weekhi_webl,"figures/int_tab_abs_weekhi_webl.html")
+# gtsave(int_tab_abs_weekhi_webl,"figures/int_tab_abs_weekhi_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -2636,7 +2636,7 @@ dat_text_webl_weekhi <- data.frame(
 (absweekhi_byhabitat_webl <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(absweekhi_byhabitat_webl,"figures/absweekhi_byhabitat_webl.html")
+# gtsave(absweekhi_byhabitat_webl,"figures/absweekhi_byhabitat_webl.html")
 
 
 
@@ -2703,7 +2703,7 @@ temp_trans_webl_weekhi <- trans_new("temp_trans_webl_weekhi",
     gt())
 
 
-gtsave(weblabs_weekhi_trendmax,"figures/weblabs_weekhi_trendmax.html")
+# gtsave(weblabs_weekhi_trendmax,"figures/weblabs_weekhi_trendmax.html")
 
 #### use cumulative prior day hi to predict cort
 
@@ -2745,7 +2745,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumhiday_webl,"figures/int_tab_s1_cumhiday_webl.html")
+# gtsave(int_tab_s1_cumhiday_webl,"figures/int_tab_s1_cumhiday_webl.html")
 
 s1_cumhiday_webl <- s1_lintemp_noint
 check_collinearity(s1_lintemp_noint)
@@ -2758,7 +2758,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumhiday_webl <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumhiday_webl,"figures/s1byhabitat_cumhiday_webl.html")
+# gtsave(s1byhabitat_cumhiday_webl,"figures/s1byhabitat_cumhiday_webl.html")
 
 
 ## trends
@@ -2771,7 +2771,7 @@ gtsave(s1byhabitat_cumhiday_webl,"figures/s1byhabitat_cumhiday_webl.html")
     gt())
 
 
-gtsave(webls1_cumhiday_trendmax,"figures/webls1_cumhiday_trendmax.html")
+# gtsave(webls1_cumhiday_trendmax,"figures/webls1_cumhiday_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -2886,7 +2886,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumhiday_webl,"figures/int_tab_s2_cumhiday_webl.html")
+# gtsave(int_tab_s2_cumhiday_webl,"figures/int_tab_s2_cumhiday_webl.html")
 
 s2_cumhiday_webl <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -2899,7 +2899,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumhiday_webl <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumhiday_webl,"figures/s2byhabitat_cumhiday_webl.html")
+# gtsave(s2byhabitat_cumhiday_webl,"figures/s2byhabitat_cumhiday_webl.html")
 
 
 ## trends
@@ -2912,7 +2912,7 @@ gtsave(s2byhabitat_cumhiday_webl,"figures/s2byhabitat_cumhiday_webl.html")
     gt())
 
 
-gtsave(webls2_cumhiday_trendmax,"figures/webls2_cumhiday_trendmax.html")
+# gtsave(webls2_cumhiday_trendmax,"figures/webls2_cumhiday_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -3026,7 +3026,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumhiday_webl,"figures/int_tab_abs_cumhiday_webl.html")
+# gtsave(int_tab_abs_cumhiday_webl,"figures/int_tab_abs_cumhiday_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -3058,7 +3058,7 @@ dat_text_webl_cumhiday <- data.frame(
 (abscumhiday_byhabitat_webl <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumhiday_byhabitat_webl,"figures/abscumhiday_byhabitat_webl.html")
+# gtsave(abscumhiday_byhabitat_webl,"figures/abscumhiday_byhabitat_webl.html")
 
 
 
@@ -3125,7 +3125,7 @@ temp_trans_webl_cumhiday <- trans_new("temp_trans_webl_cumhiday",
     gt())
 
 
-gtsave(weblabs_cumhiday_trendmax,"figures/weblabs_cumhiday_trendmax.html")
+# gtsave(weblabs_cumhiday_trendmax,"figures/weblabs_cumhiday_trendmax.html")
 
 
 #### use cumulative prior week hi to predict cort
@@ -3168,7 +3168,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumhiweek_webl,"figures/int_tab_s1_cumhiweek_webl.html")
+# gtsave(int_tab_s1_cumhiweek_webl,"figures/int_tab_s1_cumhiweek_webl.html")
 
 s1_cumhiweek_webl <- s1_lintemp_noint
 check_collinearity(s1_lintemp_noint)
@@ -3181,7 +3181,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumhiweek_webl <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumhiweek_webl,"figures/s1byhabitat_cumhiweek_webl.html")
+# gtsave(s1byhabitat_cumhiweek_webl,"figures/s1byhabitat_cumhiweek_webl.html")
 
 
 ## trends
@@ -3194,7 +3194,7 @@ gtsave(s1byhabitat_cumhiweek_webl,"figures/s1byhabitat_cumhiweek_webl.html")
     gt())
 
 
-gtsave(webls1_cumhiweek_trendmax,"figures/webls1_cumhiweek_trendmax.html")
+# gtsave(webls1_cumhiweek_trendmax,"figures/webls1_cumhiweek_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -3309,7 +3309,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumhiweek_webl,"figures/int_tab_s2_cumhiweek_webl.html")
+# gtsave(int_tab_s2_cumhiweek_webl,"figures/int_tab_s2_cumhiweek_webl.html")
 
 s2_cumhiweek_webl <- s2_lintemp
 check_collinearity(s2_lintemp_noint)
@@ -3322,7 +3322,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumhiweek_webl <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumhiweek_webl,"figures/s2byhabitat_cumhiweek_webl.html")
+# gtsave(s2byhabitat_cumhiweek_webl,"figures/s2byhabitat_cumhiweek_webl.html")
 
 
 ## trends
@@ -3335,7 +3335,7 @@ gtsave(s2byhabitat_cumhiweek_webl,"figures/s2byhabitat_cumhiweek_webl.html")
     gt())
 
 
-gtsave(webls2_cumhiweek_trendmax,"figures/webls2_cumhiweek_trendmax.html")
+# gtsave(webls2_cumhiweek_trendmax,"figures/webls2_cumhiweek_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -3449,7 +3449,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumhiweek_webl,"figures/int_tab_abs_cumhiweek_webl.html")
+# gtsave(int_tab_abs_cumhiweek_webl,"figures/int_tab_abs_cumhiweek_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -3481,7 +3481,7 @@ dat_abs_text_webl_cumhiweek <- data.frame(
 (abscumhiweek_byhabitat_webl <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumhiweek_byhabitat_webl,"figures/abscumhiweek_byhabitat_webl.html")
+# gtsave(abscumhiweek_byhabitat_webl,"figures/abscumhiweek_byhabitat_webl.html")
 
 
 
@@ -3548,7 +3548,7 @@ temp_abs_trans_webl_cumhiweek <- trans_new("temp_trans_webl_cumhiweek",
     gt())
 
 
-gtsave(weblabs_cumhiweek_trendmax,"figures/weblabs_cumhiweek_trendmax.html")
+# gtsave(weblabs_cumhiweek_trendmax,"figures/weblabs_cumhiweek_trendmax.html")
 
 #### use cumulative prior day temp to predict cort
 
@@ -3590,7 +3590,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumdegreeday_webl,"figures/int_tab_s1_cumdegreeday_webl.html")
+# gtsave(int_tab_s1_cumdegreeday_webl,"figures/int_tab_s1_cumdegreeday_webl.html")
 
 s1_cumdegreeday_webl <- s1_lintemp_noint
 check_collinearity(s1_lintemp_noint)
@@ -3603,7 +3603,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumdegreeday_webl <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumdegreeday_webl,"figures/s1byhabitat_cumdegreeday_webl.html")
+# gtsave(s1byhabitat_cumdegreeday_webl,"figures/s1byhabitat_cumdegreeday_webl.html")
 
 
 ## trends
@@ -3616,7 +3616,7 @@ gtsave(s1byhabitat_cumdegreeday_webl,"figures/s1byhabitat_cumdegreeday_webl.html
     gt())
 
 
-gtsave(webls1_cumdegreeday_trendmax,"figures/webls1_cumdegreeday_trendmax.html")
+# gtsave(webls1_cumdegreeday_trendmax,"figures/webls1_cumdegreeday_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -3730,7 +3730,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumdegreeday_webl,"figures/int_tab_s2_cumdegreeday_webl.html")
+# gtsave(int_tab_s2_cumdegreeday_webl,"figures/int_tab_s2_cumdegreeday_webl.html")
 
 s2_cumdegreeday_webl <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -3743,7 +3743,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumdegreeday_webl <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumdegreeday_webl,"figures/s2byhabitat_cumdegreeday_webl.html")
+# gtsave(s2byhabitat_cumdegreeday_webl,"figures/s2byhabitat_cumdegreeday_webl.html")
 
 
 ## trends
@@ -3756,7 +3756,7 @@ gtsave(s2byhabitat_cumdegreeday_webl,"figures/s2byhabitat_cumdegreeday_webl.html
     gt())
 
 
-gtsave(webls2_cumdegreeday_trendmax,"figures/webls2_cumdegreeday_trendmax.html")
+# gtsave(webls2_cumdegreeday_trendmax,"figures/webls2_cumdegreeday_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -3871,7 +3871,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumdegreeday_webl,"figures/int_tab_abs_cumdegreeday_webl.html")
+# gtsave(int_tab_abs_cumdegreeday_webl,"figures/int_tab_abs_cumdegreeday_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -3903,7 +3903,7 @@ dat_text_webl_cumdegreeday <- data.frame(
 (abscumdegreeday_byhabitat_webl <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumdegreeday_byhabitat_webl,"figures/abscumdegreeday_byhabitat_webl.html")
+# gtsave(abscumdegreeday_byhabitat_webl,"figures/abscumdegreeday_byhabitat_webl.html")
 
 
 
@@ -3970,7 +3970,7 @@ temp_trans_webl_cumdegreeday <- trans_new("temp_trans_webl_cumdegreeday",
     gt())
 
 
-gtsave(weblabs_cumdegreeday_trendmax,"figures/weblabs_cumdegreeday_trendmax.html")
+# gtsave(weblabs_cumdegreeday_trendmax,"figures/weblabs_cumdegreeday_trendmax.html")
 
 #### use cumulative prior week temp to predict cort
 
@@ -4012,7 +4012,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumdegreeweek_webl,"figures/int_tab_s1_cumdegreeweek_webl.html")
+# gtsave(int_tab_s1_cumdegreeweek_webl,"figures/int_tab_s1_cumdegreeweek_webl.html")
 
 s1_cumdegreeweek_webl <- s1_lintemp_addmin
 check_collinearity(s1_lintemp_noint)
@@ -4025,7 +4025,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumdegreeweek_webl <- emmeans(s1_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumdegreeweek_webl,"figures/s1byhabitat_cumdegreeweek_webl.html")
+# gtsave(s1byhabitat_cumdegreeweek_webl,"figures/s1byhabitat_cumdegreeweek_webl.html")
 
 
 ## trends
@@ -4038,7 +4038,7 @@ gtsave(s1byhabitat_cumdegreeweek_webl,"figures/s1byhabitat_cumdegreeweek_webl.ht
     gt())
 
 
-gtsave(webls1_cumdegreeweek_trendmax,"figures/webls1_cumdegreeweek_trendmax.html")
+# gtsave(webls1_cumdegreeweek_trendmax,"figures/webls1_cumdegreeweek_trendmax.html")
 
 
 summary(s1_lintemp_addmin)
@@ -4153,7 +4153,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumdegreeweek_webl,"figures/int_tab_s2_cumdegreeweek_webl.html")
+# gtsave(int_tab_s2_cumdegreeweek_webl,"figures/int_tab_s2_cumdegreeweek_webl.html")
 
 s2_cumdegreeweek_webl <- s2_lintemp
 check_collinearity(s2_lintemp_noint)
@@ -4166,7 +4166,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumdegreeweek_webl <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumdegreeweek_webl,"figures/s2byhabitat_cumdegreeweek_webl.html")
+# gtsave(s2byhabitat_cumdegreeweek_webl,"figures/s2byhabitat_cumdegreeweek_webl.html")
 
 
 ## trends
@@ -4179,7 +4179,7 @@ gtsave(s2byhabitat_cumdegreeweek_webl,"figures/s2byhabitat_cumdegreeweek_webl.ht
     gt())
 
 
-gtsave(webls2_cumdegreeweek_trendmax,"figures/webls2_cumdegreeweek_trendmax.html")
+# gtsave(webls2_cumdegreeweek_trendmax,"figures/webls2_cumdegreeweek_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -4293,7 +4293,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumdegreeweek_webl,"figures/int_tab_abs_cumdegreeweek_webl.html")
+# gtsave(int_tab_abs_cumdegreeweek_webl,"figures/int_tab_abs_cumdegreeweek_webl.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -4325,7 +4325,7 @@ dat_text_webl_cumdegreeweek <- data.frame(
 (abscumdegreeweek_byhabitat_webl <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumdegreeweek_byhabitat_webl,"figures/abscumdegreeweek_byhabitat_webl.html")
+# gtsave(abscumdegreeweek_byhabitat_webl,"figures/abscumdegreeweek_byhabitat_webl.html")
 
 
 
@@ -4392,7 +4392,7 @@ temp_trans_webl_cumdegreeweek <- trans_new("temp_trans_webl_cumdegreeweek",
     gt())
 
 
-gtsave(weblabs_cumdegreeweek_trendmax,"figures/weblabs_cumdegreeweek_trendmax.html")
+# gtsave(weblabs_cumdegreeweek_trendmax,"figures/weblabs_cumdegreeweek_trendmax.html")
 
 ### TRES
 
@@ -4436,7 +4436,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_tres,"figures/int_tab_s1_tres.html")
+# gtsave(int_tab_s1_tres,"figures/int_tab_s1_tres.html")
 
 s1_tres <- s1_lintemp_addmax
 
@@ -4503,7 +4503,7 @@ check_collinearity(s1_lintemp_noint)
     gt())
 
 
-gtsave(tress1trendmax,"figures/tress1trendmax.html")
+# gtsave(tress1trendmax,"figures/tress1trendmax.html")
 
 
 
@@ -4613,7 +4613,7 @@ temp_trans <- trans_new("temp_trans",
 (s1byhabitat_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_tres,"figures/s1byhabitat_tres.html")
+# gtsave(s1byhabitat_tres,"figures/s1byhabitat_tres.html")
 
 
 ### Minimum temperature
@@ -4627,7 +4627,7 @@ gtsave(s1byhabitat_tres,"figures/s1byhabitat_tres.html")
     gt())
 
 
-gtsave(t,"figures/tresabstrendmin.html")
+# gtsave(t,"figures/tresabstrendmin.html")
 
 # data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
 #   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
@@ -4703,7 +4703,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_tres,"figures/int_tab_s2_tres.html")
+# gtsave(int_tab_s2_tres,"figures/int_tab_s2_tres.html")
 
 s2_tres <- s2_lintemp_addmin
 
@@ -4754,7 +4754,7 @@ dat_text_s2_tres <- data.frame(
 (s2byhabitat_tres <- emmeans(s2_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_tres,"figures/s2byhabitat_tres.html")
+# gtsave(s2byhabitat_tres,"figures/s2byhabitat_tres.html")
 
 # For cort_s2 in TRES, there is an interaction with min but not with max.
 #
@@ -4774,7 +4774,7 @@ check_collinearity(s2_lintemp_noint)
     gt())
 
 
-gtsave(tress2trendmax,"figures/tress2trendmax.html")
+# gtsave(tress2trendmax,"figures/tress2trendmax.html")
 
 
 
@@ -4864,7 +4864,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_tres,"figures/int_tab_abs_tres.html")
+# gtsave(int_tab_abs_tres,"figures/int_tab_abs_tres.html")
 
 abs_tres <- abs_lintemp
 
@@ -5031,7 +5031,7 @@ temp_trans <- trans_new("temp_trans",
 (absbyhabitat_tres <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(absbyhabitat_tres,"figures/absbyhabitat_tres.html")
+# gtsave(absbyhabitat_tres,"figures/absbyhabitat_tres.html")
 
 
 #I think given this finding it might be helpful to subset the TRES data down to just grassland and row crop to compare them. Sample size for forest and orchard are so small.
@@ -5047,7 +5047,7 @@ gtsave(absbyhabitat_tres,"figures/absbyhabitat_tres.html")
     gt())
 
 
-gtsave(tresabstrendmax,"figures/tresabstrendmax.html")
+# gtsave(tresabstrendmax,"figures/tresabstrendmax.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
@@ -5096,7 +5096,7 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintemp
     gt())
 
 
-gtsave(t,"figures/tresabstrendmin.html")
+# gtsave(t,"figures/tresabstrendmin.html")
 
 data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
@@ -5203,7 +5203,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_priordayt_tres,"figures/int_tab_s1_priordayt_tres.html")
+# gtsave(int_tab_s1_priordayt_tres,"figures/int_tab_s1_priordayt_tres.html")
 
 check_collinearity(s1_lintemp_noint)
 s1_prior_day_tres <- s1_lintemp_addmin
@@ -5216,7 +5216,7 @@ s1_prior_day_tres <- s1_lintemp_addmin
 (s1byhabitat_priordayt_tres <- emmeans(s1_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_priordayt_tres,"figures/s1byhabitat_priordayt_tres.html")
+# gtsave(s1byhabitat_priordayt_tres,"figures/s1byhabitat_priordayt_tres.html")
 
 
 ## trends
@@ -5229,7 +5229,7 @@ gtsave(s1byhabitat_priordayt_tres,"figures/s1byhabitat_priordayt_tres.html")
     gt())
 
 
-gtsave(tress1_priordayt_trendmax,"figures/tress1_priordayt_trendmax.html")
+# gtsave(tress1_priordayt_trendmax,"figures/tress1_priordayt_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -5343,7 +5343,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_priordayt_tres,"figures/int_tab_s2_priordayt_tres.html")
+# gtsave(int_tab_s2_priordayt_tres,"figures/int_tab_s2_priordayt_tres.html")
 
 check_collinearity(s2_lintemp_noint)
 s2_prior_day_tres <- s2_lintemp
@@ -5356,7 +5356,7 @@ s2_prior_day_tres <- s2_lintemp
 (s2byhabitat_priordayt_tres <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_priordayt_tres,"figures/s2byhabitat_priordayt_tres.html")
+# gtsave(s2byhabitat_priordayt_tres,"figures/s2byhabitat_priordayt_tres.html")
 
 
 ## trends
@@ -5369,7 +5369,7 @@ gtsave(s2byhabitat_priordayt_tres,"figures/s2byhabitat_priordayt_tres.html")
     gt())
 
 
-gtsave(tress2_priordayt_trendmax,"figures/tress2_priordayt_trendmax.html")
+# gtsave(tress2_priordayt_trendmax,"figures/tress2_priordayt_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -5484,7 +5484,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_priordayt_tres,"figures/int_tab_abs_priordayt_tres.html")
+# gtsave(int_tab_abs_priordayt_tres,"figures/int_tab_abs_priordayt_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -5516,7 +5516,7 @@ dat_text_tres <- data.frame(
 (abspriordayt_byhabitat_tres <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abspriordayt_byhabitat_tres,"figures/abspriordayt_byhabitat_tres.html")
+# gtsave(abspriordayt_byhabitat_tres,"figures/abspriordayt_byhabitat_tres.html")
 
 
 
@@ -5583,7 +5583,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
     gt())
 
 
-gtsave(tresabs_priordayt_trendmax,"figures/tresabs_priordayt_trendmax.html")
+# gtsave(tresabs_priordayt_trendmax,"figures/tresabs_priordayt_trendmax.html")
 
 #### use prior day heat index to predict cort instead
 
@@ -5625,7 +5625,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_priordaymaxhhi_tres,"figures/int_tab_s1_priordaymaxhhi_tres.html")
+# gtsave(int_tab_s1_priordaymaxhhi_tres,"figures/int_tab_s1_priordaymaxhhi_tres.html")
 
 s1_priordaymaxhhi_tres <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -5638,7 +5638,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_priordaymaxhhi_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_priordaymaxhhi_tres,"figures/s1byhabitat_priordaymaxhhi_tres.html")
+# gtsave(s1byhabitat_priordaymaxhhi_tres,"figures/s1byhabitat_priordaymaxhhi_tres.html")
 
 
 ## trends
@@ -5651,7 +5651,7 @@ gtsave(s1byhabitat_priordaymaxhhi_tres,"figures/s1byhabitat_priordaymaxhhi_tres.
     gt())
 
 
-gtsave(tress1_priordaymaxhhi_trendmax,"figures/tress1_priordaymaxhhi_trendmax.html")
+# gtsave(tress1_priordaymaxhhi_trendmax,"figures/tress1_priordaymaxhhi_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -5766,7 +5766,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_priordaymaxhhi_tres,"figures/int_tab_s2_priordaymaxhhi_tres.html")
+# gtsave(int_tab_s2_priordaymaxhhi_tres,"figures/int_tab_s2_priordaymaxhhi_tres.html")
 
 s2_priordaymaxhhi_tres <- s2_lintemp
 check_collinearity(s2_lintemp_noint)
@@ -5779,7 +5779,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_priordaymaxhhi_tres <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_priordaymaxhhi_tres,"figures/s2byhabitat_priordaymaxhhi_tres.html")
+# gtsave(s2byhabitat_priordaymaxhhi_tres,"figures/s2byhabitat_priordaymaxhhi_tres.html")
 
 
 ## trends
@@ -5792,7 +5792,7 @@ gtsave(s2byhabitat_priordaymaxhhi_tres,"figures/s2byhabitat_priordaymaxhhi_tres.
     gt())
 
 
-gtsave(tress2_priordaymaxhhi_trendmax,"figures/tress2_priordaymaxhhi_trendmax.html")
+# gtsave(tress2_priordaymaxhhi_trendmax,"figures/tress2_priordaymaxhhi_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -5906,7 +5906,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_priordaymaxhhi_tres,"figures/int_tab_abs_priordaymaxhhi_tres.html")
+# gtsave(int_tab_abs_priordaymaxhhi_tres,"figures/int_tab_abs_priordaymaxhhi_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -5938,7 +5938,7 @@ dat_text_priordaymaxhhi_tres <- data.frame(
 (abspriordaymaxhhi_byhabitat_tres <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abspriordaymaxhhi_byhabitat_tres,"figures/abspriordaymaxhhi_byhabitat_tres.html")
+# gtsave(abspriordaymaxhhi_byhabitat_tres,"figures/abspriordaymaxhhi_byhabitat_tres.html")
 
 
 
@@ -6004,7 +6004,7 @@ temp_trans_tres_priordaymaxhhi <- trans_new("temp_trans_tres_priordaymaxhhi",
     gt())
 
 
-gtsave(tresabs_priordaymaxhhi_trendmax,"figures/tresabs_priordaymaxhhi_trendmax.html")
+# gtsave(tresabs_priordaymaxhhi_trendmax,"figures/tresabs_priordaymaxhhi_trendmax.html")
 
 
 ## Use prior week heat index to test against cort
@@ -6047,7 +6047,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_weekhi_tres,"figures/int_tab_s1_weekhi_tres.html")
+# gtsave(int_tab_s1_weekhi_tres,"figures/int_tab_s1_weekhi_tres.html")
 
 s1_weekhi_tres <- s1_lintemp_noint
 check_collinearity(s1_lintemp_noint)
@@ -6060,7 +6060,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_weekhi_tres <- emmeans(s1_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_weekhi_tres,"figures/s1byhabitat_weekhi_tres.html")
+# gtsave(s1byhabitat_weekhi_tres,"figures/s1byhabitat_weekhi_tres.html")
 
 
 ## trends
@@ -6073,7 +6073,7 @@ gtsave(s1byhabitat_weekhi_tres,"figures/s1byhabitat_weekhi_tres.html")
     gt())
 
 
-gtsave(tress1_weekhi_trendmax,"figures/tress1_weekhi_trendmax.html")
+# gtsave(tress1_weekhi_trendmax,"figures/tress1_weekhi_trendmax.html")
 
 
 summary(s1_lintemp_noint)
@@ -6188,7 +6188,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_weekhi_tres,"figures/int_tab_s2_weekhi_tres.html")
+# gtsave(int_tab_s2_weekhi_tres,"figures/int_tab_s2_weekhi_tres.html")
 
 s2_weekhi_tres <- s2_lintemp_addmin
 check_collinearity(s2_lintemp_noint)
@@ -6201,7 +6201,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_weekhi_tres <- emmeans(s2_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_weekhi_tres,"figures/s2byhabitat_weekhi_tres.html")
+# gtsave(s2byhabitat_weekhi_tres,"figures/s2byhabitat_weekhi_tres.html")
 
 
 ## trends
@@ -6214,7 +6214,7 @@ gtsave(s2byhabitat_weekhi_tres,"figures/s2byhabitat_weekhi_tres.html")
     gt())
 
 
-gtsave(tress2_weekhi_trendmax,"figures/tress2_weekhi_trendmax.html")
+# gtsave(tress2_weekhi_trendmax,"figures/tress2_weekhi_trendmax.html")
 
 
 summary(s2_lintemp_addmin)
@@ -6328,7 +6328,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_weekhi_tres,"figures/int_tab_abs_weekhi_tres.html")
+# gtsave(int_tab_abs_weekhi_tres,"figures/int_tab_abs_weekhi_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -6360,7 +6360,7 @@ dat_text_tres_weekhi <- data.frame(
 (absweekhi_byhabitat_tres <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(absweekhi_byhabitat_tres,"figures/absweekhi_byhabitat_tres.html")
+# gtsave(absweekhi_byhabitat_tres,"figures/absweekhi_byhabitat_tres.html")
 
 
 
@@ -6427,7 +6427,7 @@ temp_trans_tres_weekhi <- trans_new("temp_trans_tres_weekhi",
     gt())
 
 
-gtsave(tresabs_weekhi_trendmax,"figures/tresabs_weekhi_trendmax.html")
+# gtsave(tresabs_weekhi_trendmax,"figures/tresabs_weekhi_trendmax.html")
 
 
 
@@ -6471,7 +6471,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumhiday_tres,"figures/int_tab_s1_cumhiday_tres.html")
+# gtsave(int_tab_s1_cumhiday_tres,"figures/int_tab_s1_cumhiday_tres.html")
 
 s1_cumhiday_tres <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -6484,7 +6484,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumhiday_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumhiday_tres,"figures/s1byhabitat_cumhiday_tres.html")
+# gtsave(s1byhabitat_cumhiday_tres,"figures/s1byhabitat_cumhiday_tres.html")
 
 
 ## trends
@@ -6497,7 +6497,7 @@ gtsave(s1byhabitat_cumhiday_tres,"figures/s1byhabitat_cumhiday_tres.html")
     gt())
 
 
-gtsave(tress1_cumhiday_trendmax,"figures/tress1_cumhiday_trendmax.html")
+# gtsave(tress1_cumhiday_trendmax,"figures/tress1_cumhiday_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -6611,7 +6611,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumhiday_tres,"figures/int_tab_s2_cumhiday_tres.html")
+# gtsave(int_tab_s2_cumhiday_tres,"figures/int_tab_s2_cumhiday_tres.html")
 
 s2_cumhiday_tres <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -6624,7 +6624,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumhiday_tres <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumhiday_tres,"figures/s2byhabitat_cumhiday_tres.html")
+# gtsave(s2byhabitat_cumhiday_tres,"figures/s2byhabitat_cumhiday_tres.html")
 
 
 ## trends
@@ -6637,7 +6637,7 @@ gtsave(s2byhabitat_cumhiday_tres,"figures/s2byhabitat_cumhiday_tres.html")
     gt())
 
 
-gtsave(tress2_cumhiday_trendmax,"figures/tress2_cumhiday_trendmax.html")
+# gtsave(tress2_cumhiday_trendmax,"figures/tress2_cumhiday_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -6752,7 +6752,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumhiday_tres,"figures/int_tab_abs_cumhiday_tres.html")
+# gtsave(int_tab_abs_cumhiday_tres,"figures/int_tab_abs_cumhiday_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -6784,7 +6784,7 @@ dat_text_tres_cumhiday <- data.frame(
 (abscumhiday_byhabitat_tres <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumhiday_byhabitat_tres,"figures/abscumhiday_byhabitat_tres.html")
+# gtsave(abscumhiday_byhabitat_tres,"figures/abscumhiday_byhabitat_tres.html")
 
 
 
@@ -6851,7 +6851,7 @@ temp_trans_tres_cumhiday <- trans_new("temp_trans_tres_cumhiday",
     gt())
 
 
-gtsave(tresabs_cumhiday_trendmax,"figures/tresabs_cumhiday_trendmax.html")
+# gtsave(tresabs_cumhiday_trendmax,"figures/tresabs_cumhiday_trendmax.html")
 
 
 #### use cumulative prior week hi to predict cort
@@ -6894,7 +6894,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumhiweek_tres,"figures/int_tab_s1_cumhiweek_tres.html")
+# gtsave(int_tab_s1_cumhiweek_tres,"figures/int_tab_s1_cumhiweek_tres.html")
 
 s1_cumhiweek_tres <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -6907,7 +6907,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumhiweek_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumhiweek_tres,"figures/s1byhabitat_cumhiweek_tres.html")
+# gtsave(s1byhabitat_cumhiweek_tres,"figures/s1byhabitat_cumhiweek_tres.html")
 
 
 ## trends
@@ -6920,7 +6920,7 @@ gtsave(s1byhabitat_cumhiweek_tres,"figures/s1byhabitat_cumhiweek_tres.html")
     gt())
 
 
-gtsave(tress1_cumhiweek_trendmax,"figures/tress1_cumhiweek_trendmax.html")
+# gtsave(tress1_cumhiweek_trendmax,"figures/tress1_cumhiweek_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -7035,7 +7035,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumhiweek_tres,"figures/int_tab_s2_cumhiweek_tres.html")
+# gtsave(int_tab_s2_cumhiweek_tres,"figures/int_tab_s2_cumhiweek_tres.html")
 
 s2_cumhiweek_tres <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -7048,7 +7048,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumhiweek_tres <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumhiweek_tres,"figures/s2byhabitat_cumhiweek_tres.html")
+# gtsave(s2byhabitat_cumhiweek_tres,"figures/s2byhabitat_cumhiweek_tres.html")
 
 
 ## trends
@@ -7061,7 +7061,7 @@ gtsave(s2byhabitat_cumhiweek_tres,"figures/s2byhabitat_cumhiweek_tres.html")
     gt())
 
 
-gtsave(tress2_cumhiweek_trendmax,"figures/tress2_cumhiweek_trendmax.html")
+# gtsave(tress2_cumhiweek_trendmax,"figures/tress2_cumhiweek_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -7175,7 +7175,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumhiweek_tres,"figures/int_tab_abs_cumhiweek_tres.html")
+# gtsave(int_tab_abs_cumhiweek_tres,"figures/int_tab_abs_cumhiweek_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -7207,7 +7207,7 @@ dat_abs_text_tres_cumhiweek <- data.frame(
 (abscumhiweek_byhabitat_tres <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumhiweek_byhabitat_tres,"figures/abscumhiweek_byhabitat_tres.html")
+# gtsave(abscumhiweek_byhabitat_tres,"figures/abscumhiweek_byhabitat_tres.html")
 
 
 
@@ -7274,7 +7274,7 @@ temp_abs_trans_tres_cumhiweek <- trans_new("temp_trans_tres_cumhiweek",
     gt())
 
 
-gtsave(tresabs_cumhiweek_trendmax,"figures/tresabs_cumhiweek_trendmax.html")
+# gtsave(tresabs_cumhiweek_trendmax,"figures/tresabs_cumhiweek_trendmax.html")
 
 #### use cumulative prior day temp to predict cort
 
@@ -7316,7 +7316,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumdegreeday_tres,"figures/int_tab_s1_cumdegreeday_tres.html")
+# gtsave(int_tab_s1_cumdegreeday_tres,"figures/int_tab_s1_cumdegreeday_tres.html")
 
 s1_cumdegreeday_tres <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -7329,7 +7329,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumdegreeday_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumdegreeday_tres,"figures/s1byhabitat_cumdegreeday_tres.html")
+# gtsave(s1byhabitat_cumdegreeday_tres,"figures/s1byhabitat_cumdegreeday_tres.html")
 
 
 ## trends
@@ -7342,7 +7342,7 @@ gtsave(s1byhabitat_cumdegreeday_tres,"figures/s1byhabitat_cumdegreeday_tres.html
     gt())
 
 
-gtsave(tress1_cumdegreeday_trendmax,"figures/tress1_cumdegreeday_trendmax.html")
+# gtsave(tress1_cumdegreeday_trendmax,"figures/tress1_cumdegreeday_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -7457,7 +7457,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumdegreeday_tres,"figures/int_tab_s2_cumdegreeday_tres.html")
+# gtsave(int_tab_s2_cumdegreeday_tres,"figures/int_tab_s2_cumdegreeday_tres.html")
 
 s2_cumdegreeday_tres <- s2_lintemp
 check_collinearity(s2_lintemp_noint)
@@ -7470,7 +7470,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumdegreeday_tres <- emmeans(s2_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumdegreeday_tres,"figures/s2byhabitat_cumdegreeday_tres.html")
+# gtsave(s2byhabitat_cumdegreeday_tres,"figures/s2byhabitat_cumdegreeday_tres.html")
 
 
 ## trends
@@ -7483,7 +7483,7 @@ gtsave(s2byhabitat_cumdegreeday_tres,"figures/s2byhabitat_cumdegreeday_tres.html
     gt())
 
 
-gtsave(tress2_cumdegreeday_trendmax,"figures/tress2_cumdegreeday_trendmax.html")
+# gtsave(tress2_cumdegreeday_trendmax,"figures/tress2_cumdegreeday_trendmax.html")
 
 
 summary(s2_lintemp)
@@ -7597,7 +7597,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumdegreeday_tres,"figures/int_tab_abs_cumdegreeday_tres.html")
+# gtsave(int_tab_abs_cumdegreeday_tres,"figures/int_tab_abs_cumdegreeday_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -7629,7 +7629,7 @@ dat_text_tres_cumdegreeday <- data.frame(
 (abscumdegreeday_byhabitat_tres <- emmeans(abs_lintemp,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumdegreeday_byhabitat_tres,"figures/abscumdegreeday_byhabitat_tres.html")
+# gtsave(abscumdegreeday_byhabitat_tres,"figures/abscumdegreeday_byhabitat_tres.html")
 
 
 
@@ -7696,7 +7696,7 @@ temp_trans_tres_cumdegreeday <- trans_new("temp_trans_tres_cumdegreeday",
     gt())
 
 
-gtsave(tresabs_cumdegreeday_trendmax,"figures/tresabs_cumdegreeday_trendmax.html")
+# gtsave(tresabs_cumdegreeday_trendmax,"figures/tresabs_cumdegreeday_trendmax.html")
 
 #### use cumulative prior week temp to predict cort
 
@@ -7738,7 +7738,7 @@ c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s1_cumdegreeweek_tres,"figures/int_tab_s1_cumdegreeweek_tres.html")
+# gtsave(int_tab_s1_cumdegreeweek_tres,"figures/int_tab_s1_cumdegreeweek_tres.html")
 
 s1_cumdegreeweek_tres <- s1_lintemp_addmax
 check_collinearity(s1_lintemp_noint)
@@ -7751,7 +7751,7 @@ check_collinearity(s1_lintemp_noint)
 (s1byhabitat_cumdegreeweek_tres <- emmeans(s1_lintemp_addmax,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s1byhabitat_cumdegreeweek_tres,"figures/s1byhabitat_cumdegreeweek_tres.html")
+# gtsave(s1byhabitat_cumdegreeweek_tres,"figures/s1byhabitat_cumdegreeweek_tres.html")
 
 
 ## trends
@@ -7764,7 +7764,7 @@ gtsave(s1byhabitat_cumdegreeweek_tres,"figures/s1byhabitat_cumdegreeweek_tres.ht
     gt())
 
 
-gtsave(tress1_cumdegreeweek_trendmax,"figures/tress1_cumdegreeweek_trendmax.html")
+# gtsave(tress1_cumdegreeweek_trendmax,"figures/tress1_cumdegreeweek_trendmax.html")
 
 
 summary(s1_lintemp_addmax)
@@ -7879,7 +7879,7 @@ c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% muta
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_s2_cumdegreeweek_tres,"figures/int_tab_s2_cumdegreeweek_tres.html")
+# gtsave(int_tab_s2_cumdegreeweek_tres,"figures/int_tab_s2_cumdegreeweek_tres.html")
 
 s2_cumdegreeweek_tres <- s2_lintemp_noint
 check_collinearity(s2_lintemp_noint)
@@ -7892,7 +7892,7 @@ check_collinearity(s2_lintemp_noint)
 (s2byhabitat_cumdegreeweek_tres <- emmeans(s2_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(s2byhabitat_cumdegreeweek_tres,"figures/s2byhabitat_cumdegreeweek_tres.html")
+# gtsave(s2byhabitat_cumdegreeweek_tres,"figures/s2byhabitat_cumdegreeweek_tres.html")
 
 
 ## trends
@@ -7905,7 +7905,7 @@ gtsave(s2byhabitat_cumdegreeweek_tres,"figures/s2byhabitat_cumdegreeweek_tres.ht
     gt())
 
 
-gtsave(tress2_cumdegreeweek_trendmax,"figures/tress2_cumdegreeweek_trendmax.html")
+# gtsave(tress2_cumdegreeweek_trendmax,"figures/tress2_cumdegreeweek_trendmax.html")
 
 
 summary(s2_lintemp_noint)
@@ -8019,7 +8019,7 @@ c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% m
            across(c(AIC,Chisq), ~ round(.x, digits = 2)),
            P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
     group_by(max_or_min) %>% gt())
-gtsave(int_tab_abs_cumdegreeweek_tres,"figures/int_tab_abs_cumdegreeweek_tres.html")
+# gtsave(int_tab_abs_cumdegreeweek_tres,"figures/int_tab_abs_cumdegreeweek_tres.html")
 
 check_collinearity(abs_lintemp_noint)
 
@@ -8051,7 +8051,7 @@ dat_text_tres_cumdegreeweek <- data.frame(
 (abscumdegreeweek_byhabitat_tres <- emmeans(abs_lintemp_noint,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-gtsave(abscumdegreeweek_byhabitat_tres,"figures/abscumdegreeweek_byhabitat_tres.html")
+# gtsave(abscumdegreeweek_byhabitat_tres,"figures/abscumdegreeweek_byhabitat_tres.html")
 
 
 
@@ -8118,7 +8118,7 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
     gt())
 
 
-gtsave(tresabs_cumdegreeweek_trendmax,"figures/tresabs_cumdegreeweek_trendmax.html")
+# gtsave(tresabs_cumdegreeweek_trendmax,"figures/tresabs_cumdegreeweek_trendmax.html")
 
 
 
