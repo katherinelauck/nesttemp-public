@@ -41,6 +41,32 @@ source("code/provis_model_eval.R")
 ```
 
 
+## Temperature by land cover (Tukey HSD)
+
+```{r}
+t_temp <- read_rds("../data/temp.rds") %>% mutate(site = factor(str_extract(box,"([:alpha:]|[:punct:])+")),
+                                             habitat = fct_collapse(site,
+                                                                    Orchard = c("BRO","MCE","PICO","MCO","FBFO","PG-O-"),
+                                                                    Grassland = c("MBNG","RRRG","PICG","FBFG"),
+                                                                    `Row crop` = c("MBNR","PICR","RRRR","FBFR","PG-C-","RU-C-"),
+                                                                    Forest = c("MBNC","PCC","PCT","RRC","RRE","SFP","PCE")),
+                                             habitat = factor(habitat,levels = c("Forest","Orchard","Grassland","Row crop")))
+wmean <- t_temp %>%
+  group_by(date,habitat,logger_position) %>%
+  summarize(meanmax = mean(maxt),n = n(),.groups = "keep") %>%
+  ungroup(habitat) %>%
+  summarize(wmean = weighted.mean(meanmax,n)) %>%
+  right_join(t_temp,by = c("date","logger_position")) %>%
+  mutate(resid = maxt - wmean)
+
+(tuk_names <- TukeyHSD(aov(resid~habitat, filter(wmean,logger_position == "O")),conf.level = .95)[[1]] %>% as_tibble(rownames = "comparison") %>%
+    mutate(across(diff:`p adj`,~round(.x,digits = 2)),
+           `p adj` = if_else(`p adj` < .001, "<0.001",as.character(`p adj`))) %>% gt())
+
+gtsave(tuk_names,"../figures/tukeytable_tempbylanduse.html")
+```
+
+
 # Sample size tables
 
 ```{r}
@@ -836,6 +862,12 @@ gtsave(g_abs_provis_coef,"../figures/g_abs_provis_coef.html")
 
 ```
 
+## Tree swallow provisioning polynomial trends
+
+```{r}
+gtsave(tresprovistrend,"../figures/tresprovistrend.html")
+```
+
 #### Validation table
 
 Response will be row group
@@ -1006,7 +1038,17 @@ gtsave(trend,"../figures/val_tbl.html")
 
 ## Validation table for interaction of max temp and julian day
 
-The data from this comes from seasonal_sensitivity.Rmd, but I don't have time to make the purl whatever work. So to my future self, just run all that file before you run this chunk. Sorry.
+```{r}
+source("seasonal_sensitivity.R")
+```
+
+```{r}
+(trend_jday <- rbind(growth,survival,s1_priorday,s1_priorweek,abs_priorday,abs_priorweek,s2_priorday,s2_priorweek,provis) %>% gt(rowname_col = "Model",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
+  tab_spanner_delim(
+    delim="_"))
+
+gtsave(trend_jday,"../figures/val_tmaxxjday_tbl.html")
+```
 
 
 

@@ -29,6 +29,9 @@ rule all:
         "figures/g_s1_provis_coef.html",
         "figures/g_abs_provis_coef.html",
         "figures/val_tbl.html",
+        "figures/tukeytable_tempbylanduse.html",
+        "figures/tresprovistrend.html",
+        "figures/val_tmaxxjday_tbl.html",
 
 
 rule growth_figures:
@@ -118,6 +121,7 @@ rule tables:
         survival_data     = "data/survival_attempt.rds",
         provis_data       = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
         provis_other_data = "data/provis_manytempmeasures.rds",
+        temp_data         = "data/temp.rds",
         growth_script     = "code/growth_model_eval.R",
         survival_script   = "code/survival_model_eval.R",
         cort_script       = "code/cort_model_eval.R",
@@ -125,6 +129,7 @@ rule tables:
         growth_other      = "code/growth_model_eval_othertempmeasures.R",
         survival_other    = "code/survival_model_eval_othertempmeasures.R",
         provis_other      = "code/provis_model_eval_othertempmeasures.R",
+        seasonal          = "code/seasonal_sensitivity.R",
         script            = "code/publication_tables.Rmd",
     output:
         "figures/full_samp_size_tbl.html",
@@ -140,6 +145,9 @@ rule tables:
         "figures/g_s1_provis_coef.html",
         "figures/g_abs_provis_coef.html",
         "figures/val_tbl.html",
+        "figures/tukeytable_tempbylanduse.html",
+        "figures/tresprovistrend.html",
+        "figures/val_tmaxxjday_tbl.html",
     resources:
         runtime = "4h",
     shell:
