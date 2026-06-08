@@ -137,7 +137,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_inc_WEBL$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -226,7 +226,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_nest_WEBL$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -307,7 +307,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_nestpd_WEBL$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -393,7 +393,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_inc_TRES$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -476,7 +476,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_nest_TRES$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -558,7 +558,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_nestpd_TRES$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -693,7 +693,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- s_inc_WEBL_noint$data %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_WEBL.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -887,7 +887,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 #                         inverse = function(x){x})
 #
 # samp <- data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -1099,14 +1099,14 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                           inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# samp %>% gt()
 
 ss_year_survival_webl <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
   ss_year_survival_webl %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_webl.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_webl.html")
 
 
 dat_text_webl <- data.frame(
@@ -1244,7 +1244,7 @@ dat_text_webl <- data.frame(
 #                            inverse = function(x){x})
 #
 # samp <- s_inc_TRES_noint$data %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -1286,7 +1286,7 @@ dat_text_webl <- data.frame(
 #
 #
 # samp <- s_inc_TRES_noint$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -1419,7 +1419,7 @@ dat_text_webl <- data.frame(
 #
 #
 # samp <- s_nest_TRES_noint$data %>% group_by(habitat) %>% summarize(count = n())
-# # samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# # samp %>% gt()
 #
 #
 # dat_text <- data.frame(
@@ -1572,12 +1572,12 @@ summary(s_nestpd_TRES_noint)
 
 
 samp_tres <- s_nestpd_TRES_noint$data %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_TRES.html")
+# samp %>% gt()
 ss_year_survival_tres <- s_nestpd_TRES_noint$data %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 ss_year_survival_tres %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_tres.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_tres.html")
 
 
 dat_text_tres <- data.frame(

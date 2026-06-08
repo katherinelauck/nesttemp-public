@@ -208,10 +208,10 @@ ss_year_webl_provis <- m_linint$frame %>%
 )
 
 
-t_ss_year_webl_provis %>% gtsave("figures/ss_year_webl_provis.html")
+t_ss_year_webl_provis
 
 samp <- m_linint$frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_provis.html")
+samp %>% gt()
 
 
 dat_text_webl <- data.frame(
@@ -504,10 +504,10 @@ ss_year_tres_provis <- m$frame %>%
 )
 
 
-t_ss_year_tres_provis %>% gtsave("figures/ss_year_tres_provis.html")
+t_ss_year_tres_provis
 
 samp <- m$frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_provis.html")
+samp %>% gt()
 
 
 dat_text_tres <- data.frame(

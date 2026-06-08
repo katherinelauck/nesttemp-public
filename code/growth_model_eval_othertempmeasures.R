@@ -104,10 +104,10 @@ samp_year_maxhiweek_webl <- g_lintemp@frame %>% group_by(habitat,year_fct) %>% s
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_maxhiweek_webl %>% gtsave("figures/ss_year_maxhiweek_webl.html")
+t_samp_year_growth_maxhiweek_webl
 
 samp <- g_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_maxhiweek_webl.html")
+samp %>% gt()
 
 
 dat_text_maxhiweek_webl <- data.frame(
@@ -373,10 +373,10 @@ samp_year_maxhiday_webl <- g_lintemp@frame %>% group_by(habitat,year_fct) %>% su
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_maxhiday_webl %>% gtsave("figures/ss_year_maxhiday_webl.html")
+t_samp_year_growth_maxhiday_webl
 
 samp <- g_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_maxhiday_webl.html")
+samp %>% gt()
 
 
 dat_text_maxhiday_webl <- data.frame(
@@ -561,10 +561,10 @@ samp_year_deghr30week_webl <- g_lintemp@frame %>% group_by(habitat,year_fct) %>%
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_deghr30week_webl %>% gtsave("figures/ss_year_deghr30week_webl.html")
+t_samp_year_growth_deghr30week_webl
 
 samp <- g_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_deghr30week_webl.html")
+samp %>% gt()
 
 
 dat_text_deghr30week_webl <- data.frame(
@@ -748,10 +748,10 @@ samp_year_hihr25week_webl <- g_lintemp@frame %>% group_by(habitat,year_fct) %>% 
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_hihr25week_webl %>% gtsave("figures/ss_year_hihr25week_webl.html")
+t_samp_year_growth_hihr25week_webl
 
 samp <- g_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_hihr25week_webl.html")
+samp %>% gt()
 
 
 dat_text_hihr25week_webl <- data.frame(
@@ -937,10 +937,10 @@ samp_year_maxhiweek_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_fct
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_maxhiweek_tres %>% gtsave("figures/ss_year_maxhiweek_tres.html")
+t_samp_year_growth_maxhiweek_tres
 
 samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_maxhiweek_tres.html")
+samp %>% gt()
 
 
 dat_text_maxhiweek_tres <- data.frame(
@@ -1125,10 +1125,10 @@ samp_year_maxhiday_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_fct)
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_maxhiday_tres %>% gtsave("figures/ss_year_maxhiday_tres.html")
+t_samp_year_growth_maxhiday_tres
 
 samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_maxhiday_tres.html")
+samp %>% gt()
 
 
 dat_text_maxhiday_tres <- data.frame(
@@ -1313,10 +1313,10 @@ samp_year_deghr30week_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_f
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_deghr30week_tres %>% gtsave("figures/ss_year_deghr30week_tres.html")
+t_samp_year_growth_deghr30week_tres
 
 samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_deghr30week_tres.html")
+samp %>% gt()
 
 
 dat_text_deghr30week_tres <- data.frame(
@@ -1500,10 +1500,10 @@ samp_year_hihr25week_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_fc
     grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 
 
-t_samp_year_growth_hihr25week_tres %>% gtsave("figures/ss_year_hihr25week_tres.html")
+t_samp_year_growth_hihr25week_tres
 
 samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_hihr25week_tres.html")
+samp %>% gt()
 
 
 dat_text_hihr25week_tres <- data.frame(

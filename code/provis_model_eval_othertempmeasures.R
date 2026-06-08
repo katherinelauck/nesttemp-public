@@ -128,11 +128,11 @@ ss_year_webl_provis_hi <- m$frame %>%
   mutate(across(c(`2021`,`2022`,`2023`),~ replace_na(.x,0)),
          Total = `2021`+`2022`+`2023`)
 ss_year_webl_provis_hi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-  gtsave("figures/ss_year_webl_provis_hi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE))
+  # gtsave("figures/ss_year_webl_provis_hi.html")
 
 samp <- m$frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_provis_hi.html")
+samp %>% gt()
 
 
 dat_text_webl_hi <- data.frame(
@@ -339,11 +339,11 @@ ss_year_tres_provis_hi <- m$frame %>%
   mutate(across(c(`2021`,`2022`,`2023`),~ replace_na(.x,0)),
          Total = `2021`+`2022`+`2023`)
 ss_year_tres_provis_hi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-  gtsave("figures/ss_year_tres_provis_hi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE))
+  # gtsave("figures/ss_year_tres_provis_hi.html")
 
 samp <- m$frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_provis_hi.html")
+samp %>% gt()
 
 
 dat_text_tres_hi <- data.frame(

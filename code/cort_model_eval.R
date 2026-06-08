@@ -854,11 +854,11 @@ ss_year_webl_s1 <- s1_lintemp_noint@frame %>%
 )
 
 
-t_ss_year_webl_s1 %>% gtsave("figures/ss_year_webl_s1.html")
+t_ss_year_webl_s1
 
 
 samp_s1_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_webl %>% gt() %>% gtsave("figures/ss_webl_s1.html")
+samp_s1_webl %>% gt()
 
 
 dat_text_s1_webl <- data.frame(
@@ -1051,11 +1051,11 @@ ss_year_webl_abs <- abs_lintemp@frame %>%
 )
 
 
-t_ss_year_webl_abs %>% gtsave("figures/ss_year_webl_abs.html")
+t_ss_year_webl_abs
 
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs.html")
+samp %>% gt()
 
 
 dat_text_webl <- data.frame(
@@ -1376,10 +1376,10 @@ ss_year_webl_s2 <- s2_lintemp@frame %>%
 )
 
 
-t_ss_year_webl_s2 %>% gtsave("figures/ss_year_webl_s2.html")
+t_ss_year_webl_s2
 
 samp_s2_webl <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_webl %>% gt() %>% gtsave("figures/ss_webl_s2.html")
+samp_s2_webl %>% gt()
 
 
 dat_text_s2_webl <- data.frame(
@@ -1518,11 +1518,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_priordayt <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_priordayt.html")
 
 samp_s1_priordayt_webl <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_priordayt_webl %>% gt() %>% gtsave("figures/ss_webl_s1_priordayt_.html")
+samp_s1_priordayt_webl %>% gt()
 
 
 dat_text_s1_priordayt_webl <- data.frame(
@@ -1658,11 +1658,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_priordayt <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_priordayt.html")
 
 samp_s2_priordayt_webl <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_priordayt_webl %>% gt() %>% gtsave("figures/ss_webl_s2_priordayt_.html")
+samp_s2_priordayt_webl %>% gt()
 
 
 dat_text_s2_priordayt_webl <- data.frame(
@@ -1774,11 +1774,11 @@ abs_webl_priordayt <- abs_lintemp_noint
 
 ss_year_webl_abs_priordayt <- abs_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_priordayt.html")
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_priordayt.html")
+samp %>% gt()
 
 
 dat_text_webl <- data.frame(
@@ -1941,11 +1941,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_priordaymaxhhi <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_priordaymaxhhi.html")
 
 samp_s1_priordaymaxhhi_webl <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_priordaymaxhhi_webl %>% gt() %>% gtsave("figures/ss_webl_s1_priordaymaxhhi_.html")
+samp_s1_priordaymaxhhi_webl %>% gt()
 
 
 dat_text_s1_priordaymaxhhi_webl <- data.frame(
@@ -2080,11 +2080,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_priordaymaxhhi <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_priordaymaxhhi.html")
 
 samp_s2_priordaymaxhhi_webl <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_priordaymaxhhi_webl %>% gt() %>% gtsave("figures/ss_webl_s2_priordaymaxhhi_.html")
+samp_s2_priordaymaxhhi_webl %>% gt()
 
 
 dat_text_s2_priordaymaxhhi_webl <- data.frame(
@@ -2195,11 +2195,11 @@ abs_webl_priordaymaxhhi <- abs_lintemp_noint
 
 ss_year_webl_abs_priordaymaxhhi <- abs_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_priordaymaxhhi.html")
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_priordaymaxhhi.html")
+samp %>% gt()
 
 
 dat_text_priordaymaxhhi_webl <- data.frame(
@@ -2361,11 +2361,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_weekhi <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_weekhi.html")
 
 samp_s1_weekhi_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_weekhi_webl %>% gt() %>% gtsave("figures/ss_webl_s1_weekhi.html")
+samp_s1_weekhi_webl %>% gt()
 
 
 dat_text_s1_weekhi_webl <- data.frame(
@@ -2502,11 +2502,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_weekhi <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_weekhi.html")
 
 samp_s2_weekhi_webl <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_weekhi_webl %>% gt() %>% gtsave("figures/ss_webl_s2_weekhi.html")
+samp_s2_weekhi_webl %>% gt()
 
 
 dat_text_s2_weekhi_webl <- data.frame(
@@ -2617,11 +2617,11 @@ abs_webl_weekhi <- abs_lintemp
 
 ss_year_webl_abs_weekhi <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_weekhi.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_weekhi.html")
+samp %>% gt()
 
 
 dat_text_webl_weekhi <- data.frame(
@@ -2783,11 +2783,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_cumhiday <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_cumhiday.html")
 
 samp_s1_cumhiday_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumhiday_webl %>% gt() %>% gtsave("figures/ss_webl_s1_cumhiday.html")
+samp_s1_cumhiday_webl %>% gt()
 
 
 dat_text_s1_cumhiday_webl <- data.frame(
@@ -2924,11 +2924,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_cumhiday <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_cumhiday.html")
 
 samp_s2_cumhiday_webl <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumhiday_webl %>% gt() %>% gtsave("figures/ss_webl_s2_cumhiday.html")
+samp_s2_cumhiday_webl %>% gt()
 
 
 dat_text_s2_cumhiday_webl <- data.frame(
@@ -3039,11 +3039,11 @@ abs_webl_cumhiday <- abs_lintemp_noint
 
 ss_year_webl_abs_cumhiday <- abs_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_cumhiday.html")
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_cumhiday.html")
+samp %>% gt()
 
 
 dat_text_webl_cumhiday <- data.frame(
@@ -3206,11 +3206,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_cumhiweek <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_cumhiweek.html")
 
 samp_s1_cumhiweek_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumhiweek_webl %>% gt() %>% gtsave("figures/ss_webl_s1_cumhiweek.html")
+samp_s1_cumhiweek_webl %>% gt()
 
 
 dat_text_s1_cumhiweek_webl <- data.frame(
@@ -3347,11 +3347,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_cumhiweek <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_cumhiweek.html")
 
 samp_s2_cumhiweek_webl <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumhiweek_webl %>% gt() %>% gtsave("figures/ss_webl_s2_cumhiweek.html")
+samp_s2_cumhiweek_webl %>% gt()
 
 
 dat_text_s2_cumhiweek_webl <- data.frame(
@@ -3462,11 +3462,11 @@ abs_webl_cumhiweek <- abs_lintemp
 
 ss_year_webl_abs_cumhiweek <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_cumhiweek.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_cumhiweek.html")
+samp %>% gt()
 
 
 dat_abs_text_webl_cumhiweek <- data.frame(
@@ -3628,11 +3628,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_cumdegreeday <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_cumdegreeday.html")
 
 samp_s1_cumdegreeday_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumdegreeday_webl %>% gt() %>% gtsave("figures/ss_webl_s1_cumdegreeday.html")
+samp_s1_cumdegreeday_webl %>% gt()
 
 
 dat_text_s1_cumdegreeday_webl <- data.frame(
@@ -3768,11 +3768,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_cumdegreeday <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_cumdegreeday.html")
 
 samp_s2_cumdegreeday_webl <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumdegreeday_webl %>% gt() %>% gtsave("figures/ss_webl_s2_cumdegreeday.html")
+samp_s2_cumdegreeday_webl %>% gt()
 
 
 dat_text_s2_cumdegreeday_webl <- data.frame(
@@ -3884,11 +3884,11 @@ abs_webl_cumdegreeday <- abs_lintemp
 
 ss_year_webl_abs_cumdegreeday <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_cumdegreeday.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_cumdegreeday.html")
+samp %>% gt()
 
 
 dat_text_webl_cumdegreeday <- data.frame(
@@ -4050,11 +4050,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_webl_s1_cumdegreeweek <- s1_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s1_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s1_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s1_cumdegreeweek.html")
 
 samp_s1_cumdegreeweek_webl <- s1_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumdegreeweek_webl %>% gt() %>% gtsave("figures/ss_webl_s1_cumdegreeweek.html")
+samp_s1_cumdegreeweek_webl %>% gt()
 
 
 dat_text_s1_cumdegreeweek_webl <- data.frame(
@@ -4191,11 +4191,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_webl_s2_cumdegreeweek <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_s2_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_s2_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_s2_cumdegreeweek.html")
 
 samp_s2_cumdegreeweek_webl <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumdegreeweek_webl %>% gt() %>% gtsave("figures/ss_webl_s2_cumdegreeweek.html")
+samp_s2_cumdegreeweek_webl %>% gt()
 
 
 dat_text_s2_cumdegreeweek_webl <- data.frame(
@@ -4306,11 +4306,11 @@ abs_webl_cumdegreeweek <- abs_lintemp
 
 ss_year_webl_abs_cumdegreeweek <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_webl_abs_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_webl_abs_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_webl_abs_cumdegreeweek.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl_abs_cumdegreeweek.html")
+samp %>% gt()
 
 
 dat_text_webl_cumdegreeweek <- data.frame(
@@ -4473,10 +4473,10 @@ ss_year_tres_s1 <- s1_lintemp_addmax@frame %>%
 )
 
 
-t_ss_year_tres_s1 %>% gtsave("figures/ss_year_tres_s1.html")
+t_ss_year_tres_s1
 
 samp_s1_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_s1.html")
+samp %>% gt()
 
 
 dat_text_s1_tres <- data.frame(
@@ -4740,10 +4740,10 @@ ss_year_tres_s2 <- s2_lintemp_addmin@frame %>%
 )
 
 
-t_ss_year_tres_s2 %>% gtsave("figures/ss_year_tres_s2.html")
+t_ss_year_tres_s2
 
 samp_s2_tres <- s2_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_s2.html")
+samp %>% gt()
 
 
 dat_text_s2_tres <- data.frame(
@@ -4904,10 +4904,10 @@ ss_year_tres_abs <- abs_lintemp@frame %>%
 )
 
 
-t_ss_year_tres_abs %>% gtsave("figures/ss_year_tres_abs.html")
+t_ss_year_tres_abs
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs.html")
+samp %>% gt()
 
 
 dat_text_tres <- data.frame(
@@ -5241,11 +5241,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_priordayt <- s1_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_priordayt.html")
 
 samp_s1_priordayt_tres <- s1_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_priordayt_tres %>% gt() %>% gtsave("figures/ss_tres_s1_priordayt_.html")
+samp_s1_priordayt_tres %>% gt()
 
 
 dat_text_s1_priordayt_tres <- data.frame(
@@ -5381,11 +5381,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_priordayt <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_priordayt.html")
 
 samp_s2_priordayt_tres <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_priordayt_tres %>% gt() %>% gtsave("figures/ss_tres_s2_priordayt_.html")
+samp_s2_priordayt_tres %>% gt()
 
 
 dat_text_s2_priordayt_tres <- data.frame(
@@ -5497,11 +5497,11 @@ abs_tres_priordayt <- abs_lintemp
 
 ss_year_tres_abs_priordayt <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_priordayt %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_priordayt.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_priordayt.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_priordayt.html")
+samp %>% gt()
 
 
 dat_text_tres <- data.frame(
@@ -5663,11 +5663,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_priordaymaxhhi <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_priordaymaxhhi.html")
 
 samp_s1_priordaymaxhhi_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_priordaymaxhhi_tres %>% gt() %>% gtsave("figures/ss_tres_s1_priordaymaxhhi_.html")
+samp_s1_priordaymaxhhi_tres %>% gt()
 
 
 dat_text_s1_priordaymaxhhi_tres <- data.frame(
@@ -5804,11 +5804,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_priordaymaxhhi <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_priordaymaxhhi.html")
 
 samp_s2_priordaymaxhhi_tres <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_priordaymaxhhi_tres %>% gt() %>% gtsave("figures/ss_tres_s2_priordaymaxhhi_.html")
+samp_s2_priordaymaxhhi_tres %>% gt()
 
 
 dat_text_s2_priordaymaxhhi_tres <- data.frame(
@@ -5919,11 +5919,11 @@ abs_tres_priordaymaxhhi <- abs_lintemp
 
 ss_year_tres_abs_priordaymaxhhi <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_priordaymaxhhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_priordaymaxhhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_priordaymaxhhi.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_priordaymaxhhi.html")
+samp %>% gt()
 
 
 dat_text_priordaymaxhhi_tres <- data.frame(
@@ -6085,11 +6085,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_weekhi <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_weekhi.html")
 
 samp_s1_weekhi_tres <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_weekhi_tres %>% gt() %>% gtsave("figures/ss_tres_s1_weekhi.html")
+samp_s1_weekhi_tres %>% gt()
 
 
 dat_text_s1_weekhi_tres <- data.frame(
@@ -6226,11 +6226,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_weekhi <- s2_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_weekhi.html")
 
 samp_s2_weekhi_tres <- s2_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_weekhi_tres %>% gt() %>% gtsave("figures/ss_tres_s2_weekhi.html")
+samp_s2_weekhi_tres %>% gt()
 
 
 dat_text_s2_weekhi_tres <- data.frame(
@@ -6341,11 +6341,11 @@ abs_tres_weekhi <- abs_lintemp
 
 ss_year_tres_abs_weekhi <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_weekhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_weekhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_weekhi.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_weekhi.html")
+samp %>% gt()
 
 
 dat_text_tres_weekhi <- data.frame(
@@ -6509,11 +6509,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_cumhiday <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_cumhiday.html")
 
 samp_s1_cumhiday_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumhiday_tres %>% gt() %>% gtsave("figures/ss_tres_s1_cumhiday.html")
+samp_s1_cumhiday_tres %>% gt()
 
 
 dat_text_s1_cumhiday_tres <- data.frame(
@@ -6649,11 +6649,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_cumhiday <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_cumhiday.html")
 
 samp_s2_cumhiday_tres <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumhiday_tres %>% gt() %>% gtsave("figures/ss_tres_s2_cumhiday.html")
+samp_s2_cumhiday_tres %>% gt()
 
 
 dat_text_s2_cumhiday_tres <- data.frame(
@@ -6765,11 +6765,11 @@ abs_tres_cumhiday <- abs_lintemp_noint
 
 ss_year_tres_abs_cumhiday <- abs_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_cumhiday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_cumhiday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_cumhiday.html")
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_cumhiday.html")
+samp %>% gt()
 
 
 dat_text_tres_cumhiday <- data.frame(
@@ -6932,11 +6932,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_cumhiweek <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_cumhiweek.html")
 
 samp_s1_cumhiweek_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumhiweek_tres %>% gt() %>% gtsave("figures/ss_tres_s1_cumhiweek.html")
+samp_s1_cumhiweek_tres %>% gt()
 
 
 dat_text_s1_cumhiweek_tres <- data.frame(
@@ -7073,11 +7073,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_cumhiweek <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_cumhiweek.html")
 
 samp_s2_cumhiweek_tres <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumhiweek_tres %>% gt() %>% gtsave("figures/ss_tres_s2_cumhiweek.html")
+samp_s2_cumhiweek_tres %>% gt()
 
 
 dat_text_s2_cumhiweek_tres <- data.frame(
@@ -7188,11 +7188,11 @@ abs_tres_cumhiweek <- abs_lintemp
 
 ss_year_tres_abs_cumhiweek <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_cumhiweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_cumhiweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_cumhiweek.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_cumhiweek.html")
+samp %>% gt()
 
 
 dat_abs_text_tres_cumhiweek <- data.frame(
@@ -7354,11 +7354,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_cumdegreeday <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_cumdegreeday.html")
 
 samp_s1_cumdegreeday_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumdegreeday_tres %>% gt() %>% gtsave("figures/ss_tres_s1_cumdegreeday.html")
+samp_s1_cumdegreeday_tres %>% gt()
 
 
 dat_text_s1_cumdegreeday_tres <- data.frame(
@@ -7495,11 +7495,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_cumdegreeday <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_cumdegreeday.html")
 
 samp_s2_cumdegreeday_tres <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumdegreeday_tres %>% gt() %>% gtsave("figures/ss_tres_s2_cumdegreeday.html")
+samp_s2_cumdegreeday_tres %>% gt()
 
 
 dat_text_s2_cumdegreeday_tres <- data.frame(
@@ -7610,11 +7610,11 @@ abs_tres_cumdegreeday <- abs_lintemp
 
 ss_year_tres_abs_cumdegreeday <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_cumdegreeday %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_cumdegreeday.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_cumdegreeday.html")
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_cumdegreeday.html")
+samp %>% gt()
 
 
 dat_text_tres_cumdegreeday <- data.frame(
@@ -7776,11 +7776,11 @@ check_collinearity(s1_lintemp_noint)
 
 ss_year_tres_s1_cumdegreeweek <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s1_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s1_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s1_cumdegreeweek.html")
 
 samp_s1_cumdegreeweek_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s1_cumdegreeweek_tres %>% gt() %>% gtsave("figures/ss_tres_s1_cumdegreeweek.html")
+samp_s1_cumdegreeweek_tres %>% gt()
 
 
 dat_text_s1_cumdegreeweek_tres <- data.frame(
@@ -7917,11 +7917,11 @@ check_collinearity(s2_lintemp_noint)
 
 ss_year_tres_s2_cumdegreeweek <- s2_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_s2_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_s2_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_s2_cumdegreeweek.html")
 
 samp_s2_cumdegreeweek_tres <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp_s2_cumdegreeweek_tres %>% gt() %>% gtsave("figures/ss_tres_s2_cumdegreeweek.html")
+samp_s2_cumdegreeweek_tres %>% gt()
 
 
 dat_text_s2_cumdegreeweek_tres <- data.frame(
@@ -8032,11 +8032,11 @@ abs_tres_cumdegreeweek <- abs_lintemp_noint
 
 ss_year_tres_abs_cumdegreeweek <- abs_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
 ss_year_tres_abs_cumdegreeweek %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_tres_abs_cumdegreeweek.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_tres_abs_cumdegreeweek.html")
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres_abs_cumdegreeweek.html")
+samp %>% gt()
 
 
 dat_text_tres_cumdegreeweek <- data.frame(

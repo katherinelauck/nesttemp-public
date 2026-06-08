@@ -205,14 +205,14 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# samp %>% gt()
 #
 ss_year_survival_webl_meanmaxhi <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_webl_meanmaxhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_webl_meanmaxhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_webl_meanmaxhi.html")
 
 
 dat_text_webl <- data.frame(
@@ -395,14 +395,14 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# samp %>% gt()
 #
 ss_year_survival_webl_deghr_30 <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_webl_deghr_30 %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_webl_deghr_30.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_webl_deghr_30.html")
 
 
 dat_text_webl <- data.frame(
@@ -584,14 +584,14 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_webl.html")
+# samp %>% gt()
 #
 ss_year_survival_webl_hihr_30 <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_webl_hihr_30 %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_webl_hihr_30.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_webl_hihr_30.html")
 
 
 dat_text_webl <- data.frame(
@@ -775,14 +775,14 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_tres.html")
+# samp %>% gt()
 #
 ss_year_survival_tres_meanmaxhi <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_tres_meanmaxhi %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_tres_meanmaxhi.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_tres_meanmaxhi.html")
 
 
 dat_text_tres <- data.frame(
@@ -965,14 +965,14 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_tres.html")
+# samp %>% gt()
 #
 ss_year_survival_tres_deghr_30 <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_tres_deghr_30 %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_tres_deghr_30.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_tres_deghr_30.html")
 
 
 dat_text_tres <- data.frame(
@@ -1154,14 +1154,14 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_tres.html")
+# samp %>% gt()
 #
 ss_year_survival_tres_hihr_30 <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
 ss_year_survival_tres_hihr_30 %>% gt() %>%
-  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-  gtsave("figures/ss_year_survival_tres_hihr_30.html")
+  grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.))
+  # gtsave("figures/ss_year_survival_tres_hihr_30.html")
 
 
 dat_text_tres <- data.frame(

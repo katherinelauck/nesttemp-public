@@ -394,7 +394,7 @@ g_lintemp_webl <- g_lintemp
 #   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
 #
 #
-#   t_samp_year_growth_webl %>% gtsave("figures/ss_year_webl.html")
+#   t_samp_year_growth_webl
 
   samp_year_webl <- g_lintemp@frame %>%
     group_by(habitat,year_fct) %>%
@@ -421,10 +421,10 @@ g_lintemp_webl <- g_lintemp
     )
 
 
-  t_samp_year_growth_webl %>% gtsave("figures/ss_year_webl.html")
+  t_samp_year_growth_webl
 
 samp <- g_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_webl.html")
+samp %>% gt()
 
 
 dat_text_webl <- data.frame(
@@ -907,7 +907,7 @@ g_lintemp_addmin_tres <- g_lintemp_addmin
 # samp_year_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 # (t_samp_year_growth_tres <- samp_year_tres %>% gt() %>%
 #   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
-#   t_samp_year_growth_tres %>% gtsave("figures/ss_year_tres.html")
+#   t_samp_year_growth_tres
 
 
 
@@ -935,10 +935,10 @@ g_lintemp_addmin_tres <- g_lintemp_addmin
       })
   )
 
-  t_samp_year_growth_tres %>% gtsave("figures/ss_year_tres.html")
+  t_samp_year_growth_tres
 
 samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt() %>% gtsave("figures/ss_tres.html")
+samp %>% gt()
 
 
 dat_text_tres <- data.frame(
@@ -1327,7 +1327,7 @@ ss_year_webl_growthbybasecortprovis <- data_s1_webl %>%
 )
 
 
-t_ss_year_webl_growthbybasecortprovis %>% gtsave("figures/ss_year_webl_growthbybasecortprovis.html")
+t_ss_year_webl_growthbybasecortprovis
 
 
 
@@ -1374,7 +1374,7 @@ ss_year_webl_growthbyabscortprovis <- data_abs_webl %>%
 )
 
 
-t_ss_year_webl_growthbyabscortprovis %>% gtsave("figures/ss_year_webl_growthbyabscortprovis.html")
+t_ss_year_webl_growthbyabscortprovis
 
 
 
@@ -1636,7 +1636,7 @@ ss_year_tres_growthbybasecortprovis <- data_s1_tres %>%
 )
 
 
-t_ss_year_tres_growthbybasecortprovis %>% gtsave("figures/ss_year_tres_growthbybasecortprovis.html")
+t_ss_year_tres_growthbybasecortprovis
 
 
 
@@ -1684,7 +1684,7 @@ ss_year_tres_growthbyabscortprovis <- data_abs_tres %>%
 )
 
 
-t_ss_year_tres_growthbyabscortprovis %>% gtsave("figures/ss_year_tres_growthbyabscortprovis.html")
+t_ss_year_tres_growthbyabscortprovis
 
 
 mean_provis_tres <- mean(data_s1_tres %>% pull(provis_mean))
