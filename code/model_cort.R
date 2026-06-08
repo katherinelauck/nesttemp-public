@@ -5723,7 +5723,7 @@ temp_trans_s1_priordaymaxhhi_tres <- trans_new("temp_trans_s1_priordaymaxhhi_tre
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bypriordaymaxhhixhab_TRES.png",plot =  figs2_priordaymaxhhi_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bypriordaymaxhhixhab_TRES.png",plot =  figs2_priordaymaxhhi_tres, width = 10, height = 6.6)
 
 
 #### s2
@@ -8122,3 +8122,5 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
 
 
 
+
+save(list = ls(), file = "data/models_cort.RData")

@@ -17,3 +17,6 @@ Rplots.pdf
 code/*.html
 code/*.nb.html
 
+
+# Model environment snapshots (reproduced by running model_*.R scripts)
+data/models_*.RData

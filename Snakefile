@@ -34,103 +34,104 @@ rule all:
         "figures/val_tmaxxjday_tbl.html",
 
 
-rule growth_figures:
+rule model_growth:
     input:
-        data = "data/growth_cort_provis_manytempmeasures.rds",
-        script = "code/growth_graphs.R",
-        model_eval = "code/growth_model_eval.R",
+        data   = "data/growth_cort_provis_manytempmeasures.rds",
+        provis = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
+        script = "code/model_growth.R",
     output:
-        fig2  = "figures/fig2_growth_by_temp_hab.png",
-        figs5 = "figures/fig6_growth_by_temp_hab.png",
+        "data/models_growth.RData",
+    resources:
+        runtime = "4h",
+    shell:
+        "Rscript code/model_growth.R"
+
+
+rule model_cort:
+    input:
+        data   = "data/growth_cort_provis_manytempmeasures.rds",
+        script = "code/model_cort.R",
+    output:
+        "data/models_cort.RData",
+    resources:
+        runtime = "4h",
+    shell:
+        "Rscript code/model_cort.R"
+
+
+rule model_survival:
+    input:
+        data   = "data/growth_cort_provis_manytempmeasures.rds",
+        surv   = "data/survival_attempt.rds",
+        script = "code/model_survival.R",
+    output:
+        "data/models_survival.RData",
     resources:
         runtime = "2h",
     shell:
-        "Rscript code/growth_graphs.R"
+        "Rscript code/model_survival.R"
 
 
-rule cort_figures:
+rule model_provis:
     input:
-        data = "data/growth_cort_provis_manytempmeasures.rds",
-        script = "code/cort_graphs.R",
-        model_eval = "code/cort_model_eval.R",
+        data   = "data/growth_cort_provis_manytempmeasures.rds",
+        provis = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
+        script = "code/model_provis.R",
     output:
-        fig3  = "figures/fig4_abscort_by_temp_hab.png",
-        figs4 = "figures/figs2_s1cort_by_priordayt_hab.png",
-        figs6 = "figures/s1bypriordaymaxhhixhab_TRES.png",
+        "data/models_provis.RData",
     resources:
         runtime = "2h",
     shell:
-        "Rscript code/cort_graphs.R"
+        "Rscript code/model_provis.R"
 
 
-rule survival_figure:
+rule model_seasonal:
     input:
-        data = "data/survival_attempt.rds",
-        script = "code/survival_model_eval.R",
+        data   = "data/growth_cort_provis_manytempmeasures.rds",
+        surv   = "data/survival_attempt.rds",
+        provis = "data/provis_manytempmeasures.rds",
+        script = "code/seasonal_sensitivity.R",
     output:
+        "data/models_seasonal.RData",
+    resources:
+        runtime = "4h",
+    shell:
+        "Rscript code/seasonal_sensitivity.R"
+
+
+rule figures:
+    input:
+        models_growth   = "data/models_growth.RData",
+        models_cort     = "data/models_cort.RData",
+        models_survival = "data/models_survival.RData",
+        models_provis   = "data/models_provis.RData",
+        temp            = "data/temp.rds",
+        script          = "code/figures.R",
+    output:
+        "figures/fig2_growth_by_temp_hab.png",
+        "figures/fig6_growth_by_temp_hab.png",
+        "figures/fig4_abscort_by_temp_hab.png",
+        "figures/figs2_s1cort_by_priordayt_hab.png",
+        "figures/s1bypriordaymaxhhixhab_TRES.png",
         "figures/fig3_survival_by_temp_hab.png",
-    resources:
-        runtime = "1h",
-    shell:
-        "Rscript code/survival_model_eval.R"
-
-
-rule provis_figure:
-    input:
-        data = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
-        script = "code/provis_model_eval.R",
-    output:
         "figures/fig5_provis_by_temp_hab.png",
-    resources:
-        runtime = "1h",
-    shell:
-        "Rscript code/provis_model_eval.R"
-
-
-rule dag_figure:
-    input:
-        data = "data/growth.rds",
-        script = "code/dag.Rmd",
-    output:
         "figures/dag3.png",
-    resources:
-        runtime = "10m",
-    shell:
-        "export RSTUDIO_PANDOC='{PANDOC_DIR}' && Rscript -e \"rmarkdown::render('code/dag.Rmd')\"".format(PANDOC_DIR=PANDOC_DIR)
-
-
-rule temp_anomaly_figure:
-    input:
-        temp   = "data/temp.rds",
-        morph  = "data/morph.rds",
-        canopy = "data/canopy_cover_hemispheR.rds",
-        growth = "data/growth.rds",
-        script  = "code/analysis.Rmd",
-        helpers = "code/helper_functions.R",
-    output:
         "figures/max-weightedmean_outside.png",
     resources:
         runtime = "30m",
     shell:
-        "export RSTUDIO_PANDOC='{PANDOC_DIR}' && Rscript -e \"rmarkdown::render('code/analysis.Rmd')\"".format(PANDOC_DIR=PANDOC_DIR)
+        "Rscript code/figures.R"
 
 
 rule tables:
     input:
-        growth_data       = "data/growth_cort_provis_manytempmeasures.rds",
-        survival_data     = "data/survival_attempt.rds",
-        provis_data       = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
-        provis_other_data = "data/provis_manytempmeasures.rds",
-        temp_data         = "data/temp.rds",
-        growth_script     = "code/growth_model_eval.R",
-        survival_script   = "code/survival_model_eval.R",
-        cort_script       = "code/cort_model_eval.R",
-        provis_script     = "code/provis_model_eval.R",
-        growth_other      = "code/growth_model_eval_othertempmeasures.R",
-        survival_other    = "code/survival_model_eval_othertempmeasures.R",
-        provis_other      = "code/provis_model_eval_othertempmeasures.R",
-        seasonal          = "code/seasonal_sensitivity.R",
-        script            = "code/publication_tables.Rmd",
+        models_growth   = "data/models_growth.RData",
+        models_cort     = "data/models_cort.RData",
+        models_survival = "data/models_survival.RData",
+        models_provis   = "data/models_provis.RData",
+        models_seasonal = "data/models_seasonal.RData",
+        temp_data       = "data/temp.rds",
+        script          = "code/publication_tables.Rmd",
     output:
         "figures/full_samp_size_tbl.html",
         "figures/full_landcover_contrast_tbl.html",

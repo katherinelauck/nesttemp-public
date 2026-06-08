@@ -30,14 +30,14 @@ library(future)
 #   mutate(abs_change_cort = cort_s2-cort_s1,
 #          prop_change_cort = (cort_s2-cort_s1)/cort_s1,
 #          year_fct = as.factor(year))
-p <- read_rds("../data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
+p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),
          year_fct = as.factor(year))
 
 
-g <- read_rds("../data/growth_cort_provis_manytempmeasures.rds")
+g <- read_rds("data/growth_cort_provis_manytempmeasures.rds")
 
-s <- read_rds("../data/survival_attempt.rds") %>%
+s <- read_rds("data/survival_attempt.rds") %>%
   mutate(juliandate_inc = yday(inc_date),
          juliandate_hatch = yday(hatch_date),
          year_fct = factor(year),
@@ -52,7 +52,7 @@ s <- read_rds("../data/survival_attempt.rds") %>%
          nest_fledged = `Nestlings Fledging_num`,
          brood_size = `Brood Size_num`)
 
-p <- read_rds("../data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
+p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),
          year_fct = as.factor(year))
 
@@ -914,7 +914,7 @@ dat_text_tres <- data.frame(
 
 
 ## -----------------------------------------------------------------------------
-g <- read_rds("../data/growth_cort_provis_manytempmeasures.rds") %>%
+g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))
 
 prior_model <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + habitat + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
@@ -3830,3 +3830,5 @@ provis <- rbind(weblprovistrend_prior$`_data` %>% mutate(degree = "linear"),tres
 
 # gtsave(trend,"../figures/val_tmaxxjday_tbl.html")
 
+
+save(list = ls(), file = "data/models_seasonal.RData")

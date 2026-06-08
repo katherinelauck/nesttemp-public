@@ -34,10 +34,10 @@ library(patchwork)
 getwd()
 setwd("..")
 getwd()
-source("code/growth_model_eval.R")
-source("code/survival_model_eval.R")
-source("code/cort_model_eval.R")
-source("code/provis_model_eval.R")
+load("data/models_growth.RData")
+load("data/models_survival.RData")
+load("data/models_cort.RData")
+load("data/models_provis.RData")
 ```
 
 
@@ -881,11 +881,7 @@ predictors: meanmax temp week, max temp day, max hi week, max hi day, cum deg >3
 
 
 ```{r}
-setwd("..")
-getwd()
-source("code/growth_model_eval_othertempmeasures.R")
-source("code/survival_model_eval_othertempmeasures.R")
-source("code/provis_model_eval_othertempmeasures.R")
+# Objects from othertempmeasures scripts are already included in models_*.RData
 ```
 
 
@@ -1039,7 +1035,7 @@ gtsave(trend,"../figures/val_tbl.html")
 ## Validation table for interaction of max temp and julian day
 
 ```{r}
-source("seasonal_sensitivity.R")
+load("../data/models_seasonal.RData")
 ```
 
 ```{r}
