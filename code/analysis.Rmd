@@ -73,7 +73,7 @@ TukeyHSD(aov(resid~habitat, filter(wmean,logger_position == "O")),conf.level = .
   annotate("text",x = c(1:4),y = 20,label = c("a","b","c","d")) +
   scale_fill_viridis(discrete = TRUE) +
   theme_classic())
-ggsave("../figures/max-weightedmean_inside.png",inside,width = 6,height = 4)
+# ggsave("../figures/max-weightedmean_inside.png",inside,width = 6,height = 4)
 TukeyHSD(aov(resid~habitat, filter(wmean,logger_position == "I")),conf.level = .95)
 
 ann_text <- data.frame(habitat = factor(rep(c("Forest",
@@ -100,7 +100,7 @@ ann_text <- data.frame(habitat = factor(rep(c("Forest",
   geom_text(data = ann_text, label = c("a","b","c","d","a","b","c","d")) +
   theme_classic() +
   theme(strip.background = element_blank(),legend.position = "none",strip.text.x = element_text(angle = 0, hjust = 0,size = 16)))
-ggsave("../figures/max-weightedmean_combined.png",p2,width = 6, height = 4)
+# ggsave("../figures/max-weightedmean_combined.png",p2,width = 6, height = 4)
 ```
 ```{r, include=FALSE}
 knitr::opts_chunk$set(eval=FALSE)

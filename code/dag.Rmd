@@ -37,7 +37,7 @@ g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + surftemp_humint_growt
 (g <- ggdag_status(g,layout = "nicely",node_size = 10) + 
   geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
 
-ggsave("../figures/dag2.png",plot = g)
+# ggsave("../figures/dag2.png",plot = g)
 
 ```
 
@@ -136,7 +136,7 @@ g <- dagify(nestgrowth ~ s1_cort + nestcond + foodprovis + humidity + surftemp +
 (p <- ggdag_status(g,layout = "nicely",node_size = 10) + 
   geom_dag_text(colour = "black") + theme_dag_blank() + geom_dag_edges())  # Ensure node label text is black
 
-ggsave("../figures/dag3_ugly.png",plot = p)
+# ggsave("../figures/dag3_ugly.png",plot = p)
 
 ## Exposure = local temp, habitat. outcome: nestling growth
 
