@@ -22,7 +22,7 @@ ggplot_build(figs2_tres)$layout$panel_scales_y
                                                                                             axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_temp_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_temp_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior week max temp
 
@@ -37,7 +37,7 @@ library(egg)
                                                                                             axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined fig4 prior week max temp
 
@@ -97,7 +97,7 @@ ggplot_build(fig_priordayt_tres_s2)$layout$panel_scales_y
                                                                                          axis.title.x = element_text(hjust = -1)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_priordayt.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_priordayt.png",p_full,width = 6.25,height = 4)
 
 ## combined figure for fig4 prior day temp
 
@@ -118,7 +118,7 @@ ggplot_build(fig4_tres_priordayt)$layout$panel_scales_y
                      ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_priordayt_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_priordayt_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined figure for figs2 prior week max heat index
 
@@ -138,7 +138,7 @@ ggplot_build(figs2_weekhi_tres)$layout$panel_scales_y
                      ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_priorweekmaxhhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_priorweekmaxhhi_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior week max heat index
 
@@ -154,7 +154,7 @@ ggplot_build(fig_weekhi_tres_s2)$layout$panel_scales_y
                                                                                                    axis.title.x = element_text(hjust = -1)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_weekhi.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_weekhi.png",p_full,width = 6.25,height = 4)
 
 ## combined figure for fig4 prior week max heat index
 
@@ -174,7 +174,7 @@ ggplot_build(fig4_tres_weekhi)$layout$panel_scales_y
                      ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_priorweekmaxhhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_priorweekmaxhhi_hab.png",p_full,width = 6.25,height = 4)
 
 #combined figs2 for prior day heat index
 
@@ -189,7 +189,7 @@ ggplot_build(figs2_priordaymaxhhi_tres)$layout$panel_scales_y
                                                                                                            axis.title.x = element_text(hjust = -5)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_priordaymaxhhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_priordaymaxhhi_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior week max heat index
 
@@ -205,7 +205,7 @@ ggplot_build(fig_priordaymaxhhi_tres_s2)$layout$panel_scales_y
                                                                                                 axis.title.x = element_text(hjust = -1)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_priordaymaxhhi.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_priordaymaxhhi.png",p_full,width = 6.25,height = 4)
 
 
 #combined fig4 for prior day heat index
@@ -221,7 +221,7 @@ ggplot_build(fig4_tres_priordaymaxhhi)$layout$panel_scales_y
                                                                                                            axis.title.x = element_text(hjust = -5)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_priordaymaxhhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_priordaymaxhhi_hab.png",p_full,width = 6.25,height = 4)
 
 #combined figs2 for prior day cumulative heat index-hours over 25C
 
@@ -236,7 +236,7 @@ ggplot_build(figs2_cumhiday_tres)$layout$panel_scales_y
                                                                                                            axis.title.x = element_text(hjust = 2.2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_priordaycumhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_priordaycumhi_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior day cumulative heat index-hours over 25C
 
@@ -252,7 +252,7 @@ ggplot_build(fig_cumhiday_tres_s2)$layout$panel_scales_y
                                                                                                           axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_cumhiday.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_cumhiday.png",p_full,width = 6.25,height = 4)
 
 #combined fig4 for prior day cumulative heat index-hours over 25C
 
@@ -267,7 +267,7 @@ ggplot_build(fig4_tres_cumhiday)$layout$panel_scales_y
                                                                                                      axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_priordaycumhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_priordaycumhi_hab.png",p_full,width = 6.25,height = 4)
 
 #combined figs2 for prior week cumulative heat index-hours over 25C
 
@@ -282,7 +282,7 @@ ggplot_build(figs2_cumhiweek_tres)$layout$panel_scales_y
                                                                                                      axis.title.x = element_text(hjust = -10)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_priorweekcumhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_priorweekcumhi_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior week cumulative heat index-hours over 25C
 
@@ -298,7 +298,7 @@ ggplot_build(fig_cumhiweek_tres_s2)$layout$panel_scales_y
                                                                                                   axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_cumhiweek.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_cumhiweek.png",p_full,width = 6.25,height = 4)
 
 #combined fig4 for prior week cumulative heat index-hours over 25C
 
@@ -313,7 +313,7 @@ ggplot_build(fig4_tres_cumhiweek)$layout$panel_scales_y
                                                                                                    axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_priorweekcumhi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_priorweekcumhi_hab.png",p_full,width = 6.25,height = 4)
 
 #combined figs2 for prior day cumulative degree-hours over 30C
 
@@ -328,7 +328,7 @@ ggplot_build(figs2_cumdegreeday_tres)$layout$panel_scales_y
                                                                                                       axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_cumdegreeday_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_cumdegreeday_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior day cumulative degree-hours over 30C
 
@@ -344,7 +344,7 @@ ggplot_build(fig_cumdegreeday_tres_s2)$layout$panel_scales_y
                                                                                                    axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_cumdegreeday.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_cumdegreeday.png",p_full,width = 6.25,height = 4)
 
 #combined fig4 for prior day cumulative degree-hours over 30C
 
@@ -359,7 +359,7 @@ ggplot_build(fig4_tres_cumdegreeday)$layout$panel_scales_y
                                                                                                     axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_cumdegreeday_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_cumdegreeday_hab.png",p_full,width = 6.25,height = 4)
 
 #combined figs2 for prior week cumulative degree-hours over 30C
 
@@ -374,7 +374,7 @@ ggplot_build(figs2_cumdegreeweek_tres)$layout$panel_scales_y
                                                                                                          axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/figs2_s1cort_by_cumdegreeweek_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/figs2_s1cort_by_cumdegreeweek_hab.png",p_full,width = 6.25,height = 4)
 
 ## combined cort s2 prior week cumulative degree-hours over 30C
 
@@ -390,7 +390,7 @@ ggplot_build(fig_cumdegreeweek_tres_s2)$layout$panel_scales_y
                                                                                                         axis.title.x = element_text(hjust = 2.6)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig_s2cort_by_temp_hab_cumdegreeweek.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig_s2cort_by_temp_hab_cumdegreeweek.png",p_full,width = 6.25,height = 4)
 
 #combined fig4 for prior week cumulative degree-hours over 30C
 
@@ -405,4 +405,4 @@ ggplot_build(fig4_tres_cumdegreeweek)$layout$panel_scales_y
                                                                                                        axis.title.x = element_text(hjust = 2)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig4_abscort_by_cumdegreeweek_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig4_abscort_by_cumdegreeweek_hab.png",p_full,width = 6.25,height = 4)

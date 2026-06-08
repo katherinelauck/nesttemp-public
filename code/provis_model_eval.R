@@ -302,7 +302,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/provisbymaxtempxhab_WEBL.png",plot =  fig5_webl, width = 10, height = 6.6)
+# ggsave("figures/provisbymaxtempxhab_WEBL.png",plot =  fig5_webl, width = 10, height = 6.6)
 
 
 
@@ -577,7 +577,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/provisbymeantempxhab_TRES.png",plot =  fig5_tres, width = 10, height = 6.6)
+# ggsave("figures/provisbymeantempxhab_TRES.png",plot =  fig5_tres, width = 10, height = 6.6)
 
 
 

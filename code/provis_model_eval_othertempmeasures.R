@@ -199,7 +199,7 @@ hi_30min_trans_webl <- trans_new("hi_30min_trans_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/provisbymaxtempxhab_WEBL_hi.png",plot =  fig5_webl_hi, width = 10, height = 6.6)
+# ggsave("figures/provisbymaxtempxhab_WEBL_hi.png",plot =  fig5_webl_hi, width = 10, height = 6.6)
 
 
 
@@ -410,7 +410,7 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/provisbymaxtempxhab_TRES_hi.png",plot =  fig5_tres_hi, width = 10, height = 6.6)
+# ggsave("figures/provisbymaxtempxhab_TRES_hi.png",plot =  fig5_tres_hi, width = 10, height = 6.6)
 
 
 
@@ -475,4 +475,4 @@ ggplot_build(fig5_tres_hi)$layout$panel_scales_y
                                                                                                                                                                                    axis.title.x = element_text(hjust = -.8)),ncol = 2,
                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
-ggsave("figures/fig5_provis_by_hi_hab.png",p_full,width = 6.25,height = 4)
+# ggsave("figures/fig5_provis_by_hi_hab.png",p_full,width = 6.25,height = 4)

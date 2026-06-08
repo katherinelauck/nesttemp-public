@@ -914,7 +914,7 @@ temp_trans_s1_webl <- trans_new("temp_trans_s1_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bymaxtempxhab_WEBL.png",plot =  figs2_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bymaxtempxhab_WEBL.png",plot =  figs2_webl, width = 10, height = 6.6)
 
 
 
@@ -963,7 +963,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/s1bymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
 
 
 
@@ -1124,7 +1124,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/absbymaxtempxhab_WEBL.png",plot =  fig4_webl, width = 10, height = 6.6)
+# ggsave("figures/absbymaxtempxhab_WEBL.png",plot =  fig4_webl, width = 10, height = 6.6)
 
 
 
@@ -1173,7 +1173,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
 )
 
-ggsave("figures/absbymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/absbymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
 
 
 
@@ -1435,7 +1435,7 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bymaxtempxhab_WEBL.png",plot =  fig_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bymaxtempxhab_WEBL.png",plot =  fig_webl_s2, width = 10, height = 6.6)
 
 
 summary(s2_lintemp)
@@ -1578,7 +1578,7 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bypriordaytxhab_WEBL.png",plot =  figs2_priordayt_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bypriordaytxhab_WEBL.png",plot =  figs2_priordayt_webl, width = 10, height = 6.6)
 
 #### use prior day temp to predict cort instead
 
@@ -1718,7 +1718,7 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bypriordaytxhab_WEBL.png",plot =  fig_priordayt_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bypriordaytxhab_WEBL.png",plot =  fig_priordayt_webl_s2, width = 10, height = 6.6)
 
 
 #### abs_change_cort
@@ -1847,7 +1847,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_priordayt_xhab_WEBL.png",plot =  fig4_webl_priordayt, width = 10, height = 6.6)
+# ggsave("figures/abs_priordayt_xhab_WEBL.png",plot =  fig4_webl_priordayt, width = 10, height = 6.6)
 
 
 
@@ -2001,7 +2001,7 @@ temp_trans_s1_priordaymaxhhi_webl <- trans_new("temp_trans_s1_priordaymaxhhi_web
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bypriordaymaxhhixhab_WEBL.png",plot =  figs2_priordaymaxhhi_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bypriordaymaxhhixhab_WEBL.png",plot =  figs2_priordaymaxhhi_webl, width = 10, height = 6.6)
 
 #### s2 cort
 
@@ -2140,7 +2140,7 @@ temp_trans_s2_priordaymaxhhi_webl <- trans_new("temp_trans_s2_priordaymaxhhi_web
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bypriordaymaxhhixhab_WEBL.png",plot =  fig_priordaymaxhhi_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bypriordaymaxhhixhab_WEBL.png",plot =  fig_priordaymaxhhi_webl_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -2268,7 +2268,7 @@ temp_trans_webl_priordaymaxhhi <- trans_new("temp_trans_webl_priordaymaxhhi",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_priordaymaxhhi_xhab_WEBL.png",plot =  fig4_webl_priordaymaxhhi, width = 10, height = 6.6)
+# ggsave("figures/abs_priordaymaxhhi_xhab_WEBL.png",plot =  fig4_webl_priordaymaxhhi, width = 10, height = 6.6)
 
 
 
@@ -2421,7 +2421,7 @@ temp_trans_s1_weekhi_webl <- trans_new("temp_trans_s1_weekhi_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1byweekhixhab_WEBL.png",plot =  figs2_weekhi_webl, width = 10, height = 6.6)
+# ggsave("figures/s1byweekhixhab_WEBL.png",plot =  figs2_weekhi_webl, width = 10, height = 6.6)
 
 
 #### s2 cort
@@ -2562,7 +2562,7 @@ temp_trans_s2_weekhi_webl <- trans_new("temp_trans_s2_weekhi_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2byweekhixhab_WEBL.png",plot =  fig_weekhi_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2byweekhixhab_WEBL.png",plot =  fig_weekhi_webl_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -2690,7 +2690,7 @@ temp_trans_webl_weekhi <- trans_new("temp_trans_webl_weekhi",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_weekhi_xhab_WEBL.png",plot =  fig4_webl_weekhi, width = 10, height = 6.6)
+# ggsave("figures/abs_weekhi_xhab_WEBL.png",plot =  fig4_webl_weekhi, width = 10, height = 6.6)
 
 
 
@@ -2843,7 +2843,7 @@ temp_trans_s1_cumhiday_webl <- trans_new("temp_trans_s1_cumhiday_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumhidayxhab_WEBL.png",plot =  figs2_cumhiday_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bycumhidayxhab_WEBL.png",plot =  figs2_cumhiday_webl, width = 10, height = 6.6)
 
 
 #### use cumulative prior day hi to predict cort
@@ -2984,7 +2984,7 @@ temp_trans_s2_cumhiday_webl <- trans_new("temp_trans_s2_cumhiday_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumhidayxhab_WEBL.png",plot =  fig_cumhiday_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumhidayxhab_WEBL.png",plot =  fig_cumhiday_webl_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -3112,7 +3112,7 @@ temp_trans_webl_cumhiday <- trans_new("temp_trans_webl_cumhiday",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumhiday_xhab_WEBL.png",plot =  fig4_webl_cumhiday, width = 10, height = 6.6)
+# ggsave("figures/abs_cumhiday_xhab_WEBL.png",plot =  fig4_webl_cumhiday, width = 10, height = 6.6)
 
 
 
@@ -3266,7 +3266,7 @@ temp_trans_s1_cumhiweek_webl <- trans_new("temp_trans_s1_cumhiweek_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumhiweekxhab_WEBL.png",plot =  figs2_cumhiweek_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bycumhiweekxhab_WEBL.png",plot =  figs2_cumhiweek_webl, width = 10, height = 6.6)
 
 
 #### s2
@@ -3407,7 +3407,7 @@ temp_trans_s2_cumhiweek_webl <- trans_new("temp_trans_s2_cumhiweek_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumhiweekxhab_WEBL.png",plot =  fig_cumhiweek_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumhiweekxhab_WEBL.png",plot =  fig_cumhiweek_webl_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -3535,7 +3535,7 @@ temp_abs_trans_webl_cumhiweek <- trans_new("temp_trans_webl_cumhiweek",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumhiweek_xhab_WEBL.png",plot =  fig4_webl_cumhiweek, width = 10, height = 6.6)
+# ggsave("figures/abs_cumhiweek_xhab_WEBL.png",plot =  fig4_webl_cumhiweek, width = 10, height = 6.6)
 
 
 
@@ -3688,7 +3688,7 @@ temp_trans_s1_cumdegreeday_webl <- trans_new("temp_trans_s1_cumdegreeday_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumdegreedayxhab_WEBL.png",plot =  figs2_cumdegreeday_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bycumdegreedayxhab_WEBL.png",plot =  figs2_cumdegreeday_webl, width = 10, height = 6.6)
 
 #### s2
 
@@ -3828,7 +3828,7 @@ temp_trans_s2_cumdegreeday_webl <- trans_new("temp_trans_s2_cumdegreeday_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumdegreedayxhab_WEBL.png",plot =  fig_cumdegreeday_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumdegreedayxhab_WEBL.png",plot =  fig_cumdegreeday_webl_s2, width = 10, height = 6.6)
 
 
 #### abs_change_cort
@@ -3957,7 +3957,7 @@ temp_trans_webl_cumdegreeday <- trans_new("temp_trans_webl_cumdegreeday",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumdegreeday_xhab_WEBL.png",plot =  fig4_webl_cumdegreeday, width = 10, height = 6.6)
+# ggsave("figures/abs_cumdegreeday_xhab_WEBL.png",plot =  fig4_webl_cumdegreeday, width = 10, height = 6.6)
 
 
 
@@ -4110,7 +4110,7 @@ temp_trans_s1_cumdegreeweek_webl <- trans_new("temp_trans_s1_cumdegreeweek_webl"
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumdegreeweekxhab_WEBL.png",plot =  figs2_cumdegreeweek_webl, width = 10, height = 6.6)
+# ggsave("figures/s1bycumdegreeweekxhab_WEBL.png",plot =  figs2_cumdegreeweek_webl, width = 10, height = 6.6)
 
 
 #### s2
@@ -4251,7 +4251,7 @@ temp_trans_s2_cumdegreeweek_webl <- trans_new("temp_trans_s2_cumdegreeweek_webl"
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumdegreeweekxhab_WEBL.png",plot =  fig_cumdegreeweek_webl_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumdegreeweekxhab_WEBL.png",plot =  fig_cumdegreeweek_webl_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -4379,7 +4379,7 @@ temp_trans_webl_cumdegreeweek <- trans_new("temp_trans_webl_cumdegreeweek",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumdegreeweek_xhab_WEBL.png",plot =  fig4_webl_cumdegreeweek, width = 10, height = 6.6)
+# ggsave("figures/abs_cumdegreeweek_xhab_WEBL.png",plot =  fig4_webl_cumdegreeweek, width = 10, height = 6.6)
 
 
 
@@ -4551,7 +4551,7 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bymaxtempxhab_TRES.png",plot =  figs2_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bymaxtempxhab_TRES.png",plot =  figs2_tres, width = 10, height = 6.6)
 
 
 
@@ -4604,7 +4604,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/s1bymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
 
 
 ## Emmeans to check for effect of habitat
@@ -4822,7 +4822,7 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bymaxtempxhab_TRES.png",plot =  fig_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bymaxtempxhab_TRES.png",plot =  fig_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -4968,7 +4968,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/absbymaxtempxhab_TRES.png",plot = fig4_tres, width = 10, height = 6.6)
+# ggsave("figures/absbymaxtempxhab_TRES.png",plot = fig4_tres, width = 10, height = 6.6)
 
 
 
@@ -5022,7 +5022,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
 )
 
-ggsave("figures/absbymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/absbymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
 
 
 ## Emmeans to check for effect of habitat
@@ -5301,7 +5301,7 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bypriordaytxhab_TRES.png",plot =  figs2_priordayt_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bypriordaytxhab_TRES.png",plot =  figs2_priordayt_tres, width = 10, height = 6.6)
 
 #### s2
 
@@ -5441,7 +5441,7 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bypriordaytxhab_TRES.png",plot =  fig_priordayt_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bypriordaytxhab_TRES.png",plot =  fig_priordayt_tres_s2, width = 10, height = 6.6)
 
 
 #### abs_change_cort
@@ -5570,7 +5570,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_priordayt_xhab_TRES.png",plot =  fig4_tres_priordayt, width = 10, height = 6.6)
+# ggsave("figures/abs_priordayt_xhab_TRES.png",plot =  fig4_tres_priordayt, width = 10, height = 6.6)
 
 
 
@@ -5864,7 +5864,7 @@ temp_trans_s2_priordaymaxhhi_tres <- trans_new("temp_trans_s2_priordaymaxhhi_tre
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bypriordaymaxhhixhab_TRES.png",plot =  fig_priordaymaxhhi_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bypriordaymaxhhixhab_TRES.png",plot =  fig_priordaymaxhhi_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -5991,7 +5991,7 @@ temp_trans_tres_priordaymaxhhi <- trans_new("temp_trans_tres_priordaymaxhhi",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_priordaymaxhhi_xhab_TRES.png",plot =  fig4_tres_priordayt, width = 10, height = 6.6)
+# ggsave("figures/abs_priordaymaxhhi_xhab_TRES.png",plot =  fig4_tres_priordayt, width = 10, height = 6.6)
 
 
 
@@ -6145,7 +6145,7 @@ temp_trans_s1_weekhi_tres <- trans_new("temp_trans_s1_weekhi_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1byweekhixhab_TRES.png",plot =  figs2_weekhi_tres, width = 10, height = 6.6)
+# ggsave("figures/s1byweekhixhab_TRES.png",plot =  figs2_weekhi_tres, width = 10, height = 6.6)
 
 
 ## s2
@@ -6286,7 +6286,7 @@ temp_trans_s2_weekhi_tres <- trans_new("temp_trans_s2_weekhi_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2byweekhixhab_TRES.png",plot =  fig_weekhi_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2byweekhixhab_TRES.png",plot =  fig_weekhi_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -6414,7 +6414,7 @@ temp_trans_tres_weekhi <- trans_new("temp_trans_tres_weekhi",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_weekhi_xhab_TRES.png",plot =  fig4_tres_weekhi, width = 10, height = 6.6)
+# ggsave("figures/abs_weekhi_xhab_TRES.png",plot =  fig4_tres_weekhi, width = 10, height = 6.6)
 
 
 
@@ -6569,7 +6569,7 @@ temp_trans_s1_cumhiday_tres <- trans_new("temp_trans_s1_cumhiday_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumhidayxhab_TRES.png",plot =  figs2_cumhiday_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bycumhidayxhab_TRES.png",plot =  figs2_cumhiday_tres, width = 10, height = 6.6)
 
 #### s2
 
@@ -6709,7 +6709,7 @@ temp_trans_s2_cumhiday_tres <- trans_new("temp_trans_s2_cumhiday_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumhidayxhab_TRES.png",plot =  fig_cumhiday_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumhidayxhab_TRES.png",plot =  fig_cumhiday_tres_s2, width = 10, height = 6.6)
 
 
 #### abs_change_cort
@@ -6838,7 +6838,7 @@ temp_trans_tres_cumhiday <- trans_new("temp_trans_tres_cumhiday",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumhiday_xhab_TRES.png",plot =  fig4_tres_cumhiday, width = 10, height = 6.6)
+# ggsave("figures/abs_cumhiday_xhab_TRES.png",plot =  fig4_tres_cumhiday, width = 10, height = 6.6)
 
 
 
@@ -6992,7 +6992,7 @@ temp_trans_s1_cumhiweek_tres <- trans_new("temp_trans_s1_cumhiweek_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumhiweekxhab_TRES.png",plot =  figs2_cumhiweek_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bycumhiweekxhab_TRES.png",plot =  figs2_cumhiweek_tres, width = 10, height = 6.6)
 
 
 #### s2
@@ -7133,7 +7133,7 @@ temp_trans_s2_cumhiweek_tres <- trans_new("temp_trans_s2_cumhiweek_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumhiweekxhab_TRES.png",plot =  fig_cumhiweek_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumhiweekxhab_TRES.png",plot =  fig_cumhiweek_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -7261,7 +7261,7 @@ temp_abs_trans_tres_cumhiweek <- trans_new("temp_trans_tres_cumhiweek",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumhiweek_xhab_TRES.png",plot =  fig4_tres_cumhiweek, width = 10, height = 6.6)
+# ggsave("figures/abs_cumhiweek_xhab_TRES.png",plot =  fig4_tres_cumhiweek, width = 10, height = 6.6)
 
 
 
@@ -7414,7 +7414,7 @@ temp_trans_s1_cumdegreeday_tres <- trans_new("temp_trans_s1_cumdegreeday_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumdegreedayxhab_TRES.png",plot =  figs2_cumdegreeday_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bycumdegreedayxhab_TRES.png",plot =  figs2_cumdegreeday_tres, width = 10, height = 6.6)
 
 
 #### use cumulative prior day temp to predict cort
@@ -7555,7 +7555,7 @@ temp_trans_s2_cumdegreeday_tres <- trans_new("temp_trans_s2_cumdegreeday_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumdegreedayxhab_TRES.png",plot =  fig_cumdegreeday_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumdegreedayxhab_TRES.png",plot =  fig_cumdegreeday_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -7683,7 +7683,7 @@ temp_trans_tres_cumdegreeday <- trans_new("temp_trans_tres_cumdegreeday",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumdegreeday_xhab_TRES.png",plot =  fig4_tres_cumdegreeday, width = 10, height = 6.6)
+# ggsave("figures/abs_cumdegreeday_xhab_TRES.png",plot =  fig4_tres_cumdegreeday, width = 10, height = 6.6)
 
 
 
@@ -7836,7 +7836,7 @@ temp_trans_s1_cumdegreeweek_tres <- trans_new("temp_trans_s1_cumdegreeweek_tres"
     theme(legend.position = "none")
 )
 
-ggsave("figures/s1bycumdegreeweekxhab_TRES.png",plot =  figs2_cumdegreeweek_tres, width = 10, height = 6.6)
+# ggsave("figures/s1bycumdegreeweekxhab_TRES.png",plot =  figs2_cumdegreeweek_tres, width = 10, height = 6.6)
 
 
 #### use cumulative prior week temp to predict cort
@@ -7977,7 +7977,7 @@ temp_trans_s2_cumdegreeweek_tres <- trans_new("temp_trans_s2_cumdegreeweek_tres"
     theme(legend.position = "none")
 )
 
-ggsave("figures/s2bycumdegreeweekxhab_TRES.png",plot =  fig_cumdegreeweek_tres_s2, width = 10, height = 6.6)
+# ggsave("figures/s2bycumdegreeweekxhab_TRES.png",plot =  fig_cumdegreeweek_tres_s2, width = 10, height = 6.6)
 
 #### abs_change_cort
 
@@ -8105,7 +8105,7 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
     theme(legend.position = "none")
 )
 
-ggsave("figures/abs_cumdegreeweek_xhab_TRES.png",plot =  fig4_tres_cumdegreeweek, width = 10, height = 6.6)
+# ggsave("figures/abs_cumdegreeweek_xhab_TRES.png",plot =  fig4_tres_cumdegreeweek, width = 10, height = 6.6)
 
 
 

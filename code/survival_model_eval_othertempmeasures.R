@@ -251,7 +251,7 @@ dat_text_webl <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_webl_meanmaxhi.png",fig3_webl_meanmaxhi,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_webl_meanmaxhi.png",fig3_webl_meanmaxhi,width = 10, height = 6.6)
 
 
 ### deghr_30
@@ -441,7 +441,7 @@ dat_text_webl <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_webl_deghr_30.png",fig3_webl_deghr_30,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_webl_deghr_30.png",fig3_webl_deghr_30,width = 10, height = 6.6)
 
 ### hihr_30
 
@@ -630,7 +630,7 @@ dat_text_webl <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_webl_hihr_30.png",fig3_webl_hihr_30,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_webl_hihr_30.png",fig3_webl_hihr_30,width = 10, height = 6.6)
 
 ## TRES
 
@@ -821,7 +821,7 @@ dat_text_tres <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_tres_meanmaxhi.png",fig3_tres_meanmaxhi,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_tres_meanmaxhi.png",fig3_tres_meanmaxhi,width = 10, height = 6.6)
 
 
 ### deghr_30
@@ -1011,7 +1011,7 @@ dat_text_tres <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_tres_deghr_30.png",fig3_tres_deghr_30,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_tres_deghr_30.png",fig3_tres_deghr_30,width = 10, height = 6.6)
 
 ### hihr_30
 
@@ -1200,5 +1200,5 @@ dat_text_tres <- data.frame(
     theme(legend.position = "none")
 )
 
-ggsave("figures/survbytempxhab_tres_hihr_30.png",fig3_tres_hihr_30,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_tres_hihr_30.png",fig3_tres_hihr_30,width = 10, height = 6.6)
 

@@ -1145,7 +1145,7 @@ dat_text_webl <- data.frame(
     theme(legend.position = "none")
    )
 
-ggsave("figures/survbytempxhab_webl.png",fig3_webl,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_webl.png",fig3_webl,width = 10, height = 6.6)
 
 
 ### TRES
@@ -1626,7 +1626,7 @@ dat_tres <- predict_response(s_nestpd_TRES_noint,terms = c("habitat"))
     annotate(geom = "text", x = c(1,2,3,4),y = Inf,hjust = .5,vjust = 1,label = c("a","ab","b","b"))
  )
 
-ggsave("figures/survbytempxhab_tres.png",fig3_tres,width = 10, height = 6.6)
+# ggsave("figures/survbytempxhab_tres.png",fig3_tres,width = 10, height = 6.6)
 
 
 

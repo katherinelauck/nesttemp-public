@@ -36,7 +36,6 @@ rule growth_figures:
         data = "data/growth_cort_provis_manytempmeasures.rds",
         script = "code/growth_graphs.R",
         model_eval = "code/growth_model_eval.R",
-        model_eval_other = "code/growth_model_eval_othertempmeasures.R",
     output:
         fig2  = "figures/fig2_growth_by_temp_hab.png",
         figs5 = "figures/fig6_growth_by_temp_hab.png",

@@ -163,7 +163,7 @@ temp_trans_maxhiweek_webl <- trans_new("temp_trans_maxhiweek_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbymaxhiweekxhab_WEBL.png",plot =  fig2_maxhiweek_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbymaxhiweekxhab_WEBL.png",plot =  fig2_maxhiweek_webl, width = 10, height = 6.6)
 
 
 
@@ -432,7 +432,7 @@ temp_trans_maxhiday_webl <- trans_new("temp_trans_maxhiday_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbymaxhidayxhab_WEBL.png",plot =  fig2_maxhiday_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbymaxhidayxhab_WEBL.png",plot =  fig2_maxhiday_webl, width = 10, height = 6.6)
 
 
 
@@ -620,7 +620,7 @@ temp_trans_deghr30week_webl <- trans_new("temp_trans_deghr30week_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbydeghr30weekxhab_WEBL.png",plot =  fig2_deghr30week_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbydeghr30weekxhab_WEBL.png",plot =  fig2_deghr30week_webl, width = 10, height = 6.6)
 
 
 
@@ -807,7 +807,7 @@ temp_trans_hihr25week_webl <- trans_new("temp_trans_hihr25week_webl",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbyhihr25weekxhab_WEBL.png",plot =  fig2_hihr25week_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbyhihr25weekxhab_WEBL.png",plot =  fig2_hihr25week_webl, width = 10, height = 6.6)
 
 
 
@@ -996,7 +996,7 @@ temp_trans_maxhiweek_tres <- trans_new("temp_trans_maxhiweek_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbymaxhiweekxhab_TRES.png",plot =  fig2_maxhiweek_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbymaxhiweekxhab_TRES.png",plot =  fig2_maxhiweek_tres, width = 10, height = 6.6)
 
 
 
@@ -1184,7 +1184,7 @@ temp_trans_maxhiday_tres <- trans_new("temp_trans_maxhiday_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbymaxhidayxhab_TRES.png",plot =  fig2_maxhiday_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbymaxhidayxhab_TRES.png",plot =  fig2_maxhiday_tres, width = 10, height = 6.6)
 
 
 
@@ -1372,7 +1372,7 @@ temp_trans_deghr30week_tres <- trans_new("temp_trans_deghr30week_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbydeghr30weekxhab_TRES.png",plot =  fig2_deghr30week_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbydeghr30weekxhab_TRES.png",plot =  fig2_deghr30week_tres, width = 10, height = 6.6)
 
 
 
@@ -1559,7 +1559,7 @@ temp_trans_hihr25week_tres <- trans_new("temp_trans_hihr25week_tres",
     theme(legend.position = "none")
 )
 
-ggsave("figures/growthbyhihr25weekxhab_TRES.png",plot =  fig2_hihr25week_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbyhihr25weekxhab_TRES.png",plot =  fig2_hihr25week_tres, width = 10, height = 6.6)
 
 
 

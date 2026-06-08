@@ -511,7 +511,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
     # theme(legend.position = "none")
 )
 
-ggsave("figures/growthbytempxhab_WEBL.png",plot =  fig2_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbytempxhab_WEBL.png",plot =  fig2_webl, width = 10, height = 6.6)
 
 
 
@@ -629,7 +629,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
    )
 
-ggsave("figures/growthbymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/growthbymintempxhab_WEBL.png",plot =  pl, width = 10, height = 6.6)
 
 
 
@@ -1012,7 +1012,7 @@ temp_trans_tres <- trans_new("temp_trans",
     theme(legend.position = "none")
    )
 
-ggsave("figures/growthbytempxhab_TRES.png",plot =  fig2_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbytempxhab_TRES.png",plot =  fig2_tres, width = 10, height = 6.6)
 
 
 
@@ -1120,7 +1120,7 @@ temp_trans <- trans_new("temp_trans",
     theme(legend.position = "none")
    )
 
-ggsave("figures/growthbymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
+# ggsave("figures/growthbymintempxhab_TRES.png",plot =  pl, width = 10, height = 6.6)
 
 
 
@@ -1427,7 +1427,7 @@ abs_trans_webl <- trans_new("abs_trans_webl",
     annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,size = 7,hjust = -.2,vjust = -.5)
 )
 
-ggsave("figures/growthbyprovis_WEBL.png",plot =  fig6_provis_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbyprovis_WEBL.png",plot =  fig6_provis_webl, width = 10, height = 6.6)
 
 (fig6_corts1_webl <- predict_response(g_provis_cort,terms = c("cort_s1_scaled [all]"),bias_correction = TRUE,margin = "empirical") %>%
     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
@@ -1456,7 +1456,7 @@ ggsave("figures/growthbyprovis_WEBL.png",plot =  fig6_provis_webl, width = 10, h
     annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
 )
 
-ggsave("figures/growthbyproviss1_WEBL.png",plot =  fig6_corts1_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbyproviss1_WEBL.png",plot =  fig6_corts1_webl, width = 10, height = 6.6)
 
 (fig6_abscort_webl <- predict_response(g_provis_abscort,terms = c("abs_change_cort_scaled"),bias_correction = TRUE,margin = "empirical") %>%
     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
@@ -1484,7 +1484,7 @@ ggsave("figures/growthbyproviss1_WEBL.png",plot =  fig6_corts1_webl, width = 10,
     annotate(geom = "text",label = "N = 35",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
 )
 
-ggsave("figures/growthbyprovisabs_WEBL.png",plot =  fig6_abscort_webl, width = 10, height = 6.6)
+# ggsave("figures/growthbyprovisabs_WEBL.png",plot =  fig6_abscort_webl, width = 10, height = 6.6)
 
 
 
@@ -1814,7 +1814,7 @@ abs_trans_tres <- trans_new("abs_trans_tres",
     annotate(geom = "text",label = "N = 14",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
 )
 
-ggsave("figures/growthbycort+provis_TRES.png",plot =  fig6_abscort_tres, width = 10, height = 6.6)
+# ggsave("figures/growthbycort+provis_TRES.png",plot =  fig6_abscort_tres, width = 10, height = 6.6)
 
 
 ## Combined WEBL and TRES growth plots
