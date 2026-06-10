@@ -34,69 +34,25 @@ rule all:
         "figures/val_tmaxxjday_tbl.html",
 
 
-rule model_growth:
+rule model_all:
+    # All model sections run sequentially in a single script.
+    # Previously split into 5 parallel rules; ~7 min total so sequential is fine.
     input:
-        data   = "data/growth_cort_provis_manytempmeasures.rds",
-        provis = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
-        script = "code/model_growth.R",
+        data          = "data/growth_cort_provis_manytempmeasures.rds",
+        surv          = "data/survival_attempt.rds",
+        provis        = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
+        provis_season = "data/provis_manytempmeasures.rds",
+        script        = "code/models.R",
     output:
         "data/models_growth.RData",
-    resources:
-        runtime = "4h",
-    shell:
-        "Rscript code/model_growth.R"
-
-
-rule model_cort:
-    input:
-        data   = "data/growth_cort_provis_manytempmeasures.rds",
-        script = "code/model_cort.R",
-    output:
         "data/models_cort.RData",
-    resources:
-        runtime = "4h",
-    shell:
-        "Rscript code/model_cort.R"
-
-
-rule model_survival:
-    input:
-        data   = "data/growth_cort_provis_manytempmeasures.rds",
-        surv   = "data/survival_attempt.rds",
-        script = "code/model_survival.R",
-    output:
         "data/models_survival.RData",
-    resources:
-        runtime = "2h",
-    shell:
-        "Rscript code/model_survival.R"
-
-
-rule model_provis:
-    input:
-        data   = "data/growth_cort_provis_manytempmeasures.rds",
-        provis = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
-        script = "code/model_provis.R",
-    output:
         "data/models_provis.RData",
-    resources:
-        runtime = "2h",
-    shell:
-        "Rscript code/model_provis.R"
-
-
-rule model_seasonal:
-    input:
-        data   = "data/growth_cort_provis_manytempmeasures.rds",
-        surv   = "data/survival_attempt.rds",
-        provis = "data/provis_manytempmeasures.rds",
-        script = "code/seasonal_sensitivity.R",
-    output:
         "data/models_seasonal.RData",
     resources:
         runtime = "4h",
     shell:
-        "Rscript code/seasonal_sensitivity.R"
+        "Rscript code/models.R"
 
 
 rule figures:
