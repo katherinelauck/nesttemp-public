@@ -73,6 +73,37 @@ make_temp_trans <- function(data, col) {
   )
 }
 
+# 4-model anova comparison formatted as a gt() interaction table.
+# Handles both lmer (Variant A) and glm/binomial (Variant B) automatically.
+anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
+  if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
+    mk_row <- function(m_single) {
+      anova(m_full, m_single, m_noint, test = "Chisq") %>% tibble() %>%
+        rename(Chisq = Deviance) %>%
+        mutate(AIC = c(AIC(m_full), AIC(m_single), AIC(m_noint)), .before = Df) %>%
+        mutate(Model = c("no interaction","single interaction","both interacting"), .before = Df)
+    }
+    p_col    <- "Pr(>Chi)"
+    rnd_cols <- "Chisq"
+  } else {
+    mk_row <- function(m_single) {
+      anova(m_full, m_single, m_noint) %>% tibble() %>%
+        mutate(Model = c("no interaction","single interaction","both interacting"), .before = npar)
+    }
+    p_col    <- "Pr(>Chisq)"
+    rnd_cols <- c("AIC","Chisq")
+  }
+  bind_rows(mk_row(m_addmin), mk_row(m_addmax)) %>%
+    as_tibble() %>%
+    mutate(across(where(is.numeric), ~round(.x, digits = digits)),
+           P = .data[[p_col]]) %>%
+    dplyr::select(Model, AIC, Chisq, P) %>%
+    mutate(max_or_min = c(rep("Max temp", times = 3), rep("Min temp", times = 3)),
+           across(all_of(rnd_cols), ~ round(.x, digits = 2)),
+           P = if_else(P < 0.001, "<0.001", as.character(P))) %>%
+    group_by(max_or_min) %>% gt()
+}
+
 
 ## ================================================================
 ## SECTION 1: GROWTH MODELS
@@ -103,19 +134,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_s
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_webl <- bind_rows(c1,c2) %>%
-  as.tibble() %>%
-  mutate(across(where(is.numeric),~round(.x,digits = 4)),
-         P = `Pr(>Chisq)`) %>%
-  dplyr::select(Model,AIC,Chisq,P) %>%
-  mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-         across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-         P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-  group_by(max_or_min) %>% gt())
+(int_tab_growth_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_webl <- g_lintemp
 
@@ -429,87 +448,7 @@ emmip(g_lintemp,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_
 #                                                    .names = "{.col}_scaled"),
 #                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 #
-# c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# (tab <- bind_rows(c1,c2) %>%
-#   as.tibble() %>%
-#   mutate(across(where(is.numeric),~round(.x,digits = 4)),
-#          P = `Pr(>Chisq)`) %>%
-#   dplyr::select(Model,AIC,Chisq,P) %>%
-#   mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-#          across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-#          P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-#   group_by(max_or_min) %>% gt())
-#
-# summary(g_lintemp)
-#
-#
-# # Is brood_size significant if I remove temp and habitat?
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-#
-#
-# summary(g_lintemp)
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-#
-#
-# summary(g_lintemp)
-
-
-### TRES
-
-
-g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_tres <- bind_rows(c1,c2) %>%
-  as.tibble() %>%
-  mutate(across(where(is.numeric),~round(.x,digits = 4)),
-         P = `Pr(>Chisq)`) %>%
-  dplyr::select(Model,AIC,Chisq,P) %>%
-  mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-         across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-         P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-  group_by(max_or_min) %>% gt())
+# (int_tab_growth_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 
 g_lintemp_addmin_tres <- g_lintemp_addmin
@@ -557,982 +496,7 @@ g_lintemp_addmin_tres <- g_lintemp_addmin
 #                                                    .names = "{.col}_scaled"),
 #                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 #
-# c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# (tab <- bind_rows(c1,c2) %>%
-#   as.tibble() %>%
-#   mutate(across(where(is.numeric),~round(.x,digits = 4)),
-#          P = `Pr(>Chisq)`) %>%
-#   dplyr::select(Model,AIC,Chisq,P) %>%
-#   mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-#          across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-#          P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-#   group_by(max_or_min) %>% gt())
-#
-# summary(g_lintemp)
-#
-#
-# Is brood_size significant if I remove temp and habitat?
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-#
-#
-# summary(g_lintemp)
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-#
-#
-# summary(g_lintemp)
-
-
-### Sample sizes:
-
-
-# samp_year_tres <- g_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
-# (t_samp_year_growth_tres <- samp_year_tres %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
-#   t_samp_year_growth_tres
-
-
-  samp_year_tres <- g_lintemp_addmin@frame %>%
-    group_by(habitat,year_fct) %>%
-    summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
-    rowwise() %>%
-    mutate(count = tibble(count_ind,count_attempt)) %>%
-    dplyr::select(-c(count_ind, count_attempt)) %>%
-    pivot_wider(values_from = count,names_from = year_fct) %>%
-    as.tibble() %>% rename(Habitat = 'habitat') %>%
-    ungroup() %>%
-    mutate(Total = `2021` + `2022` + `2023`) %>%
-    rowwise() %>%
-    mutate(`2021` = paste0(`2021`$count_ind,", ",`2021`$count_attempt),
-           `2022` = paste0(`2022`$count_ind,", ",`2022`$count_attempt),
-           `2023` = paste0(`2023`$count_ind,", ",`2023`$count_attempt),
-           Total = paste0(Total$count_ind,", ",Total$count_attempt)
-    )
-
-  (t_samp_year_growth_tres <- samp_year_tres %>% gt() %>%
-      grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-        t <- str_split(.,", ",simplify = TRUE)
-        t[,1] %>% as.numeric() %>% sum() %>% paste(t[,2] %>% as.numeric() %>% sum(),sep = ", ")
-      })
-  )
-
-  t_samp_year_growth_tres
-
-samp <- g_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-samp %>% gt()
-
-
-dat_text_tres <- data.frame(
-  label = paste("N =",samp$count),
-  group   = factor(c("Forest","Orchard","Grassland","Row crop"))
-)
-
-
-#### Combined sample sizes for growth
-
-
-# rbind(t_samp_year_growth_webl$`_data`,t_samp_year_growth_tres$`_data`) %>% dplyr::select(Habitat, `2021`, `2022`, `2023`) %>%
-#   mutate(Species = c(rep("WEBL",4),rep("TRES",4)),
-#          Response = "Growth") %>%
-#   # mutate(row=row_number()) %>%
-#   group_by(Response) %>%
-#   pivot_longer(-c(Species, Response, Habitat)) %>%
-#   pivot_wider(names_from=c(Species, name), values_from=value) %>%
-#   # dplyr::select(-row) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_")
-
-
-data_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-
-mean_temp_tres <- mean(data_tres %>% pull(meanmaxtempI))
-sd_temp_tres <- sd(data_tres %>% pull(meanmaxtempI))
-
-
-temp_trans_tres <- trans_new("temp_trans",
-                          transform = function(x){(x * sd_temp_tres) + mean_temp_tres},
-                          inverse = function(x){x})
-
-(fig2_tres <- ggpredict(g_lintemp_addmin,terms = c("meanmaxtempI_scaled [all]","habitat"),bias_correction = TRUE) %>%
-   plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    aes(linetype = .data[["group"]]) +
-    theme_classic() +
-   facet_wrap(~ group, ncol = 2) +
-    xlab("Mean daily max temp over preceding week (\u00b0C)") +
-    ylab("Growth (g/day)") +
-   scale_fill_viridis(discrete = TRUE) +
-    scale_color_viridis(discrete = TRUE) +
-    scale_linetype_manual(values = c("Forest" = "dashed","Orchard" = "dotted","Grassland" = "solid","Row crop" = "solid")) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank()) +
-    scale_x_continuous(trans = temp_trans_tres,
-                       breaks = c((20-mean_temp_tres)/sd_temp_tres,
-                                  (25-mean_temp_tres)/sd_temp_tres,
-                                  (30-mean_temp_tres)/sd_temp_tres,
-                                  (35-mean_temp_tres)/sd_temp_tres,
-                                  (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
-                       ) +
-   #ylim(-5,5) +
-   geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
-    theme(legend.position = "none")
-   )
-
-
-(tresgrowthtrendmax <- emtrends(g_lintemp_addmin,specs = ~ habitat, var = c("meanmaxtempI_scaled")) %>% test() %>%
-   mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-          df = round(df),
-          p.value = if_else(p.value == 0.000,"<0.001",as.character(p.value))) %>%
-   rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend",Df = "df", `T-ratio` = "t.ratio", P = "p.value") %>%
-   gt())
-
-
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-# (t <- emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(meanmaxtempI_scaled = (meanmaxtempI_scaled * sd(data$meanmaxtempI)) + mean(data$meanmaxtempI),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     meanmaxtempI_scaled = round(meanmaxtempI_scaled),
-#     meanmaxtempI_scaled = paste0(meanmaxtempI_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "meanmaxtempI_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp_addmin,specs = pairwise ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp_addmin,formula = habitat ~ meanmaxtempI_scaled, at = list(meanmaxtempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
-
-## Emmeans to check for effect of habitat
-
-
-(growthbyhabitat_tres <- emmeans(g_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
-   mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
-          across(p.value,~round(.x,digits = 3))) %>% gt())
-
-
-## min temp
-
-
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-
-mean_temp <- mean(data %>% pull(meanmintempI))
-sd_temp <- sd(data %>% pull(meanmintempI))
-
-
-temp_trans <- trans_new("temp_trans",
-                          transform = function(x){(x * sd_temp) + mean_temp},
-                          inverse = function(x){x})
-
-(pl <- ggpredict(g_lintemp_addmin,terms = c("meanmintempI_scaled [all]","habitat"),bias_correction = TRUE) %>%
-   plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    theme_classic() +
-   facet_wrap(~ group, ncol = 2) +
-    xlab("Mean daily min temp over preceding week (\u00b0C)") +
-    ylab("Growth (g/day)") +
-   scale_fill_viridis(discrete = TRUE) +
-    scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank()) +
-    scale_x_continuous(trans = temp_trans,
-                       breaks = c((8-mean_temp)/sd_temp,
-                                  (12-mean_temp)/sd_temp,
-                                  (16-mean_temp)/sd_temp,
-                                  (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmintempI,na.rm = TRUE))/sd(g$meanmintempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmintempI,na.rm = TRUE))/sd(g$meanmintempI,na.rm = TRUE))
-                       # limits = c(18,5)
-                       ) +
-   #ylim(-5,5) +
-   geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
-    theme(legend.position = "none")
-   )
-
-
-(t <- emtrends(g_lintemp_addmin,specs = ~ habitat, var = c("meanmintempI_scaled")) %>% test() %>%
-   mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-          df = round(df),
-          p.value = if_else(p.value == 0.000,"<0.001",as.character(p.value))) %>%
-   rename(Habitat = "habitat", `Min temp trend` = "meanmintempI_scaled.trend",Df = "df", `T-ratio` = "t.ratio", P = "p.value") %>%
-   gt())
-
-
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
-
-(t <- emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-  mutate(meanmintempI_scaled = (meanmintempI_scaled * sd(data$meanmintempI)) + mean(data$meanmintempI),
-    across(where(is.numeric), ~ round(.x, digits = 2)),
-    meanmintempI_scaled = round(meanmintempI_scaled),
-    meanmintempI_scaled = paste0(meanmintempI_scaled,"\u00b0C")) %>%
-  #tibble() %>%
-  dplyr::select(-df) %>%
-  #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-  rename(Habitat = "habitat",`min temperature` = "meanmintempI_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-  group_by(`min temperature`) %>%
-  mutate(row=row_number()) %>%
-  pivot_longer(-c(`min temperature`, row,Habitat)) %>%
-  pivot_wider(names_from=c(`min temperature`, name), values_from=value) %>%
-  dplyr::select(-row) %>%
-  #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-  #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-  gt() %>% tab_options(data_row.padding = px(1)) %>%
-  tab_spanner_delim(
-    delim="_"
-  ))
-
-
-((emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp_addmin,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-
-emmeans(g_lintemp_addmin,specs = pairwise ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-emmip(g_lintemp_addmin,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
-
-## Combined WEBL and TRES growth plots
-
-
-ggplot_build(fig2_webl)$layout$panel_scales_y
-(p_full <- ggarrange(fig2_webl + theme(text = element_text(size = 12),axis.title.x = element_blank()),fig2_tres + ylim(-1.09,3.42) + theme(axis.text.y = element_blank(),
-                                        axis.ticks.y = element_blank(),
-                                        text = element_text(size = 12),
-                                        axis.title.y = element_blank(),
-                                        axis.title.x = element_text(hjust = 2.8)),ncol = 2,
-          labels = c("(a): Western Bluebird","(b): Tree Swallow")))
-
-
-# Models to estimate the unbiased causal effect of cort and provisioning on growth
-
-#Model structure pulled from DAG: will use a minimal adjustment set to estimate the total effect of cort and provisioning on growth.
-#{ attempt, humidity, nest_age, nestcond, surftemp }
-
-#I could subtract the direct from the total effect to get the indirect effect. I'm still vacillating between thinking that I should be measuring the total effect or the direct effect. I think because nestcond is really the only mediator in the DAG that I actually want total effect?
-
-#  The question I'd like to ask: Does the direct effect of these two factors on growth change depending on habitat? I'm not sure that this causal structure is the correct one for that question. Is that a mediation analysis? After reading some papers, I think that actually the question is, do cort and provisioning mediate the effect of habitat and temperature on growth? I still think there may be other questions in this dataset. Maybe the answer is to do this paper just linear modeling with causal inference support, and then get Sage in on a paper that delves more deeply into a structural causal modeling framework.
-
-#The following focuses on the more simple question: how do cort and provisioning affect growth (total effect)? I will do the same model structure for survival in that notebook.
-
-#adjustment set: { attempt, humidity, nest_age, nestcond, surftemp }
-
-
-g_provis_cort <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + poly(meanmaxtempI_scaled,2) + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-                                  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                                                ~ scale(.x)[,1],
-                                                .names = "{.col}_scaled"),
-                                         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-g_provis_cort_webl <- g_provis_cort
-
-(growth_by_cort_provis_summary_webl <- summary(g_provis_cort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-
-data = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-# (t <- emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(provis_mean_scaled = (provis_mean_scaled * sd(data$provis_mean, na.rm = TRUE)) + mean(data$provis_mean,na.rm = TRUE),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            provis_mean_scaled = round(provis_mean_scaled)) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(`Provisioning` = "provis_mean_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)))
-#
-# ((emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-
-
-g_provis_abscort <- lmerTest::lmer(gweight ~ abs_change_cort_scaled + provis_mean_scaled + meanmaxtempI_scaled + meanmintempI_scaled + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-g_provis_abscort_webl <- g_provis_abscort
-
-
-(growth_by_abscort_provis_summary_webl <- summary(g_provis_abscort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-
-data = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-(t <- emmeans(g_provis_abscort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-    mutate(provis_mean_scaled = (provis_mean_scaled * sd(data$provis_mean,na.rm = TRUE)) + mean(data$provis_mean,na.rm = TRUE),
-           across(where(is.numeric), ~ round(.x, digits = 2)),
-           provis_mean_scaled = round(provis_mean_scaled)) %>%
-    #tibble() %>%
-    dplyr::select(-df) %>%
-    #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-    rename(`max temperature` = "provis_mean_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-    #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-    #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-    gt() %>% tab_options(data_row.padding = px(1)))
-
-
-#### Sample size
-
-
-data_s1_webl = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
-                          !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-# ss_year_webl_growthbybasecortprovis <- data_s1_webl %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_webl_growthbybasecortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_webl_growthbybasecortprovis.html")
-
-ss_year_webl_growthbybasecortprovis <- data_s1_webl %>%
-  group_by(habitat,year_fct) %>%
-  summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
-  rowwise() %>%
-  mutate(count = tibble(count_ind,count_attempt)) %>%
-  dplyr::select(-c(count_ind, count_attempt)) %>%
-  pivot_wider(values_from = count,names_from = year_fct) %>%
-  as.tibble() %>% rename(Habitat = 'habitat') %>%
-  ungroup() %>%
-  mutate(Total =`2022` + `2023`) %>%
-  rowwise() %>%
-  mutate(`2022` = paste0(`2022`$count_ind,", ",`2022`$count_attempt),
-         `2023` = paste0(`2023`$count_ind,", ",`2023`$count_attempt),
-         Total = paste0(Total$count_ind,", ",Total$count_attempt)
-  )
-
-(t_ss_year_webl_growthbybasecortprovis <- ss_year_webl_growthbybasecortprovis %>% gt() %>%
-    grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-      t <- str_split(.,", ",simplify = TRUE)
-      t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% paste(t[,2] %>% as.numeric() %>% sum(na.rm = TRUE),sep = ", ")
-    })
-)
-
-
-t_ss_year_webl_growthbybasecortprovis
-
-
-data_abs_webl = dplyr::filter(g,Species == "WEBL",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-# ss_year_webl_growthbyabscortprovis <- data_abs_webl %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_webl_growthbyabscortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_webl_growthbyabscortprovis.html")
-
-
-ss_year_webl_growthbyabscortprovis <- data_abs_webl %>%
-  group_by(habitat,year_fct) %>%
-  summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
-  rowwise() %>%
-  mutate(count = tibble(count_ind,count_attempt)) %>%
-  dplyr::select(-c(count_ind, count_attempt)) %>%
-  pivot_wider(values_from = count,names_from = year_fct) %>%
-  as.tibble() %>% rename(Habitat = 'habitat') %>%
-  ungroup() %>%
-  mutate(Total =`2022` + `2023`) %>%
-  rowwise() %>%
-  mutate(`2022` = paste0(`2022`$count_ind,", ",`2022`$count_attempt),
-         `2023` = paste0(`2023`$count_ind,", ",`2023`$count_attempt),
-         Total = paste0(Total$count_ind,", ",Total$count_attempt)
-  )
-
-(t_ss_year_webl_growthbyabscortprovis <- ss_year_webl_growthbyabscortprovis %>% gt() %>%
-    grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-      t <- str_split(.,", ",simplify = TRUE)
-      t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% paste(t[,2] %>% as.numeric() %>% sum(na.rm = TRUE),sep = ", ")
-    })
-)
-
-
-t_ss_year_webl_growthbyabscortprovis
-
-
-mean_provis_webl <- mean(data_s1_webl %>% pull(provis_mean))
-sd_provis_webl <- sd(data_s1_webl %>% pull(provis_mean))
-
-
-provis_trans_webl <- trans_new("provis_trans_webl",
-                               transform = function(x){(x * sd_provis_webl) + mean_provis_webl},
-                               inverse = function(x){x})
-
-mean_s1_webl <- mean(data_s1_webl %>% pull(cort_s1))
-sd_s1_webl <- sd(data_s1_webl %>% pull(cort_s1))
-
-
-s1_trans_webl <- trans_new("s1_trans_webl",
-                               transform = function(x){(x * sd_s1_webl) + mean_s1_webl},
-                               inverse = function(x){x})
-
-mean_abs_webl <- mean(data_abs_webl %>% pull(abs_change_cort))
-sd_abs_webl <- sd(data_abs_webl %>% pull(abs_change_cort))
-
-
-abs_trans_webl <- trans_new("abs_trans_webl",
-                               transform = function(x){(x * sd_abs_webl) + mean_abs_webl},
-                               inverse = function(x){x})
-
-(fig6_provis_webl <- predict_response(g_provis_cort,terms = c("provis_mean_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Provisioning") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 24)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = provis_trans_webl,
-                       breaks = c((0-mean_provis_webl)/sd_provis_webl,
-                                  (5-mean_provis_webl)/sd_provis_webl,
-                                  (10-mean_provis_webl)/sd_provis_webl,
-                                  (15-mean_provis_webl)/sd_provis_webl,
-                                  (20-mean_provis_webl)/sd_provis_webl)
-    ) +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,size = 7,hjust = -.2,vjust = -.5)
-)
-
-
-(fig6_corts1_webl <- predict_response(g_provis_cort,terms = c("cort_s1_scaled [all]"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    aes(linetype = .data[["group"]]) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Baseline corticosterone (ng/\U00B5L)") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = s1_trans_webl,
-                       breaks = c((2-mean_s1_webl)/sd_s1_webl,
-                                  (4-mean_s1_webl)/sd_s1_webl,
-                                  (6-mean_s1_webl)/sd_s1_webl,
-                                  (8-mean_s1_webl)/sd_s1_webl,
-                                  (10-mean_s1_webl)/sd_s1_webl,
-                                  (12-mean_s1_webl)/sd_s1_webl,
-                                  (14-mean_s1_webl)/sd_s1_webl)
-    ) +
-    scale_linetype_manual(values = "dotted") +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-)
-
-
-(fig6_abscort_webl <- predict_response(g_provis_abscort,terms = c("abs_change_cort_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    aes(linetype = .data[["group"]]) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Stress-induced corticosterone (ng/\U00B5L)") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = abs_trans_webl,
-                       breaks = c((0-mean_abs_webl)/sd_abs_webl,
-                                  (10-mean_abs_webl)/sd_abs_webl,
-                                  (20-mean_abs_webl)/sd_abs_webl,
-                                  (30-mean_abs_webl)/sd_abs_webl,
-                                  (40-mean_abs_webl)/sd_abs_webl,
-                                  (50-mean_abs_webl)/sd_abs_webl)
-    ) +
-    scale_linetype_manual(values = "dotted") +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 35",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-)
-
-
-## Canonical adjustment set overloads the data:
-
-#{ attempt, broodsize, habitat, humidity, jul_date, mother_s1, nest_age, site, surftemp, year }
-
-
-# g_provis_cort_canon <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + (1|attempt_id) + brood_size_scaled + habitat + meanh_scaled + juliandate_scaled + cort_s1_mother_scaled + age_scaled + meanmaxtempI_scaled + meanmintempI_scaled + year_fct,data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
-#                                         mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,cort_s1_mother,condition,provis_mean),
-#                                                       ~ scale(.x)[,1],
-#                                                       .names = "{.col}_scaled"),
-#                                                meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-# summary(g_provis_cort_canon)
-#
-#
-
-## TRES
-
-
-g_provis_cort <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + poly(meanmaxtempI_scaled,2) + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                                                ~ scale(.x)[,1],
-                                                .names = "{.col}_scaled"),
-                                         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-
-g_provis_cort_tres <- g_provis_cort
-
-(growth_by_cort_provis_summary_tres <- summary(g_provis_cort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-
-data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-# (t <- emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(cort_s1_scaled = (cort_s1_scaled * sd(data$cort_s1, na.rm = TRUE)) + mean(data$cort_s1,na.rm = TRUE),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            cort_s1_scaled = round(cort_s1_scaled)) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(`Baseline cort` = "cort_s1_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)))
-#
-# ((emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-
-
-#### Abs diff cort
-
-
-g_provis_abscort <- lmerTest::lmer(gweight ~ abs_change_cort_scaled + provis_mean_scaled + meanmaxtempI_scaled + meanmintempI_scaled + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-g_provis_abscort_tres <- g_provis_abscort
-
-(growth_by_abscort_provis_summary_tres <- summary(g_provis_abscort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-
-data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-(t <- emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-    mutate(abs_change_cort_scaled = (abs_change_cort_scaled * sd(data$abs_change_cort, na.rm = TRUE)) + mean(data$abs_change_cort,na.rm = TRUE),
-           across(where(is.numeric), ~ round(.x, digits = 2)),
-           abs_change_cort_scaled = round(abs_change_cort_scaled)) %>%
-    #tibble() %>%
-    dplyr::select(-df) %>%
-    #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-    rename(`Baseline cort` = "abs_change_cort_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-    #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-    #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-    gt() %>% tab_options(data_row.padding = px(1)))
-
-((emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-
-
-#### Sample size
-
-
-data_s1_tres = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(meanmaxtempI),
-                          !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-
-# ss_year_TRES_growthbybasecortprovis <- data_s1_tres %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_TRES_growthbybasecortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_TRES_growthbybasecortprovis.html")
-#
-
-
-ss_year_tres_growthbybasecortprovis <- data_s1_tres %>%
-  group_by(habitat,year_fct) %>%
-  summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
-  rowwise() %>%
-  mutate(count = tibble(count_ind,count_attempt)) %>%
-  dplyr::select(-c(count_ind, count_attempt)) %>%
-  pivot_wider(values_from = count,names_from = year_fct) %>%
-  as.tibble() %>% rename(Habitat = 'habitat') %>%
-  ungroup() %>%
-  mutate(Total =`2022` + `2023`) %>%
-  rowwise() %>%
-  mutate(`2022` = paste0(`2022`$count_ind,", ",`2022`$count_attempt),
-         `2023` = paste0(`2023`$count_ind,", ",`2023`$count_attempt),
-         Total = paste0(Total$count_ind,", ",Total$count_attempt)
-  )
-
-(t_ss_year_tres_growthbybasecortprovis <- ss_year_tres_growthbybasecortprovis %>% gt() %>%
-    grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-      t <- str_split(.,", ",simplify = TRUE)
-      t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% paste(t[,2] %>% as.numeric() %>% sum(na.rm = TRUE),sep = ", ")
-    })
-)
-
-
-t_ss_year_tres_growthbybasecortprovis
-
-
-data_abs_tres = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(meanmaxtempI),
-                     !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
-
-# ss_year_TRES_growthbyabscortprovis <- data_abs_tres %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_TRES_growthbyabscortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_TRES_growthbyabscortprovis.html")
-
-
-ss_year_tres_growthbyabscortprovis <- data_abs_tres %>%
-  group_by(habitat,year_fct) %>%
-  summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
-  rowwise() %>%
-  mutate(count = tibble(count_ind,count_attempt)) %>%
-  dplyr::select(-c(count_ind, count_attempt)) %>%
-  pivot_wider(values_from = count,names_from = year_fct) %>%
-  as.tibble() %>% rename(Habitat = 'habitat') %>%
-  ungroup() %>%
-  mutate(Total =`2022` + `2023`) %>%
-  rowwise() %>%
-  mutate(`2022` = paste0(`2022`$count_ind,", ",`2022`$count_attempt),
-         `2023` = paste0(`2023`$count_ind,", ",`2023`$count_attempt),
-         Total = paste0(Total$count_ind,", ",Total$count_attempt)
-  )
-
-(t_ss_year_tres_growthbyabscortprovis <- ss_year_tres_growthbyabscortprovis %>% gt() %>%
-    grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-      t <- str_split(.,", ",simplify = TRUE)
-      t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% paste(t[,2] %>% as.numeric() %>% sum(na.rm = TRUE),sep = ", ")
-    })
-)
-
-
-t_ss_year_tres_growthbyabscortprovis
-
-
-mean_provis_tres <- mean(data_s1_tres %>% pull(provis_mean))
-sd_provis_tres <- sd(data_s1_tres %>% pull(provis_mean))
-
-
-provis_trans_tres <- trans_new("provis_trans_tres",
-                               transform = function(x){(x * sd_provis_tres) + mean_provis_tres},
-                               inverse = function(x){x})
-
-mean_s1_tres <- mean(data_s1_tres %>% pull(cort_s1))
-sd_s1_tres <- sd(data_s1_tres %>% pull(cort_s1))
-
-
-s1_trans_tres <- trans_new("s1_trans_tres",
-                               transform = function(x){(x * sd_s1_tres) + mean_s1_tres},
-                               inverse = function(x){x})
-
-mean_abs_tres <- mean(data_abs_tres %>% pull(abs_change_cort))
-sd_abs_tres <- sd(data_abs_tres %>% pull(abs_change_cort))
-
-
-abs_trans_tres <- trans_new("abs_trans_tres",
-                           transform = function(x){(x * sd_abs_tres) + mean_abs_tres},
-                           inverse = function(x){x})
-
-# (fig6_tres <- predict_response(g_provis_cort,terms = c("provis_mean_scaled","cort_s1_scaled [-2,2]"),bias_correction = TRUE) %>%
-#     #filter(group != 0.35) %>%
-#     # mutate(group = as_factor(group) %>% fct_collapse(Low = "-0.93",High = "1.63")) %>%
-#     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE,colors = "viridis") +
-#     #scale_fill_discrete(labels = c("Low","High")) +
-#     #scale_color_discrete(labels = c("Low","High")) +
-#     # geom_point(show.legend = FALSE) +
-#     theme_classic() +
-#     #facet_wrap(~ group, ncol = 2) +
-#     xlab("Provisioning (mean visits/hr)") +
-#     ylab("Growth (g/day)") +
-#     #scale_fill_viridis(discrete = TRUE) +
-#     #scale_color_viridis(discrete = TRUE) +
-#     theme(text = element_text(size = 16)) +
-#     labs(title = element_blank(),color = "Baseline cort") +
-#     scale_x_continuous(trans = provis_trans_tres,
-#                        breaks = c((0-mean_provis_tres)/sd_provis_tres,
-#                                   (10-mean_provis_tres)/sd_provis_tres,
-#                                   (20-mean_provis_tres)/sd_provis_tres,
-#                                   (30-mean_provis_tres)/sd_provis_tres,
-#                                   (40-mean_provis_tres)/sd_provis_tres,
-#                                   (50-mean_provis_tres)/sd_provis_tres)
-#     ) +
-#     #ylim(-5,5) #+
-#     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-#     theme(legend.position = "none") +
-#     annotate("text",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5,label = "N = 16")
-# )
-
-(fig6_provis_tres <- predict_response(g_provis_cort,terms = c("provis_mean_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    aes(linetype = .data[["group"]]) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Provisioning (visits/hr)") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = provis_trans_tres,
-                       breaks = c((0-mean_provis_tres)/sd_provis_tres,
-                                  (10-mean_provis_tres)/sd_provis_tres,
-                                  (20-mean_provis_tres)/sd_provis_tres,
-                                  (30-mean_provis_tres)/sd_provis_tres,
-                                  (40-mean_provis_tres)/sd_provis_tres,
-                                  (50-mean_provis_tres)/sd_provis_tres)
-    ) +
-    scale_linetype_manual(values = "dotted") +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 16",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-)
-
-(fig6_corts1_tres <- predict_response(g_provis_cort,terms = c("cort_s1_scaled [all]"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Baseline corticosterone (ng/\U00B5L)") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = s1_trans_tres,
-                       breaks = c((5-mean_s1_tres)/sd_s1_tres,
-                                  (10-mean_s1_tres)/sd_s1_tres,
-                                  (15-mean_s1_tres)/sd_s1_tres,
-                                  (20-mean_s1_tres)/sd_s1_tres,
-                                  (25-mean_s1_tres)/sd_s1_tres)
-    ) +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 16",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-)
-
-(fig6_abscort_tres <- predict_response(g_provis_abscort,terms = c("abs_change_cort_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-    plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-    aes(linetype = .data[["group"]]) +
-    theme_classic() +
-    #facet_wrap(~ group, ncol = 2) +
-    xlab("Stress-induced corticosterone (ng/\U00B5L)") +
-    ylab("Growth (g/day)") +
-    #scale_fill_viridis(discrete = TRUE) +
-    #scale_color_viridis(discrete = TRUE) +
-    theme(text = element_text(size = 16)) +
-    labs(title = element_blank())  +
-    scale_x_continuous(trans = abs_trans_tres,
-                       breaks = c((20-mean_abs_tres)/sd_abs_tres,
-                                  (40-mean_abs_tres)/sd_abs_tres,
-                                  (60-mean_abs_tres)/sd_abs_tres,
-                                  (80-mean_abs_tres)/sd_abs_tres,
-                                  (100-mean_abs_tres)/sd_abs_tres)
-    ) +
-    scale_linetype_manual(values = "dotted") +
-    #ylim(-5,5) +
-    # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-    theme(legend.position = "none") +
-    annotate(geom = "text",label = "N = 14",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-)
-
-
-## Combined WEBL and TRES growth plots
-
-
-ggplot_build(fig6_provis_webl)$layout$panel_scales_y
-ggplot_build(fig6_provis_tres)$layout$panel_scales_y
-
-ggplot_build(fig6_corts1_webl)$layout$panel_scales_y
-ggplot_build(fig6_corts1_tres)$layout$panel_scales_y
-
-ggplot_build(fig6_abscort_webl)$layout$panel_scales_y
-ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
-(p_full <- ggarrange(fig6_provis_webl + theme(text = element_text(size = 12),
-                                       legend.position = "none",
-                                       axis.title.x = element_blank(),
-                                       axis.title.y = element_text(hjust = -3)),
-                     fig6_provis_tres + theme(axis.text.y = element_blank(),
-                                       axis.ticks.y = element_blank(),
-                                       text = element_text(size = 12),
-                                       axis.title.y = element_blank(),
-                                       legend.position = 'none',
-                                       axis.title.x = element_text(hjust = -.7)) +
-                       ylim(-.183,2.73),
-                     fig6_corts1_webl + theme(text = element_text(size = 12),
-                                            legend.position = "none",
-                                            axis.title.x = element_blank(),
-                                            axis.title.y = element_blank()),
-                     fig6_corts1_tres + theme(axis.text.y = element_blank(),
-                                                 axis.ticks.y = element_blank(),
-                                                 text = element_text(size = 12),
-                                                 axis.title.y = element_blank(),
-                                                 legend.position = 'none',
-                                                 axis.title.x = element_text(hjust = -2.7)) +
-                       ylim(-.183,2.73),
-                     fig6_abscort_webl + theme(text = element_text(size = 12),
-                                               legend.position = "none",
-                                               axis.title.x = element_blank(),
-                                               axis.title.y = element_blank()),
-                     fig6_abscort_tres + xlab("Stress-induced - Baseline corticosterone (ng/\U00B5L)") + theme(axis.text.y = element_blank(),
-                                               axis.ticks.y = element_blank(),
-                                               text = element_text(size = 12),
-                                               axis.title.y = element_blank(),
-                                               legend.position = 'none',
-                                               axis.title.x = element_text(hjust = 2.5)) +
-                       ylim(-.183,2.73),
-                     ncol = 2 ,
-                     labels = c("(a): Western Bluebird","(b): Tree Swallow","","","","")
-                     ))
-
-
-## Other temperature measures
-
-### WEBL
-#### maxhi_week
-
-
-g_lintemp <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-
-g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_maxhiweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+# (int_tab_growth_maxhiweek_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiweek_webl <- g_lintemp
 
@@ -1701,86 +665,7 @@ data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.n
 #                                                    .names = "{.col}_scaled"),
 #                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 #
-# c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-#
-# (tab <- bind_rows(c1,c2) %>%
-#   as.tibble() %>%
-#   mutate(across(where(is.numeric),~round(.x,digits = 4)),
-#          P = `Pr(>Chisq)`) %>%
-#   dplyr::select(Model,AIC,Chisq,P) %>%
-#   mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-#          across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-#          P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-#   group_by(max_or_min) %>% gt())
-#
-# summary(g_lintemp)
-#
-#
-# # Is brood_size significant if I remove temp and habitat?
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-#
-#
-# summary(g_lintemp)
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-#
-#
-# summary(g_lintemp)
-
-#### maxhi_prior
-
-
-g_lintemp <- lmerTest::lmer(gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
-
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ maxhi_prior_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
-
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
-
-g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_prior_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
-
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_maxhiday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+# (int_tab_growth_maxhiday_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiday_webl <- g_lintemp
 
@@ -1937,19 +822,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scale
                                                   .names = "{.col}_scaled"),
                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_deghr30week_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_deghr30week_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_deghr30week_webl <- g_lintemp
 
@@ -2105,19 +978,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled +
                                                   .names = "{.col}_scaled"),
                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_hihr25week_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_hihr25week_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_hihr25week_webl <- g_lintemp
 
@@ -2274,19 +1135,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_sca
                                                   .names = "{.col}_scaled"),
                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_maxhiweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_maxhiweek_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiweek_tres <- g_lintemp_addmin
 
@@ -2443,19 +1292,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_prior_scaled + meanmintempI_sc
                                                   .names = "{.col}_scaled"),
                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_maxhiday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_maxhiday_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiday_tres <- g_lintemp_addmin
 
@@ -2612,19 +1449,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scale
                                                   .names = "{.col}_scaled"),
                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_deghr30week_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_deghr30week_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_deghr30week_tres <- g_lintemp_addmin
 
@@ -2780,19 +1605,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled +
                                                   .names = "{.col}_scaled"),
                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_hihr25week_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_growth_hihr25week_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_hihr25week_tres <- g_lintemp_addmin
 
@@ -3512,19 +2325,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_webl <- s1_lintemp_noint
 
@@ -3711,19 +2512,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
                                                     .names = "{.col}_scaled"),
                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl <- abs_lintemp
@@ -3985,19 +2774,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_webl <- s2_lintemp
 
@@ -4138,19 +2915,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordayt_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_prior_day_webl <- s1_lintemp_addmax
 
@@ -4263,19 +3028,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordayt_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_prior_day_webl <- s2_lintemp_noint
 
@@ -4388,19 +3141,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordayt_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_priordayt <- abs_lintemp_noint
@@ -4512,19 +3253,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_pr
                                                    .names = "{.col}_scaled"),
                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordaymaxhhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordaymaxhhi_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_priordaymaxhhi_webl <- s1_lintemp_addmax
 
@@ -4636,19 +3365,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_pr
                                                    .names = "{.col}_scaled"),
                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordaymaxhhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordaymaxhhi_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_priordaymaxhhi_webl <- s2_lintemp_noint
 
@@ -4761,19 +3478,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled +
                                                     .names = "{.col}_scaled"),
                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordaymaxhhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordaymaxhhi_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_priordaymaxhhi <- abs_lintemp_noint
@@ -4885,19 +3590,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanminte
                                                    .names = "{.col}_scaled"),
                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_weekhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_weekhi_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_weekhi_webl <- s1_lintemp_noint
 
@@ -5010,19 +3703,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanminte
                                                    .names = "{.col}_scaled"),
                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_weekhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_weekhi_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_weekhi_webl <- s2_lintemp
 
@@ -5135,19 +3816,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_weekhi_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_weekhi_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_weekhi <- abs_lintemp
@@ -5259,19 +3928,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_sc
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumhiday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumhiday_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumhiday_webl <- s1_lintemp_noint
 
@@ -5384,19 +4041,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_sc
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumhiday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumhiday_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumhiday_webl <- s2_lintemp_noint
 
@@ -5509,19 +4154,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
                                                     .names = "{.col}_scaled"),
                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumhiday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumhiday_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_cumhiday <- abs_lintemp_noint
@@ -5633,19 +4266,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_s
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumhiweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumhiweek_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumhiweek_webl <- s1_lintemp_noint
 
@@ -5758,19 +4379,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_s
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumhiweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumhiweek_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumhiweek_webl <- s2_lintemp
 
@@ -5883,19 +4492,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
                                                     .names = "{.col}_scaled"),
                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumhiweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumhiweek_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_cumhiweek <- abs_lintemp
@@ -6007,19 +4604,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumdegreeday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumdegreeday_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumdegreeday_webl <- s1_lintemp_noint
 
@@ -6132,19 +4717,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumdegreeday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumdegreeday_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumdegreeday_webl <- s2_lintemp_noint
 
@@ -6257,19 +4830,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
                                                     .names = "{.col}_scaled"),
                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumdegreeday_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumdegreeday_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_cumdegreeday <- abs_lintemp
@@ -6381,19 +4942,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorwee
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumdegreeweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumdegreeweek_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumdegreeweek_webl <- s1_lintemp_addmin
 
@@ -6506,19 +5055,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorwee
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumdegreeweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumdegreeweek_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumdegreeweek_webl <- s2_lintemp
 
@@ -6631,19 +5168,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
                                                     .names = "{.col}_scaled"),
                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumdegreeweek_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumdegreeweek_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_cumdegreeweek <- abs_lintemp
@@ -6757,19 +5282,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_tres <- s1_lintemp_addmax
 
@@ -7002,19 +5515,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_tres <- s2_lintemp_addmin
 
@@ -7153,19 +5654,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
                                                     .names = "{.col}_scaled"),
                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 abs_tres <- abs_lintemp
 
@@ -7464,19 +5953,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordayt_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_prior_day_tres <- s1_lintemp_addmin
 
@@ -7589,19 +6066,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordayt_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_prior_day_tres <- s2_lintemp
 
@@ -7714,19 +6179,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordayt_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_priordayt <- abs_lintemp
@@ -7838,19 +6291,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + mint_pri
                                                    .names = "{.col}_scaled"),
                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordaymaxhhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordaymaxhhi_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_priordaymaxhhi_tres <- s1_lintemp_addmax
 
@@ -7963,19 +6404,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + mint_pri
                                                    .names = "{.col}_scaled"),
                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordaymaxhhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordaymaxhhi_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_priordaymaxhhi_tres <- s2_lintemp
 
@@ -8088,19 +6517,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled +
                                                     .names = "{.col}_scaled"),
                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordaymaxhhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordaymaxhhi_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_priordaymaxhhi <- abs_lintemp
@@ -8212,19 +6629,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanminte
                                                    .names = "{.col}_scaled"),
                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_weekhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_weekhi_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_weekhi_tres <- s1_lintemp_noint
 
@@ -8337,19 +6742,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanminte
                                                    .names = "{.col}_scaled"),
                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_weekhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_weekhi_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_weekhi_tres <- s2_lintemp_addmin
 
@@ -8462,19 +6855,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_weekhi_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_weekhi_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_weekhi <- abs_lintemp
@@ -8586,19 +6967,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_sc
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumhiday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumhiday_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumhiday_tres <- s1_lintemp_addmax
 
@@ -8711,19 +7080,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_sc
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumhiday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumhiday_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumhiday_tres <- s2_lintemp_noint
 
@@ -8836,19 +7193,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
                                                     .names = "{.col}_scaled"),
                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumhiday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumhiday_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_cumhiday <- abs_lintemp_noint
@@ -8960,19 +7305,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_s
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumhiweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumhiweek_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumhiweek_tres <- s1_lintemp_addmax
 
@@ -9085,19 +7418,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_s
                                                    .names = "{.col}_scaled"),
                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumhiweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumhiweek_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumhiweek_tres <- s2_lintemp_noint
 
@@ -9210,19 +7531,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
                                                     .names = "{.col}_scaled"),
                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumhiweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumhiweek_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_cumhiweek <- abs_lintemp
@@ -9334,19 +7643,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumdegreeday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumdegreeday_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumdegreeday_tres <- s1_lintemp_addmax
 
@@ -9459,19 +7756,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumdegreeday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumdegreeday_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumdegreeday_tres <- s2_lintemp
 
@@ -9584,19 +7869,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
                                                     .names = "{.col}_scaled"),
                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumdegreeday_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumdegreeday_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_cumdegreeday <- abs_lintemp
@@ -9708,19 +7981,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorwee
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_cumdegreeweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_cumdegreeweek_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_cumdegreeweek_tres <- s1_lintemp_addmax
 
@@ -9833,19 +8094,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorwee
                                                    .names = "{.col}_scaled"),
                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_cumdegreeweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_cumdegreeweek_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_cumdegreeweek_tres <- s2_lintemp_noint
 
@@ -9958,19 +8207,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
                                                     .names = "{.col}_scaled"),
                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_cumdegreeweek_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_cumdegreeweek_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_cumdegreeweek <- abs_lintemp_noint
@@ -10128,27 +8365,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                              )
 )
 
-c1 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmin,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),AIC(s_nestpd_WEBL_addmin),AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),
-                 AIC(s_nestpd_WEBL_addmax),
-                 AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_webl <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the mean temp interaction model is slightly more explanatory so we'll go with that.
@@ -10301,27 +8518,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                )
 
 
-c1 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmin,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),AIC(s_nestpd_TRES_addmin),AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),
-                 AIC(s_nestpd_TRES_addmax),
-                 AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_tres <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
 #No interaction of land cover with max or min temp for TRES nest period.
@@ -10967,27 +9164,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                              )
 )
 
-c1 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmin,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),AIC(s_nestpd_WEBL_addmin),AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),
-                 AIC(s_nestpd_WEBL_addmax),
-                 AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_webl_meanmaxhi <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_webl_meanmaxhi <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with min temp.
@@ -11145,27 +9322,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ degh
                              )
 )
 
-c1 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmin,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),AIC(s_nestpd_WEBL_addmin),AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),
-                 AIC(s_nestpd_WEBL_addmax),
-                 AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_webl_deghr_30 <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_webl_deghr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
@@ -11323,27 +9480,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr
                              )
 )
 
-c1 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmin,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),AIC(s_nestpd_WEBL_addmin),AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),
-                 AIC(s_nestpd_WEBL_addmax),
-                 AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_webl_hihr_30 <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_webl_hihr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
@@ -11503,27 +9640,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                              )
 )
 
-c1 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmin,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),AIC(s_nestpd_TRES_addmin),AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),
-                 AIC(s_nestpd_TRES_addmax),
-                 AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_tres_meanmaxhi <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_tres_meanmaxhi <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with min temp.
@@ -11681,27 +9798,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ degh
                              )
 )
 
-c1 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmin,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),AIC(s_nestpd_TRES_addmin),AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),
-                 AIC(s_nestpd_TRES_addmax),
-                 AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_tres_deghr_30 <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_tres_deghr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
@@ -11859,27 +9956,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr
                              )
 )
 
-c1 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmin,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),AIC(s_nestpd_TRES_addmin),AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),
-                 AIC(s_nestpd_TRES_addmax),
-                 AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_tres_hihr_30 <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_tres_hihr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
@@ -13067,19 +11144,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_s
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_webl <- bind_rows(c1,c2) %>%
-  as.tibble() %>%
-  mutate(across(where(is.numeric),~round(.x,digits = 4)),
-         P = `Pr(>Chisq)`) %>%
-  dplyr::select(Model,AIC,Chisq,P) %>%
-  mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-         across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-         P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-  group_by(max_or_min) %>% gt())
+(int_tab_growth_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 
 anova(g_lintemp,prior_model)
@@ -13248,19 +11313,7 @@ g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_s
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(g_lintemp,g_lintemp_addmin,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(g_lintemp,g_lintemp_addmax,g_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_growth_tres <- bind_rows(c1,c2) %>%
-  as.tibble() %>%
-  mutate(across(where(is.numeric),~round(.x,digits = 4)),
-         P = `Pr(>Chisq)`) %>%
-  dplyr::select(Model,AIC,Chisq,P) %>%
-  mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-         across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-         P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-  group_by(max_or_min) %>% gt())
+(int_tab_growth_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 
 g_lintemp_addmin_tres <- g_lintemp_addmin
@@ -13460,27 +11513,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                              )
 )
 
-c1 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmin,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),AIC(s_nestpd_WEBL_addmin),AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_WEBL,s_nestpd_WEBL_addmax,s_nestpd_WEBL_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_WEBL),
-                 AIC(s_nestpd_WEBL_addmax),
-                 AIC(s_nestpd_WEBL_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_webl <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the max temp interaction model is slightly more explanatory so we'll go with that.
@@ -13677,27 +11710,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
                              )
 )
 
-c1 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmin,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),AIC(s_nestpd_TRES_addmin),AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-c2 <- anova(s_nestpd_TRES,s_nestpd_TRES_addmax,s_nestpd_TRES_noint,test="Chisq") %>% tibble() %>%
-  rename(Chisq = Deviance) %>%
-  mutate(AIC = c(AIC(s_nestpd_TRES),
-                 AIC(s_nestpd_TRES_addmax),
-                 AIC(s_nestpd_TRES_noint)),.before = Df) %>%
-  mutate(Model = c("no interaction","single interaction","both interacting"),.before = Df)
-
-(int_tab_survival_nestpd_tres <- bind_rows(c1,c2) %>%
-    as_tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 4)),
-           P = `Pr(>Chi)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
 #Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the max temp interaction model is slightly more explanatory so we'll go with that.
@@ -13868,19 +11881,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_webl <- s1_lintemp_noint
 
@@ -13987,19 +11988,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 #gtsave(int_tab_s1_tres,"figures/int_tab_s1_tres.html")
 
 s1_tres <- s1_lintemp_addmax
@@ -14189,19 +12178,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
                                                     .names = "{.col}_scaled"),
                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 #gtsave(int_tab_abs_webl,"figures/int_tab_abs_webl.html")
 
 
@@ -14374,19 +12351,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
                                                     .names = "{.col}_scaled"),
                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 abs_tres <- abs_lintemp
 
@@ -14563,19 +12528,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_webl <- s2_lintemp
 
@@ -14743,19 +12696,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
                                                    .names = "{.col}_scaled"),
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_tres <- s2_lintemp_addmin
 
@@ -14922,19 +12863,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordayt_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_prior_day_webl <- s1_lintemp_addmax
 
@@ -15101,19 +13030,7 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s1_lintemp,s1_lintemp_addmin,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s1_lintemp,s1_lintemp_addmax,s1_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s1_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s1_priordayt_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
 s1_prior_day_tres <- s1_lintemp_addmin
 
@@ -15280,19 +13197,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordayt_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_webl_priordayt <- abs_lintemp_noint
@@ -15457,19 +13362,7 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
                                                     .names = "{.col}_scaled"),
                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(abs_lintemp,abs_lintemp_addmin,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(abs_lintemp,abs_lintemp_addmax,abs_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_abs_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_abs_priordayt_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
 
 abs_tres_priordayt <- abs_lintemp
@@ -15635,19 +13528,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordayt_webl <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordayt_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_prior_day_webl <- s2_lintemp_noint
 
@@ -15814,19 +13695,7 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
                                                    .names = "{.col}_scaled"),
                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
 
-c1 <- anova(s2_lintemp,s2_lintemp_addmin,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-c2 <- anova(s2_lintemp,s2_lintemp_addmax,s2_lintemp_noint) %>% tibble() %>% mutate(Model = c("no interaction","single interaction","both interacting"),.before = npar)
-
-(int_tab_s2_priordayt_tres <- bind_rows(c1,c2) %>%
-    as.tibble() %>%
-    mutate(across(where(is.numeric),~round(.x,digits = 3)),
-           P = `Pr(>Chisq)`) %>%
-    dplyr::select(Model,AIC,Chisq,P) %>%
-    mutate(max_or_min = c(rep("Max temp",times = 3),rep("Min temp",times = 3)),
-           across(c(AIC,Chisq), ~ round(.x, digits = 2)),
-           P = if_else(P < 0.001,"<0.001",as.character(P))) %>%
-    group_by(max_or_min) %>% gt())
+(int_tab_s2_priordayt_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
 s2_prior_day_tres <- s2_lintemp
 
