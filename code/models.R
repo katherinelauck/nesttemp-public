@@ -55,13 +55,10 @@ s <- read_rds("data/survival_attempt.rds") %>%
 ## HELPER FUNCTIONS
 ## ================================================================
 
-# Standardize named columns; replaces the repeated
-#   mutate(across(c(...), ~ scale(.x)[,1], .names = "{.col}_scaled")) pattern
 scale_cols <- function(data, cols) {
   data %>% mutate(across(all_of(cols), ~ scale(.x)[,1], .names = "{.col}_scaled"))
 }
 
-# Extract mean/sd and build a scales::trans_new() object for axis back-transformation
 make_temp_trans <- function(data, col) {
   m <- mean(data[[col]], na.rm = TRUE)
   s <- sd(data[[col]], na.rm = TRUE)
@@ -73,8 +70,6 @@ make_temp_trans <- function(data, col) {
   )
 }
 
-# 4-model anova comparison formatted as a gt() interaction table.
-# Handles both lmer (Variant A) and glm/binomial (Variant B) automatically.
 anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
   if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
     mk_row <- function(m_single) {
@@ -142,13 +137,6 @@ g_lintemp_webl <- g_lintemp
 
 ### Sample sizes:
 
-
-# samp_year_webl <- g_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
-# (t_samp_year_growth_webl <- samp_year_webl %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)))
-#
-#
-#   t_samp_year_growth_webl
 
   samp_year_webl <- g_lintemp@frame %>%
     group_by(habitat,year_fct) %>%
@@ -277,33 +265,6 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(meanmaxtempI_scaled = (meanmaxtempI_scaled * sd(data$meanmaxtempI)) + mean(data$meanmaxtempI),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     meanmaxtempI_scaled = round(meanmaxtempI_scaled),
-#     meanmaxtempI_scaled = paste0(meanmaxtempI_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "meanmaxtempI_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ meanmaxtempI_scaled, at = list(meanmaxtempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -411,44 +372,8 @@ emmip(g_lintemp,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_
 
 #### Check whether controlling for brood size explains the habitat * temp differences.
 
-# Because higher temps reduce survival, especially in forest, we are thinking that brood size is the outcome of the habitat * temp interaction. So, if we include brood size and the relationship growth ~ habitat * temp disappears, we think that's what's going on.
 
 ## create brood size by week measure
-
-
-# brood_size <- b %>% group_by(`Banding Date`,Nestbox) %>% summarize(brood_size_weekly = n()) %>% ungroup() %>% mutate(date = mdy(`Banding Date`)) %>% dplyr::select(!`Banding Date`)
-#
-# g <- left_join(g %>% ungroup(),brood_size, by = c("date","Nestbox"))
-#
-#
-# # If this is so, then the main driver of growth and survival may be predation.
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# (int_tab_growth_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 
 g_lintemp_addmin_tres <- g_lintemp_addmin
@@ -459,44 +384,9 @@ g_lintemp_addmin_tres <- g_lintemp_addmin
 
 #### Check whether controlling for brood size explains the habitat * temp differences.
 
-#Because higher temps reduce survival, especially in forest, we are thinking that brood size is the outcome of the habitat * temp interaction. So, if we include brood size and the relationship growth ~ habitat * temp disappears, we think that's what's going on.
 
 ## create brood size by week measure
 
-
-# brood_size <- b %>% group_by(`Banding Date`,Nestbox) %>% summarize(brood_size_weekly = n()) %>% ungroup() %>% mutate(date = mdy(`Banding Date`)) %>% dplyr::select(!`Banding Date`)
-#
-# g <- left_join(g %>% ungroup(),brood_size, by = c("date","Nestbox"))
-#
-#
-# If this is so, then the main driver of growth and survival may be predation.
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
-#
-# (int_tab_growth_maxhiweek_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiweek_webl <- g_lintemp
 
@@ -581,33 +471,6 @@ data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.n
                 .names = "{.col}_scaled"),
          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(maxhi_week_scaled = (maxhi_week_scaled * sd(data$maxhi_week)) + mean(data$maxhi_week),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     maxhi_week_scaled = round(maxhi_week_scaled),
-#     maxhi_week_scaled = paste0(maxhi_week_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "maxhi_week_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ maxhi_week_scaled, at = list(maxhi_week_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -628,44 +491,9 @@ data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.n
 
 #### Check whether controlling for brood size explains the habitat * temp differences.
 
-# Because higher temps reduce survival, especially in forest, we are thinking that brood size is the outcome of the habitat * temp interaction. So, if we include brood size and the relationship growth ~ habitat * temp disappears, we think that's what's going on.
 
 ## create brood size by week measure
 
-#
-# brood_size <- b %>% group_by(`Banding Date`,Nestbox) %>% summarize(brood_size_weekly = n()) %>% ungroup() %>% mutate(date = mdy(`Banding Date`)) %>% dplyr::select(!`Banding Date`)
-#
-# g <- left_join(g %>% ungroup(),brood_size, by = c("date","Nestbox"))
-#
-#
-# # If this is so, then the main driver of growth and survival may be predation.
-#
-#
-# g_lintemp <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + brood_size_weekly_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-# g_lintemp_addmax <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled * habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-# g_lintemp_addmin <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-# g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled + habitat + brood_size_weekly_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size_weekly,age),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-# (int_tab_growth_maxhiday_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
 g_lintemp_maxhiday_webl <- g_lintemp
 
@@ -749,33 +577,6 @@ data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.n
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"),
          maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(maxhi_prior_scaled = (maxhi_prior_scaled * sd(data$maxhi_prior)) + mean(data$maxhi_prior),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     maxhi_prior_scaled = round(maxhi_prior_scaled),
-#     maxhi_prior_scaled = paste0(maxhi_prior_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "maxhi_prior_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ maxhi_prior_scaled, at = list(maxhi_prior_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ## Emmeans to check for effect of habitat
@@ -907,33 +708,6 @@ data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_ove
                 .names = "{.col}_scaled"),
          degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(degreehours_over_30C_priorweek_scaled = (degreehours_over_30C_priorweek_scaled * sd(data$degreehours_over_30C_priorweek)) + mean(data$degreehours_over_30C_priorweek),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     degreehours_over_30C_priorweek_scaled = round(degreehours_over_30C_priorweek_scaled),
-#     degreehours_over_30C_priorweek_scaled = paste0(degreehours_over_30C_priorweek_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "degreehours_over_30C_priorweek_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ degreehours_over_30C_priorweek_scaled, at = list(degreehours_over_30C_priorweek_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -1062,33 +836,6 @@ data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30h
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"),
          hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(hihours_over_30hi_priorweek_scaled = (hihours_over_30hi_priorweek_scaled * sd(data$hihours_over_30hi_priorweek)) + mean(data$hihours_over_30hi_priorweek),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     hihours_over_30hi_priorweek_scaled = round(hihours_over_30hi_priorweek_scaled),
-#     hihours_over_30hi_priorweek_scaled = paste0(hihours_over_30hi_priorweek_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "hihours_over_30hi_priorweek_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ hihours_over_30hi_priorweek_scaled, at = list(hihours_over_30hi_priorweek_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ## Emmeans to check for effect of habitat
@@ -1220,33 +967,6 @@ data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.n
                 .names = "{.col}_scaled"),
          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(maxhi_week_scaled = (maxhi_week_scaled * sd(data$maxhi_week)) + mean(data$maxhi_week),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     maxhi_week_scaled = round(maxhi_week_scaled),
-#     maxhi_week_scaled = paste0(maxhi_week_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "maxhi_week_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("maxhi_week_scaled"), at = list(maxhi_week_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ maxhi_week_scaled, at = list(maxhi_week_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -1376,33 +1096,6 @@ data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.n
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"),
          maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(maxhi_prior_scaled = (maxhi_prior_scaled * sd(data$maxhi_prior)) + mean(data$maxhi_prior),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     maxhi_prior_scaled = round(maxhi_prior_scaled),
-#     maxhi_prior_scaled = paste0(maxhi_prior_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "maxhi_prior_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("maxhi_prior_scaled"), at = list(maxhi_prior_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ maxhi_prior_scaled, at = list(maxhi_prior_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ## Emmeans to check for effect of habitat
@@ -1534,33 +1227,6 @@ data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_ove
                 .names = "{.col}_scaled"),
          degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(degreehours_over_30C_priorweek_scaled = (degreehours_over_30C_priorweek_scaled * sd(data$degreehours_over_30C_priorweek)) + mean(data$degreehours_over_30C_priorweek),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     degreehours_over_30C_priorweek_scaled = round(degreehours_over_30C_priorweek_scaled),
-#     degreehours_over_30C_priorweek_scaled = paste0(degreehours_over_30C_priorweek_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "degreehours_over_30C_priorweek_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("degreehours_over_30C_priorweek_scaled"), at = list(degreehours_over_30C_priorweek_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ degreehours_over_30C_priorweek_scaled, at = list(degreehours_over_30C_priorweek_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -1690,33 +1356,6 @@ data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30h
                 .names = "{.col}_scaled"),
          hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
 
-# (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#   mutate(hihours_over_30hi_priorweek_scaled = (hihours_over_30hi_priorweek_scaled * sd(data$hihours_over_30hi_priorweek)) + mean(data$hihours_over_30hi_priorweek),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     hihours_over_30hi_priorweek_scaled = round(hihours_over_30hi_priorweek_scaled),
-#     hihours_over_30hi_priorweek_scaled = paste0(hihours_over_30hi_priorweek_scaled,"\u00b0C")) %>%
-#   #tibble() %>%
-#   dplyr::select(-df) %>%
-#   #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "hihours_over_30hi_priorweek_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#   #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(
-#     delim="_"
-#   ))
-#
-
-# ((emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_lintemp,specs = ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-# emmeans(g_lintemp,specs = pairwise ~ habitat,by = c("hihours_over_30hi_priorweek_scaled"), at = list(hihours_over_30hi_priorweek_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(g_lintemp,formula = habitat ~ hihours_over_30hi_priorweek_scaled, at = list(hihours_over_30hi_priorweek_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ## Emmeans to check for effect of habitat
 
@@ -1736,560 +1375,6 @@ data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30h
 
 
 ## Combined WEBL and TRES growth plots
-
-
-# ggplot_build(fig2_webl)$layout$panel_scales_y
-# (p_full <- ggarrange(fig2_webl + theme(text = element_text(size = 12),axis.title.x = element_blank()),fig2_tres + ylim(-1.09,3.42) + theme(axis.text.y = element_blank(),
-#                                                                                                                                            axis.ticks.y = element_blank(),
-#                                                                                                                                            text = element_text(size = 12),
-#                                                                                                                                            axis.title.y = element_blank(),
-#                                                                                                                                            axis.title.x = element_text(hjust = 2.8)),ncol = 2,
-#                      labels = c("(a): Western Bluebird","(b): Tree Swallow")))
-#
-
-
-# Models to estimate the unbiased causal effect of cort and provisioning on growth
-
-#Model structure pulled from DAG: will use a minimal adjustment set to estimate the total effect of cort and provisioning on growth.
-#{ attempt, humidity, nest_age, nestcond, surftemp }
-
-#I could subtract the direct from the total effect to get the indirect effect. I'm still vacillating between thinking that I should be measuring the total effect or the direct effect. I think because nestcond is really the only mediator in the DAG that I actually want total effect?
-
-#  The question I'd like to ask: Does the direct effect of these two factors on growth change depending on habitat? I'm not sure that this causal structure is the correct one for that question. Is that a mediation analysis? After reading some papers, I think that actually the question is, do cort and provisioning mediate the effect of habitat and temperature on growth? I still think there may be other questions in this dataset. Maybe the answer is to do this paper just linear modeling with causal inference support, and then get Sage in on a paper that delves more deeply into a structural causal modeling framework.
-
-#The following focuses on the more simple question: how do cort and provisioning affect growth (total effect)? I will do the same model structure for survival in that notebook.
-
-#adjustment set: { attempt, humidity, nest_age, nestcond, surftemp }
-
-
-# g_provis_cort <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + poly(maxhi_week_scaled,2) + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45) %>%
-#                                   mutate(across(c(gweight,maxhi_week,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                                                 ~ scale(.x)[,1],
-#                                                 .names = "{.col}_scaled"),
-#                                          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-#
-# g_provis_cort_maxhiweek_webl <- g_provis_cort
-# check_collinearity(g_provis_cort)
-# summary(g_provis_cort)
-#
-# (growth_by_cort_provis_summary_maxhiweek_webl <- summary(g_provis_cort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-#            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-#
-# data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45) %>%
-#   mutate(across(c(gweight,maxhi_week,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-#
-# # (t <- emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-# #     mutate(provis_mean_scaled = (provis_mean_scaled * sd(data$provis_mean, na.rm = TRUE)) + mean(data$provis_mean,na.rm = TRUE),
-# #            across(where(is.numeric), ~ round(.x, digits = 2)),
-# #            provis_mean_scaled = round(provis_mean_scaled)) %>%
-# #     #tibble() %>%
-# #     dplyr::select(-df) %>%
-# #     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-# #     rename(`Provisioning` = "provis_mean_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-# #     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-# #     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-# #     gt() %>% tab_options(data_row.padding = px(1)))
-# # gtsave(t,"figures/growth_by_basecort_provis_delta_webl.html")
-# #
-# # ((emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_cort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-#
-#
-#
-#
-# g_provis_abscort <- lmerTest::lmer(gweight ~ abs_change_cort_scaled + provis_mean_scaled + maxhi_week_scaled + meanmintempI_scaled + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45,!is.na(meanmintempI)) %>%
-#                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-#                                                    ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-# g_provis_abscort_maxhiweek_webl <- g_provis_abscort
-#
-# summary(g_provis_abscort)
-#
-# (growth_by_abscort_provis_summary_maxhiweek_webl <- summary(g_provis_abscort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-#            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-#
-# data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45,!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-#
-# (t <- emmeans(g_provis_abscort,specs = ~ provis_mean_scaled,by = c("provis_mean_scaled"), at = list(provis_mean_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(provis_mean_scaled = (provis_mean_scaled * sd(data$provis_mean,na.rm = TRUE)) + mean(data$provis_mean,na.rm = TRUE),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            provis_mean_scaled = round(provis_mean_scaled)) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(`max temperature` = "provis_mean_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)))
-#
-#
-#
-# #### Sample size
-#
-#
-# data_s1_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45) %>%
-#   mutate(across(c(gweight,maxhi_week,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-# ss_year_webl_growthbybasecortprovis_maxhiweek <- data_s1_maxhiweek_webl %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_webl_growthbybasecortprovis_maxhiweek %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_webl_growthbybasecortprovis_maxhiweek.html")
-# data_abs_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45,!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-# ss_year_webl_growthbyabscortprovis_maxhiweek <- data_abs_maxhiweek_webl %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_webl_growthbyabscortprovis_maxhiweek %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_webl_growthbyabscortprovis_maxhiweek.html")
-#
-#
-#
-#
-#
-# mean_provis_maxhiweek_webl <- mean(data_s1_maxhiweek_webl %>% pull(provis_mean))
-# sd_provis_maxhiweek_webl <- sd(data_s1_maxhiweek_webl %>% pull(provis_mean))
-#
-#
-# provis_trans_maxhiweek_webl <- trans_new("provis_trans_maxhiweek_webl",
-#                                transform = function(x){(x * sd_provis_maxhiweek_webl) + mean_provis_maxhiweek_webl},
-#                                inverse = function(x){x})
-#
-# mean_s1_maxhiweek_webl <- mean(data_s1_maxhiweek_webl %>% pull(cort_s1))
-# sd_s1_maxhiweek_webl <- sd(data_s1_maxhiweek_webl %>% pull(cort_s1))
-#
-#
-# s1_trans_maxhiweek_webl <- trans_new("s1_trans_maxhiweek_webl",
-#                            transform = function(x){(x * sd_s1_maxhiweek_webl) + mean_s1_maxhiweek_webl},
-#                            inverse = function(x){x})
-#
-# mean_abs_maxhiweek_webl <- mean(data_abs_maxhiweek_webl %>% pull(abs_change_cort))
-# sd_abs_maxhiweek_webl <- sd(data_abs_maxhiweek_webl %>% pull(abs_change_cort))
-#
-#
-# abs_trans_maxhiweek_webl <- trans_new("abs_trans_maxhiweek_webl",
-#                             transform = function(x){(x * sd_abs_maxhiweek_webl) + mean_abs_maxhiweek_webl},
-#                             inverse = function(x){x})
-#
-# # (fig6_provis_maxhiweek_webl <- predict_response(g_provis_cort,terms = c("provis_mean_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-# #     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-# #     theme_classic() +
-# #     #facet_wrap(~ group, ncol = 2) +
-# #     xlab("Provisioning") +
-# #     ylab("Growth (g/day)") +
-# #     #scale_fill_viridis(discrete = TRUE) +
-# #     #scale_color_viridis(discrete = TRUE) +
-# #     theme(text = element_text(size = 16)) +
-# #     labs(title = element_blank())  +
-# #     scale_x_continuous(trans = provis_trans_maxhiweek_webl,
-# #                        breaks = c(#(0-mean_provis_maxhiweek_webl)/sd_provis_maxhiweek_webl,
-# #                                   (5-mean_provis_maxhiweek_webl)/sd_provis_maxhiweek_webl,
-# #                                   (10-mean_provis_maxhiweek_webl)/sd_provis_maxhiweek_webl,
-# #                                   (15-mean_provis_maxhiweek_webl)/sd_provis_maxhiweek_webl,
-# #                                   (20-mean_provis_maxhiweek_webl)/sd_provis_maxhiweek_webl)
-# #     ) +
-# #     #ylim(-5,5) +
-# #     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-# #     theme(legend.position = "none") +
-# #     annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# # )
-# #
-# # (fig6_corts1_maxhiweek_webl <- predict_response(g_provis_cort,terms = c("cort_s1_scaled [all]"),bias_correction = TRUE,margin = "empirical") %>%
-# #     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-# #     aes(linetype = .data[["group"]]) +
-# #     theme_classic() +
-# #     #facet_wrap(~ group, ncol = 2) +
-# #     xlab("Baseline corticosterone (ng/\U00B5L)") +
-# #     ylab("Growth (g/day)") +
-# #     #scale_fill_viridis(discrete = TRUE) +
-# #     #scale_color_viridis(discrete = TRUE) +
-# #     theme(text = element_text(size = 16)) +
-# #     labs(title = element_blank())  +
-# #     scale_x_continuous(trans = s1_trans_webl,
-# #                        breaks = c((2-mean_s1_webl)/sd_s1_webl,
-# #                                   (4-mean_s1_webl)/sd_s1_webl,
-# #                                   (6-mean_s1_webl)/sd_s1_webl,
-# #                                   (8-mean_s1_webl)/sd_s1_webl,
-# #                                   (10-mean_s1_webl)/sd_s1_webl,
-# #                                   (12-mean_s1_webl)/sd_s1_webl,
-# #                                   (14-mean_s1_webl)/sd_s1_webl)
-# #     ) +
-# #     scale_linetype_manual(values = "dotted") +
-# #     #ylim(-5,5) +
-# #     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-# #     theme(legend.position = "none") +
-# #     annotate(geom = "text",label = "N = 40",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# # )
-# #
-# # (fig6_abscort_webl <- predict_response(g_provis_abscort,terms = c("abs_change_cort_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-# #     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-# #     aes(linetype = .data[["group"]]) +
-# #     theme_classic() +
-# #     #facet_wrap(~ group, ncol = 2) +
-# #     xlab("Stress-induced corticosterone (ng/\U00B5L)") +
-# #     ylab("Growth (g/day)") +
-# #     #scale_fill_viridis(discrete = TRUE) +
-# #     #scale_color_viridis(discrete = TRUE) +
-# #     theme(text = element_text(size = 16)) +
-# #     labs(title = element_blank())  +
-# #     scale_x_continuous(trans = abs_trans_webl,
-# #                        breaks = c((0-mean_abs_webl)/sd_abs_webl,
-# #                                   (10-mean_abs_webl)/sd_abs_webl,
-# #                                   (20-mean_abs_webl)/sd_abs_webl,
-# #                                   (30-mean_abs_webl)/sd_abs_webl,
-# #                                   (40-mean_abs_webl)/sd_abs_webl,
-# #                                   (50-mean_abs_webl)/sd_abs_webl)
-# #     ) +
-# #     scale_linetype_manual(values = "dotted") +
-# #     #ylim(-5,5) +
-# #     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-# #     theme(legend.position = "none") +
-# #     annotate(geom = "text",label = "N = 35",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# # )
-# #
-# # ggsave("figures/growthbyprovis_WEBL.png",plot =  fig6_provis_webl, width = 10, height = 6.6)
-#
-#
-#
-# ## Canonical adjustment set overloads the data:
-#
-# #{ attempt, broodsize, habitat, humidity, jul_date, mother_s1, nest_age, site, surftemp, year }
-#
-#
-#
-# # g_provis_cort_canon <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + (1|attempt_id) + brood_size_scaled + habitat + meanh_scaled + juliandate_scaled + cort_s1_mother_scaled + age_scaled + maxhi_week_scaled + meanmintempI_scaled + year_fct,data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),maxhi_week < 45,!is.na(meanmintempI)) %>%
-# #                                         mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,cort_s1_mother,condition,provis_mean),
-# #                                                       ~ scale(.x)[,1],
-# #                                                       .names = "{.col}_scaled"),
-# #                                                maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-# # summary(g_provis_cort_canon)
-# #
-# #
-#
-# ## TRES
-#
-#
-#
-# g_provis_cort <- lmerTest::lmer(gweight ~ cort_s1_scaled + provis_mean_scaled + poly(maxhi_week_scaled,2) + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#                                   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                                                 ~ scale(.x)[,1],
-#                                                 .names = "{.col}_scaled"),
-#                                          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-# check_collinearity(g_provis_cort)
-# summary(g_provis_cort)
-#
-# g_provis_cort_tres <- g_provis_cort
-#
-# (growth_by_cort_provis_summary_tres <- summary(g_provis_cort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-#            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-#
-# data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(maxhi_week),
-#                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-#
-# # (t <- emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-# #     mutate(cort_s1_scaled = (cort_s1_scaled * sd(data$cort_s1, na.rm = TRUE)) + mean(data$cort_s1,na.rm = TRUE),
-# #            across(where(is.numeric), ~ round(.x, digits = 2)),
-# #            cort_s1_scaled = round(cort_s1_scaled)) %>%
-# #     #tibble() %>%
-# #     dplyr::select(-df) %>%
-# #     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-# #     rename(`Baseline cort` = "cort_s1_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-# #     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-# #     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-# #     gt() %>% tab_options(data_row.padding = px(1)))
-# # gtsave(t,"figures/growth_by_basecort_provis_delta_tres.html")
-# #
-# # ((emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_cort,specs = ~ cort_s1_scaled,by = c("cort_s1_scaled"), at = list(cort_s1_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-#
-#
-# #### Abs diff cort
-#
-#
-#
-# g_provis_abscort <- lmerTest::lmer(gweight ~ abs_change_cort_scaled + provis_mean_scaled + maxhi_week_scaled + meanmintempI_scaled + meanh_scaled + age_scaled + condition_scaled + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-#                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-#                                                    ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled"),
-#                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
-# summary(g_provis_cort)
-# g_provis_abscort_tres <- g_provis_abscort
-#
-# (growth_by_abscort_provis_summary_tres <- summary(g_provis_abscort) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#     mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-#            across(`Pr(>|t|)`,~round(.x,digits = 3))) %>% gt())
-#
-# data = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(maxhi_week),
-#                      !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,abs_change_cort,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-#
-# (t <- emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(abs_change_cort_scaled = (abs_change_cort_scaled * sd(data$abs_change_cort, na.rm = TRUE)) + mean(data$abs_change_cort,na.rm = TRUE),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            abs_change_cort_scaled = round(abs_change_cort_scaled)) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(`Baseline cort` = "abs_change_cort_scaled",`Predicted growth` = "emmean",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)))
-#
-# ((emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(emmean))-(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean)))/(emmeans(g_provis_abscort,specs = ~ abs_change_cort_scaled,by = c("abs_change_cort_scaled"), at = list(abs_change_cort_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(emmean))
-#
-#
-#
-# #### Sample size
-#
-#
-# data_s1_tres = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(cort_s1),!is.na(provis_mean),!is.na(maxhi_week),
-#                              !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-# ss_year_TRES_growthbybasecortprovis <- data_s1_tres %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_TRES_growthbybasecortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_TRES_growthbybasecortprovis.html")
-# data_abs_tres = dplyr::filter(g,Species == "TRES",!is.na(gweight),!is.na(abs_change_cort),!is.na(provis_mean),!is.na(maxhi_week),
-#                               !is.na(meanmintempI),!is.na(meanh),!is.na(age),!is.na(condition)) %>%
-#   mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age,meanh,cort_s1,condition,provis_mean),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-# ss_year_TRES_growthbyabscortprovis <- data_abs_tres %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   # relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2022`+`2023`)
-# ss_year_TRES_growthbyabscortprovis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_TRES_growthbyabscortprovis.html")
-#
-#
-#
-#
-#
-# mean_provis_tres <- mean(data_s1_tres %>% pull(provis_mean))
-# sd_provis_tres <- sd(data_s1_tres %>% pull(provis_mean))
-#
-#
-# provis_trans_tres <- trans_new("provis_trans_tres",
-#                                transform = function(x){(x * sd_provis_tres) + mean_provis_tres},
-#                                inverse = function(x){x})
-#
-# mean_s1_tres <- mean(data_s1_tres %>% pull(cort_s1))
-# sd_s1_tres <- sd(data_s1_tres %>% pull(cort_s1))
-#
-#
-# s1_trans_tres <- trans_new("s1_trans_tres",
-#                            transform = function(x){(x * sd_s1_tres) + mean_s1_tres},
-#                            inverse = function(x){x})
-#
-# mean_abs_tres <- mean(data_abs_tres %>% pull(abs_change_cort))
-# sd_abs_tres <- sd(data_abs_tres %>% pull(abs_change_cort))
-#
-#
-# abs_trans_tres <- trans_new("abs_trans_tres",
-#                             transform = function(x){(x * sd_abs_tres) + mean_abs_tres},
-#                             inverse = function(x){x})
-#
-# # (fig6_tres <- predict_response(g_provis_cort,terms = c("provis_mean_scaled","cort_s1_scaled [-2,2]"),bias_correction = TRUE) %>%
-# #     #filter(group != 0.35) %>%
-# #     # mutate(group = as_factor(group) %>% fct_collapse(Low = "-0.93",High = "1.63")) %>%
-# #     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE,colors = "viridis") +
-# #     #scale_fill_discrete(labels = c("Low","High")) +
-# #     #scale_color_discrete(labels = c("Low","High")) +
-# #     # geom_point(show.legend = FALSE) +
-# #     theme_classic() +
-# #     #facet_wrap(~ group, ncol = 2) +
-# #     xlab("Provisioning (mean visits/hr)") +
-# #     ylab("Growth (g/day)") +
-# #     #scale_fill_viridis(discrete = TRUE) +
-# #     #scale_color_viridis(discrete = TRUE) +
-# #     theme(text = element_text(size = 16)) +
-# #     labs(title = element_blank(),color = "Baseline cort") +
-# #     scale_x_continuous(trans = provis_trans_tres,
-# #                        breaks = c((0-mean_provis_tres)/sd_provis_tres,
-# #                                   (10-mean_provis_tres)/sd_provis_tres,
-# #                                   (20-mean_provis_tres)/sd_provis_tres,
-# #                                   (30-mean_provis_tres)/sd_provis_tres,
-# #                                   (40-mean_provis_tres)/sd_provis_tres,
-# #                                   (50-mean_provis_tres)/sd_provis_tres)
-# #     ) +
-# #     #ylim(-5,5) #+
-# #     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-# #     theme(legend.position = "none") +
-# #     annotate("text",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5,label = "N = 16")
-# # )
-#
-# (fig6_provis_tres <- predict_response(g_provis_cort,terms = c("provis_mean_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-#     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-#     aes(linetype = .data[["group"]]) +
-#     theme_classic() +
-#     #facet_wrap(~ group, ncol = 2) +
-#     xlab("Provisioning (visits/hr)") +
-#     ylab("Growth (g/day)") +
-#     #scale_fill_viridis(discrete = TRUE) +
-#     #scale_color_viridis(discrete = TRUE) +
-#     theme(text = element_text(size = 16)) +
-#     labs(title = element_blank())  +
-#     scale_x_continuous(trans = provis_trans_tres,
-#                        breaks = c((0-mean_provis_tres)/sd_provis_tres,
-#                                   (10-mean_provis_tres)/sd_provis_tres,
-#                                   (20-mean_provis_tres)/sd_provis_tres,
-#                                   (30-mean_provis_tres)/sd_provis_tres,
-#                                   (40-mean_provis_tres)/sd_provis_tres,
-#                                   (50-mean_provis_tres)/sd_provis_tres)
-#     ) +
-#     scale_linetype_manual(values = "dotted") +
-#     #ylim(-5,5) +
-#     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-#     theme(legend.position = "none") +
-#     annotate(geom = "text",label = "N = 16",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# )
-#
-# (fig6_corts1_tres <- predict_response(g_provis_cort,terms = c("cort_s1_scaled [all]"),bias_correction = TRUE,margin = "empirical") %>%
-#     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-#     theme_classic() +
-#     #facet_wrap(~ group, ncol = 2) +
-#     xlab("Baseline corticosterone (ng/\U00B5L)") +
-#     ylab("Growth (g/day)") +
-#     #scale_fill_viridis(discrete = TRUE) +
-#     #scale_color_viridis(discrete = TRUE) +
-#     theme(text = element_text(size = 16)) +
-#     labs(title = element_blank())  +
-#     scale_x_continuous(trans = s1_trans_tres,
-#                        breaks = c((5-mean_s1_tres)/sd_s1_tres,
-#                                   (10-mean_s1_tres)/sd_s1_tres,
-#                                   (15-mean_s1_tres)/sd_s1_tres,
-#                                   (20-mean_s1_tres)/sd_s1_tres,
-#                                   (25-mean_s1_tres)/sd_s1_tres)
-#     ) +
-#     #ylim(-5,5) +
-#     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-#     theme(legend.position = "none") +
-#     annotate(geom = "text",label = "N = 16",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# )
-#
-# (fig6_abscort_tres <- predict_response(g_provis_abscort,terms = c("abs_change_cort_scaled"),bias_correction = TRUE,margin = "empirical") %>%
-#     plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE) +
-#     aes(linetype = .data[["group"]]) +
-#     theme_classic() +
-#     #facet_wrap(~ group, ncol = 2) +
-#     xlab("Stress-induced corticosterone (ng/\U00B5L)") +
-#     ylab("Growth (g/day)") +
-#     #scale_fill_viridis(discrete = TRUE) +
-#     #scale_color_viridis(discrete = TRUE) +
-#     theme(text = element_text(size = 16)) +
-#     labs(title = element_blank())  +
-#     scale_x_continuous(trans = abs_trans_tres,
-#                        breaks = c((20-mean_abs_tres)/sd_abs_tres,
-#                                   (40-mean_abs_tres)/sd_abs_tres,
-#                                   (60-mean_abs_tres)/sd_abs_tres,
-#                                   (80-mean_abs_tres)/sd_abs_tres,
-#                                   (100-mean_abs_tres)/sd_abs_tres)
-#     ) +
-#     scale_linetype_manual(values = "dotted") +
-#     #ylim(-5,5) +
-#     # geom_text(data = dat_text, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) # +
-#     theme(legend.position = "none") +
-#     annotate(geom = "text",label = "N = 14",x = -Inf,y = -Inf,hjust = -.2,vjust = -.5)
-# )
-#
-#
-#
-# ## Combined WEBL and TRES growth plots
-#
-#
-# # ggplot_build(fig6_provis_webl)$layout$panel_scales_y
-# # ggplot_build(fig6_provis_tres)$layout$panel_scales_y
-# #
-# # ggplot_build(fig6_corts1_webl)$layout$panel_scales_y
-# # ggplot_build(fig6_corts1_tres)$layout$panel_scales_y
-# #
-# # ggplot_build(fig6_abscort_webl)$layout$panel_scales_y
-# # ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
-# # (p_full <- ggarrange(fig6_provis_webl + theme(text = element_text(size = 12),
-# #                                               legend.position = "none",
-# #                                               axis.title.x = element_blank(),
-# #                                               axis.title.y = element_text(hjust = -3)),
-# #                      fig6_provis_tres + theme(axis.text.y = element_blank(),
-# #                                               axis.ticks.y = element_blank(),
-# #                                               text = element_text(size = 12),
-# #                                               axis.title.y = element_blank(),
-# #                                               legend.position = 'none',
-# #                                               axis.title.x = element_text(hjust = -.7)) +
-# #                        ylim(-.183,2.73),
-# #                      fig6_corts1_webl + theme(text = element_text(size = 12),
-# #                                               legend.position = "none",
-# #                                               axis.title.x = element_blank(),
-# #                                               axis.title.y = element_blank()),
-# #                      fig6_corts1_tres + theme(axis.text.y = element_blank(),
-# #                                               axis.ticks.y = element_blank(),
-# #                                               text = element_text(size = 12),
-# #                                               axis.title.y = element_blank(),
-# #                                               legend.position = 'none',
-# #                                               axis.title.x = element_text(hjust = -2.7)) +
-# #                        ylim(-.183,2.73),
-# #                      fig6_abscort_webl + theme(text = element_text(size = 12),
-# #                                                legend.position = "none",
-# #                                                axis.title.x = element_blank(),
-# #                                                axis.title.y = element_blank()),
-# #                      fig6_abscort_tres + xlab("Stress-induced - Baseline corticosterone (ng/\U00B5L)") + theme(axis.text.y = element_blank(),
-# #                                                                                                                axis.ticks.y = element_blank(),
-# #                                                                                                                text = element_text(size = 12),
-# #                                                                                                                axis.title.y = element_blank(),
-# #                                                                                                                legend.position = 'none',
-# #                                                                                                                axis.title.x = element_text(hjust = 2.5)) +
-# #                        ylim(-.183,2.73),
-# #                      ncol = 2 ,
-# #                      labels = c("(a): Western Bluebird","(b): Tree Swallow","","","","")
-# # ))
-# #
-# # ggsave("figures/fig6_growth_by_temp_hab.png",p_full,width = 6.25,height = 8)
 
 
 save(list = ls(), file = "data/models_growth.RData")
@@ -2329,7 +1414,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
 
 s1_webl <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -2350,12 +1434,6 @@ s1_webl <- s1_lintemp_noint
 
 
 ### Sample sizes:
-
-
-# ss_year_webl_s1 <- s1_lintemp_noint@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_webl_s1 %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_webl_s1.html")
 
 
 ss_year_webl_s1 <- s1_lintemp_noint@frame %>%
@@ -2517,15 +1595,8 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
 
 abs_webl <- abs_lintemp
 
-# For abs_change in WEBL, there is an interaction with both min and max.
 
 ### sample size
-
-
-# ss_year_webl_abs <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_webl_abs %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_webl_abs.html")
 
 
 ss_year_webl_abs <- abs_lintemp@frame %>%
@@ -2677,33 +1748,6 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
                 .names = "{.col}_scaled"),
          meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
 
-# (t <- emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(meanmaxtempI_scaled = (meanmaxtempI_scaled * sd(data$meanmaxtempI)) + mean(data$meanmaxtempI),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            meanmaxtempI_scaled = round(meanmaxtempI_scaled),
-#            meanmaxtempI_scaled = paste0(meanmaxtempI_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`Max temperature` = "meanmaxtempI_scaled",`Predicted delta cort` = "response",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     group_by(`Max temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(abs_lintemp,specs = pairwise ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(abs_lintemp,formula = habitat ~ meanmaxtempI_scaled, at = list(meanmaxtempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 
 ### Minimum temperature
 
@@ -2722,32 +1766,6 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintemp
                 .names = "{.col}_scaled"),
          meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
 
-# (t <- emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(meanmintempI_scaled = (meanmintempI_scaled * sd(data$meanmintempI)) + mean(data$meanmintempI),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            meanmintempI_scaled = round(meanmintempI_scaled),
-#            meanmintempI_scaled = paste0(meanmintempI_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`min temperature` = "meanmintempI_scaled",`Predicted delta cort` = "response",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     group_by(`min temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`min temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`min temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(abs_lintemp,specs = pairwise ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(abs_lintemp,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 #### s2_cort
 s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
@@ -2778,7 +1796,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
 
 s2_webl <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -2799,12 +1816,6 @@ s2_webl <- s2_lintemp
 
 
 ### Sample sizes:
-
-
-# ss_year_webl_s2 <- s2_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_webl_s2 %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_webl_s2.html")
 
 
 ss_year_webl_s2 <- s2_lintemp@frame %>%
@@ -2919,7 +1930,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
 
 s1_prior_day_webl <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3032,7 +2042,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
 
 s2_prior_day_webl <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3146,7 +2155,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
 
 abs_webl_priordayt <- abs_lintemp_noint
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -3257,7 +2265,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_pr
 
 s1_priordaymaxhhi_webl <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3369,7 +2376,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_pr
 
 s2_priordaymaxhhi_webl <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3483,7 +2489,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled +
 
 abs_webl_priordaymaxhhi <- abs_lintemp_noint
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -3594,7 +2599,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanminte
 
 s1_weekhi_webl <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3707,7 +2711,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanminte
 
 s2_weekhi_webl <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -3821,7 +2824,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + 
 
 abs_webl_weekhi <- abs_lintemp
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -3932,7 +2934,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_sc
 
 s1_cumhiday_webl <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4045,7 +3046,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_sc
 
 s2_cumhiday_webl <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4159,7 +3159,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
 
 abs_webl_cumhiday <- abs_lintemp_noint
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -4270,7 +3269,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_s
 
 s1_cumhiweek_webl <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4383,7 +3381,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_s
 
 s2_cumhiweek_webl <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4497,7 +3494,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
 
 abs_webl_cumhiweek <- abs_lintemp
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -4608,7 +3604,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday
 
 s1_cumdegreeday_webl <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4721,7 +3716,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday
 
 s2_cumdegreeday_webl <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -4835,7 +3829,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
 
 abs_webl_cumdegreeday <- abs_lintemp
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -4946,7 +3939,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorwee
 
 s1_cumdegreeweek_webl <- s1_lintemp_addmin
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -5059,7 +4051,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorwee
 
 s2_cumdegreeweek_webl <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling WEBL.
 
 ## Emmeans to check for effect of habitat
 
@@ -5173,7 +4164,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
 
 abs_webl_cumdegreeweek <- abs_lintemp
 
-# For abs_change in WEBL, there are no interactions
 
 ### sample size
 
@@ -5289,12 +4279,6 @@ s1_tres <- s1_lintemp_addmax
 ### Sample sizes:
 
 
-# ss_year_tres_s1 <- s1_lintemp_addmax@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_tres_s1 %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_tres_s1.html")
-
-
 ss_year_tres_s1 <- s1_lintemp_addmax@frame %>%
   group_by(habitat,year_fct) %>%
   summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
@@ -5329,11 +4313,6 @@ dat_text_s1_tres <- data.frame(
   label = paste("N =",samp_s1_tres$count),
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
-
-
-# For cort_s1 in TRES, there is an interaction with min but not with max.
-#
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 
 ## trends
@@ -5455,39 +4434,6 @@ temp_trans <- trans_new("temp_trans",
     gt())
 
 
-# data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
-#   mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
-#                 ~ scale(.x)[,1],
-#                 .names = "{.col}_scaled"),
-#          meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
-#
-# (t <- emmeans(s1_lintemp_addmax,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(meanmintempI_scaled = (meanmintempI_scaled * sd(data$meanmintempI)) + mean(data$meanmintempI),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            meanmintempI_scaled = round(meanmintempI_scaled),
-#            meanmintempI_scaled = paste0(meanmintempI_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`min temperature` = "meanmintempI_scaled",`Predicted delta cort` = "response",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     group_by(`min temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`min temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`min temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(s1_lintemp_addmax,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(s1_lintemp_addmax,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(s1_lintemp_addmax,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(s1_lintemp_addmax,specs = pairwise ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(s1_lintemp_addmax,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
 #### cort_s2
 
 
@@ -5520,12 +4466,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmin
 s2_tres <- s2_lintemp_addmin
 
 ### Sample sizes:
-
-
-# ss_year_tres_s2 <- s2_lintemp_addmin@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_tres_s2 %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_tres_s2.html")
 
 
 ss_year_tres_s2 <- s2_lintemp_addmin@frame %>%
@@ -5566,10 +4506,6 @@ dat_text_s2_tres <- data.frame(
 (s2byhabitat_tres <- emmeans(s2_lintemp_addmin,"habitat") %>% regrid() %>% pairs() %>% as_tibble() %>%
     mutate(across(estimate:t.ratio,~round(.x,digits = 2)),
            across(p.value,~round(.x,digits = 3))) %>% gt())
-
-# For cort_s2 in TRES, there is an interaction with min but not with max.
-#
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 
 ## trends
@@ -5658,16 +4594,8 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
 
 abs_tres <- abs_lintemp
 
-# For abs_change in TRES, there is an interaction with max and marginally min.
-
 
 ### Sample sizes:
-
-
-# ss_year_tres_abs <- abs_lintemp@frame %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2022` + `2023`)
-# ss_year_tres_abs %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.)) %>%
-#   gtsave("figures/ss_year_tres_abs.html")
 
 
 ss_year_tres_abs <- abs_lintemp@frame %>%
@@ -5804,8 +4732,6 @@ temp_trans <- trans_new("temp_trans",
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-#I think given this finding it might be helpful to subset the TRES data down to just grassland and row crop to compare them. Sample size for forest and orchard are so small.
-
 ### Maximum temperature
 
 
@@ -5822,33 +4748,6 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintemp
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"),
          meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
-
-# (t <- emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(meanmaxtempI_scaled = (meanmaxtempI_scaled * sd(data$meanmaxtempI)) + mean(data$meanmaxtempI),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            meanmaxtempI_scaled = round(meanmaxtempI_scaled),
-#            meanmaxtempI_scaled = paste0(meanmaxtempI_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`Max temperature` = "meanmaxtempI_scaled",`Predicted delta cort` = "response",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     group_by(`Max temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(abs_lintemp,specs = pairwise ~ habitat,by = c("meanmaxtempI_scaled"), at = list(meanmaxtempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(abs_lintemp,formula = habitat ~ meanmaxtempI_scaled, at = list(meanmaxtempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ### Minimum temperature
@@ -5868,63 +4767,6 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),!is.na(meanmintemp
                 .names = "{.col}_scaled"),
          meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
 
-# (t <- emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(meanmintempI_scaled = (meanmintempI_scaled * sd(data$meanmintempI)) + mean(data$meanmintempI),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            meanmintempI_scaled = round(meanmintempI_scaled),
-#            meanmintempI_scaled = paste0(meanmintempI_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("minimum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`Min temperature` = "meanmintempI_scaled",`Predicted delta cort` = "response",`2.5%` = "lower.CL",`97.5%` = "upper.CL" ) %>%
-#     group_by(`Min temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`Min temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`Min temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`minimum TA_P` = if_else(`minimum TA_P` == 0.000,"<0.001",as.character(`minimum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(abs_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(abs_lintemp,specs = pairwise ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(abs_lintemp,formula = habitat ~ meanmintempI_scaled, at = list(meanmintempI_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
-
-
-# ## Sample sizes
-#
-#
-# c %>% filter(Age == "L") %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "WEBL")
-#
-# c %>% filter(Age == "L") %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "WEBL") %>% dplyr::select(attempt_id) %>% unique() %>% nrow()
-#
-# c %>% filter(Age == "L") %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "TRES")
-#
-# c %>% filter(Age == "L") %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "TRES") %>% dplyr::select(attempt_id) %>% unique() %>% nrow()
-#
-# c %>% filter(Age == "L") %>% dplyr::select(attempt_id,blood_num,Species,blood_num_mother) %>% distinct(.keep_all = TRUE) %>% filter(is.na(blood_num_mother))
-#
-#
-# ## Sample sizes
-#
-#
-# c %>% filter(Age %in% c("SY","ASY","AHY")) %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "WEBL")
-#
-# c %>% filter(Age %in% c("SY","ASY","AHY")) %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "WEBL") %>% dplyr::select(attempt_id) %>% unique() %>% nrow()
-#
-# c %>% filter(Age %in% c("SY","ASY","AHY")) %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "TRES")
-#
-# c %>% filter(Age %in% c("SY","ASY","AHY")) %>% dplyr::select(attempt_id,blood_num,Species) %>% distinct(.keep_all = TRUE) %>% filter(Species == "TRES") %>% dplyr::select(attempt_id) %>% unique() %>% nrow()
-#
-# ### hist of abs change
-#
-#
-# c %>% mutate(abs_change = mean_s2-mean_s1) %>% filter(abs_change < 10) %>% pull(abs_change) %>% hist()
 
 #### use prior day temp to predict cort instead
 
@@ -5957,7 +4799,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prio
 
 s1_prior_day_tres <- s1_lintemp_addmin
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6070,7 +4911,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prio
 
 s2_prior_day_tres <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6184,7 +5024,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + 
 
 abs_tres_priordayt <- abs_lintemp
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -6295,7 +5134,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + mint_pri
 
 s1_priordaymaxhhi_tres <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6408,7 +5246,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + mint_pri
 
 s2_priordaymaxhhi_tres <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6522,7 +5359,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled +
 
 abs_tres_priordaymaxhhi <- abs_lintemp
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -6633,7 +5469,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanminte
 
 s1_weekhi_tres <- s1_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6746,7 +5581,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanminte
 
 s2_weekhi_tres <- s2_lintemp_addmin
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -6860,7 +5694,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + 
 
 abs_tres_weekhi <- abs_lintemp
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -6971,7 +5804,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_sc
 
 s1_cumhiday_tres <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7084,7 +5916,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_sc
 
 s2_cumhiday_tres <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7198,7 +6029,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
 
 abs_tres_cumhiday <- abs_lintemp_noint
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -7309,7 +6139,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_s
 
 s1_cumhiweek_tres <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7422,7 +6251,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_s
 
 s2_cumhiweek_tres <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7536,7 +6364,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_pr
 
 abs_tres_cumhiweek <- abs_lintemp
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -7647,7 +6474,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday
 
 s1_cumdegreeday_tres <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7760,7 +6586,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday
 
 s2_cumdegreeday_tres <- s2_lintemp
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -7874,7 +6699,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
 
 abs_tres_cumdegreeday <- abs_lintemp
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -7985,7 +6809,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorwee
 
 s1_cumdegreeweek_tres <- s1_lintemp_addmax
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -8098,7 +6921,6 @@ s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorwee
 
 s2_cumdegreeweek_tres <- s2_lintemp_noint
 
-# Looks like there is not an interactive effect of temp and habitat for cort in nestling TRES.
 
 ## Emmeans to check for effect of habitat
 
@@ -8212,7 +7034,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C
 
 abs_tres_cumdegreeweek <- abs_lintemp_noint
 
-# For abs_change in TRES, there are no interactions
 
 ### sample size
 
@@ -8368,15 +7189,10 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the mean temp interaction model is slightly more explanatory so we'll go with that.
-
-
 (survivalbyhabitat_summary_webl <- summary(s_nestpd_WEBL_addmin) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -8391,22 +7207,6 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 
 data = s_nestpd_WEBL_addmin$data
 
-# (t <- emmeans(s_nestpd_WEBL_addmin,specs = ~ habitat,by = c("meanmaxt_nestpd_scaled"), at = list(meanmaxt_nestpd_scaled = c(-2,0,2)),type = "response") %>%
-#     as.tibble() %>%
-#   mutate(meanmaxt_nestpd_scaled = (meanmaxt_nestpd_scaled * sd(data$meanmaxt_nestpd,na.rm = TRUE)) + mean(data$meanmaxt_nestpd,na.rm = TRUE),
-#     across(where(is.numeric), ~ round(.x, digits = 2)),
-#     meanmaxt_nestpd_scaled = round(meanmaxt_nestpd_scaled),
-#     meanmaxt_nestpd_scaled = paste0(meanmaxt_nestpd_scaled,"°C")) %>%
-#   dplyr::select(-df) %>%
-#   rename(Habitat = "habitat",`Max temperature` = "meanmaxt_nestpd_scaled",`Predicted P(survival)` = "prob",`2.5%` = "asymp.LCL",`97.5%` = "asymp.UCL" ) %>%
-#   group_by(`Max temperature`) %>%
-#   mutate(row=row_number()) %>%
-#   pivot_longer(-c(`Max temperature`, row,Habitat)) %>%
-#   pivot_wider(names_from=c(`Max temperature`, name), values_from=value) %>%
-#   dplyr::select(-row) %>%
-#   gt() %>% tab_options(data_row.padding = px(1)) %>%
-#   tab_spanner_delim(delim="_"))
-
 
 ## Emmeans to check for effect of habitat
 
@@ -8414,9 +7214,6 @@ data = s_nestpd_WEBL_addmin$data
 (survival_nestpd_byhabitat_webl <- emmeans(s_nestpd_WEBL_addmin,"habitat") %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
-
-
-# Forest survival is lower than in the other land covers.
 
 
 data_webl = s_nestpd_WEBL_addmin$data
@@ -8521,8 +7318,6 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-#No interaction of land cover with max or min temp for TRES nest period.
-
 (tressurvival_nestpd_trendmax <- emtrends(s_nestpd_TRES_noint,specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) %>% test() %>% pluck("emtrends") %>%
     mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
            df = round(df),
@@ -8531,19 +7326,12 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
     gt())
 
 
-#No main effects of max or min temp. Effects of habitat?
-
-
 (survival_nestpd_byhabitat_tres <- emmeans(s_nestpd_TRES_noint,"habitat") %>% pairs() %>% as_tibble() %>%
    mutate(across(estimate:z.ratio,~round(.x,digits = 2)),
           across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Yes - survival is higher in grassland and row crop than in forest.
-
-
 samp_tres <- s_nestpd_TRES_noint$data %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
 ss_year_survival_tres <- s_nestpd_TRES_noint$data %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 ss_year_survival_tres %>% gt() %>%
@@ -8606,510 +7394,8 @@ ggplot_build(fig3_webl)$layout$panel_scales_y
           labels = c("(a): Western Bluebird","(b): Tree Swallow")))
 
 
-# Effect of provis and cort on survival - sample size is 26 WEBL nestlings and 3 TRES nestlings??? yep, mostly because cort coverage is bad.
-
-
-# s <- read_rds("../data/growth_with_survival_indiv.rds")
-#
-#
-#
-# s_webl <- glm(survive_to_next_week ~ cort_s1_scaled + occ3_mean_provis_scaled + occ3_mean_meanmaxt_scaled + occ3_mean_meanmint_scaled + age_scaled + condition_scaled,
-#          family = binomial(link="logit"),
-#          data = dplyr::filter(s,
-#                                                      Species == "WEBL",
-#                                                      !is.na(cort_s1),
-#                                                      !is.na(occ3_mean_provis),
-#                                                      !is.na(occ3_mean_meanmaxt),
-#                                                      !is.na(occ3_mean_meanmint),
-#                                                      !is.na(age),
-#                                                      !is.na(condition)) %>%
-#   mutate(across(c(cort_s1,occ3_mean_provis,occ3_mean_meanmaxt,occ3_mean_meanmint,age,condition),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled")))
-#
-# summary(s_webl)
-#
-#
-#
-#
-# s_webl <- glm(survive_to_next_week ~ occ3_mean_provis_scaled,
-#          family = binomial(link="logit"),
-#          data = dplyr::filter(s,
-#                                                      Species == "WEBL",
-#                                                      !is.na(occ3_mean_provis)) %>%
-#   mutate(across(c(cort_s1,occ3_mean_provis,occ3_mean_meanmaxt,occ3_mean_meanmint,age,condition),
-#                                                   ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled")))
-#
-# summary(s_webl)
-
-
-#There's just not enough data to draw any meaningful conclusions here.
-
-
 ### What about trying to estimate the effect of provis on survival? Will need to return to DAG to know what to put in the model.
-#DAG says that to estimate the direct effect of provis on survival, I'll need to include cort. So we're back to very low sample size. Shoot.
 
-
-# s_webl <- glm(survive_to_next_week ~ mean_provis_scaled + _scaled + occ3_mean_meanmint_scaled + age_scaled + condition_scaled,
-#               family = binomial(link="logit"),
-#               data = dplyr::filter(s,
-#                                    Species == "WEBL",
-#                                    !is.na(cort_s1),
-#                                    !is.na(occ3_mean_provis),
-#                                    !is.na(occ3_mean_meanmaxt),
-#                                    !is.na(occ3_mean_meanmint),
-#                                    !is.na(age),
-#                                    !is.na(condition)) %>%
-#                 mutate(across(c(cort_s1,occ3_mean_provis,occ3_mean_meanmaxt,occ3_mean_meanmint,age,condition),
-#                               ~ scale(.x)[,1],
-#                               .names = "{.col}_scaled")))
-#
-# summary(s_webl)
-
-
-# The following is attempt-level, but Danny and I discussed trying an individual model.
-
-# I think it only really makes sense to estimate the relationship between nestling survival and cort/provis.
-#
-#
-# p <- read_rds("../data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
-#   mutate(year = year(date),
-#          year_fct = as.factor(year))
-#
-# g <- read_rds("../data/growth_and_provis_mobilenetv3-original_dataset.h5.rds") %>%
-#   mutate(abs_change_cort = cort_s2-cort_s1,
-#          prop_change_cort = (cort_s2-cort_s1)/cort_s1,
-#          year_fct = as.factor(year))
-#
-#
-# add_provis_and_cort <- function(row){
-#   # print(row)
-#   nestbox <- row$Nestbox
-#   egg_start <- row$`First Egg Date_lubridate`
-#   inc_start <- row$`Incubation Begins Date_lubridate`
-#   egg_end <- row$`Hatch Date_lubridate`
-#   if(is.na(egg_end)){
-#     egg_end <- egg_start + ddays(14)
-#   }
-#   nest_end <- row$`Date Banded_lubridate`
-#   if(is.na(nest_end)){
-#     nest_end <- egg_start + ddays(30)
-#   }
-#   temp_provis <- filter(p,nestbox == nestbox,date >= egg_end & date <= nest_end)
-#   temp_cort <- filter(g,nestbox == Nestbox,date >= egg_end & date <= nest_end)
-#   if(nrow(temp_provis) == 0){
-#     meanprovis <- NA
-#     meanaftprovis <- NA
-#     meanmornprovis <- NA
-#   } else {
-#     meanprovis <- mean(temp_provis$valid_detections,na.rm = TRUE)
-#     meanaftprovis <- filter(temp_provis,tod_h >= 12) %>% pull(valid_detections) %>% mean(na.rm = TRUE)
-#     meanmornprovis <- filter(temp_provis,tod_h < 12) %>% pull(valid_detections) %>% mean(na.rm = TRUE)
-#   }
-#   if(nrow(temp_cort) == 0){
-#     meancort_s1 <- NA
-#     meancort_absdiff <- NA
-#     meancort_propdiff <- NA
-#     meanage <- NA
-#     meancond <- NA
-#     meanh <- NA
-#   } else {
-#     temp <- filter(temp_cort,occasion == max(occasion,na.rm = TRUE))
-#     meancort_s1 <- pull(temp_cort,cort_s1) %>% mean(na.rm = TRUE)
-#     meancort_absdiff <- mutate(temp_cort,absdiff = cort_s2 - cort_s1) %>% pull(absdiff) %>% mean(na.rm = TRUE)
-#     meancort_propdiff <- mutate(temp_cort,propdiff = (cort_s2 - cort_s1)/cort_s1) %>% pull(propdiff) %>% mean(na.rm = TRUE)
-#     meanage <- pull(temp_cort,age) %>% mean(na.rm = TRUE)
-#     meancond <- pull(temp_cort,condition) %>% mean(na.rm = TRUE)
-#     meanh <- pull(temp_cort,meanh) %>% mean(na.rm = TRUE)
-#   }
-#   row <- bind_cols(row,
-#                    meanprovis = meanprovis,
-#                    meanaftprovis = meanaftprovis,
-#                    meanmornprovis = meanmornprovis,
-#                    meancort_s1 = meancort_s1,
-#                    meancort_absdiff = meancort_absdiff,
-#                    meancort_propdiff = meancort_propdiff,
-#                    meanage = meanage,
-#                    meancond = meancond,
-#                    meanh = meanh)
-#   return(row)
-# }
-#
-# future::plan(multisession,workers = availableCores()-2)
-#
-# s_with_provis_and_cort <- s %>% rowwise() %>% group_split() %>% future_map(~ add_provis_and_cort(.x),.progress = TRUE) %>% list_rbind()
-#
-#
-#
-# ## WEBL
-#
-# ### Overall provis
-#
-#
-#
-# s_provis_cort_s1_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanage_scaled + meancond_scaled,
-#                              family = binomial(link="logit"),
-#                              data = dplyr::filter(s_with_provis_and_cort,
-#                                                   Species == "WEBL",
-#                                                   !is.na(meanmaxt_nest),
-#                                                   !is.na(meanmint_nest),
-#                                                   !is.na(meancort_s1),
-#                                                   !is.na(meanprovis),
-#                                                   !is.na(meanage),
-#                                                   !is.na(meancond)) %>%
-#                                mutate(across(c(meancort_s1,meanprovis,meanmaxt_nest,meanmint_nest,meanage,meancond),
-#                                              ~ scale(.x)[,1],
-#                                              .names = "{.col}_scaled")))
-# summary(s_provis_cort_s1_WEBL)
-#
-#
-#
-#
-# s_provis_cort_absdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanage_scaled + meancond_scaled,
-#                                   family = binomial(link="logit"),
-#                                   data = dplyr::filter(s_with_provis_and_cort,
-#                                                        Species == "WEBL",
-#                                                        !is.na(meanmaxt_nest),
-#                                                        !is.na(meanmint_nest),
-#                                                        !is.na(meancort_absdiff),
-#                                                        !is.na(meanprovis),
-#                                                        !is.na(meanage),
-#                                                        !is.na(meancond)) %>%
-#                                     mutate(across(c(meancort_absdiff,meanprovis,meanmaxt_nest,meanmint_nest,meanage,meancond),
-#                                                   ~ scale(.x)[,1],
-#                                                   .names = "{.col}_scaled")))
-# summary(s_provis_cort_absdiff_WEBL)
-#
-#
-#
-#
-#
-# s_provis_cort_propdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                    family = binomial(link="logit"),
-#                                    data = dplyr::filter(s_with_provis_and_cort,
-#                                                         Species == "WEBL",
-#                                                         !is.na(meanmaxt_nest),
-#                                                         !is.na(meanmint_nest),
-#                                                         !is.na(meancort_propdiff),
-#                                                         !is.na(meanprovis),
-#                                                         !is.na(meanh),
-#                                                         !is.na(meanage),
-#                                                         !is.na(meancond)) %>%
-#                                      mutate(across(c(meancort_propdiff,meanprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                    ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled")))
-# summary(s_provis_cort_propdiff_WEBL)
-#
-#
-#
-# ### Morning cort
-#
-#
-#
-# s_mornprovis_cort_s1_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                  family = binomial(link="logit"),
-#                                  data = dplyr::filter(s_with_provis_and_cort,
-#                                                       Species == "WEBL",
-#                                                       !is.na(meanmaxt_nest),
-#                                                       !is.na(meanmint_nest),
-#                                                       !is.na(meancort_s1),
-#                                                       !is.na(meanmornprovis),
-#                                                       !is.na(meanh),
-#                                                       !is.na(meanage),
-#                                                       !is.na(meancond)) %>%
-#                                    mutate(across(c(meancort_s1,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                  ~ scale(.x)[,1],
-#                                                  .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_s1_WEBL)
-#
-#
-#
-#
-# s_mornprovis_cort_absdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                       family = binomial(link="logit"),
-#                                       data = dplyr::filter(s_with_provis_and_cort,
-#                                                            Species == "WEBL",
-#                                                            !is.na(meanmaxt_nest),
-#                                                            !is.na(meanmint_nest),
-#                                                            !is.na(meancort_absdiff),
-#                                                            !is.na(meanmornprovis),
-#                                                            !is.na(meanh),
-#                                                            !is.na(meanage),
-#                                                            !is.na(meancond)) %>%
-#                                         mutate(across(c(meancort_absdiff,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                       ~ scale(.x)[,1],
-#                                                       .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_absdiff_WEBL)
-#
-#
-#
-#
-#
-# s_mornprovis_cort_propdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                        family = binomial(link="logit"),
-#                                        data = dplyr::filter(s_with_provis_and_cort,
-#                                                             Species == "WEBL",
-#                                                             !is.na(meanmaxt_nest),
-#                                                             !is.na(meanmint_nest),
-#                                                             !is.na(meancort_propdiff),
-#                                                             !is.na(meanmornprovis),
-#                                                             !is.na(meanh),
-#                                                             !is.na(meanage),
-#                                                             !is.na(meancond)) %>%
-#                                          mutate(across(c(meancort_propdiff,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                        ~ scale(.x)[,1],
-#                                                        .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_propdiff_WEBL)
-#
-#
-#
-# ### Afternoon cort
-#
-#
-#
-# s_aftprovis_cort_s1_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                 family = binomial(link="logit"),
-#                                 data = dplyr::filter(s_with_provis_and_cort,
-#                                                      Species == "WEBL",
-#                                                      !is.na(meanmaxt_nest),
-#                                                      !is.na(meanmint_nest),
-#                                                      !is.na(meancort_s1),
-#                                                      !is.na(meanaftprovis),
-#                                                      !is.na(meanh),
-#                                                      !is.na(meanage),
-#                                                      !is.na(meancond)) %>%
-#                                   mutate(across(c(meancort_s1,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                 ~ scale(.x)[,1],
-#                                                 .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_s1_WEBL)
-#
-#
-#
-#
-# s_aftprovis_cort_absdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                      family = binomial(link="logit"),
-#                                      data = dplyr::filter(s_with_provis_and_cort,
-#                                                           Species == "WEBL",
-#                                                           !is.na(meanmaxt_nest),
-#                                                           !is.na(meanmint_nest),
-#                                                           !is.na(meancort_absdiff),
-#                                                           !is.na(meanaftprovis),
-#                                                           !is.na(meanh),
-#                                                           !is.na(meanage),
-#                                                           !is.na(meancond)) %>%
-#                                        mutate(across(c(meancort_absdiff,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                      ~ scale(.x)[,1],
-#                                                      .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_absdiff_WEBL)
-#
-#
-#
-#
-#
-# s_aftprovis_cort_propdiff_WEBL <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                       family = binomial(link="logit"),
-#                                       data = dplyr::filter(s_with_provis_and_cort,
-#                                                            Species == "WEBL",
-#                                                            !is.na(meanmaxt_nest),
-#                                                            !is.na(meanmint_nest),
-#                                                            !is.na(meancort_propdiff),
-#                                                            !is.na(meanaftprovis),
-#                                                            !is.na(meanh),
-#                                                            !is.na(meanage),
-#                                                            !is.na(meancond)) %>%
-#                                         mutate(across(c(meancort_propdiff,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                       ~ scale(.x)[,1],
-#                                                       .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_propdiff_WEBL)
-#
-#
-#
-# ## TRES
-#
-# ### Overall provis
-#
-#
-#
-# s_provis_cort_s1_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                              family = binomial(link="logit"),
-#                              data = dplyr::filter(s_with_provis_and_cort,
-#                                                   Species == "TRES",
-#                                                   !is.na(meanmaxt_nest),
-#                                                   !is.na(meanmint_nest),
-#                                                   !is.na(meancort_s1),
-#                                                   !is.na(meanprovis),
-#                                                   !is.na(meanh),
-#                                                   !is.na(meanage),
-#                                                   !is.na(meancond)) %>%
-#                                mutate(across(c(meancort_s1,meanprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                              ~ scale(.x)[,1],
-#                                              .names = "{.col}_scaled")))
-# summary(s_provis_cort_s1_TRES)
-#
-#
-#
-#
-# s_provis_cort_absdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                   family = binomial(link="logit"),
-#                                   data = dplyr::filter(s_with_provis_and_cort,
-#                                                        Species == "TRES",
-#                                                        !is.na(meanmaxt_nest),
-#                                                        !is.na(meanmint_nest),
-#                                                        !is.na(meancort_absdiff),
-#                                                        !is.na(meanprovis),
-#                                                        !is.na(meanh),
-#                                                        !is.na(meanage),
-#                                                        !is.na(meancond)) %>%
-#                                     mutate(across(c(meancort_absdiff,meanprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                   ~ scale(.x)[,1],
-#                                                   .names = "{.col}_scaled")))
-# summary(s_provis_cort_absdiff_TRES)
-#
-#
-#
-#
-#
-# s_provis_cort_propdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                    family = binomial(link="logit"),
-#                                    data = dplyr::filter(s_with_provis_and_cort,
-#                                                         Species == "TRES",
-#                                                         !is.na(meanmaxt_nest),
-#                                                         !is.na(meanmint_nest),
-#                                                         !is.na(meancort_propdiff),
-#                                                         !is.na(meanprovis),
-#                                                         !is.na(meanh),
-#                                                         !is.na(meanage),
-#                                                         !is.na(meancond)) %>%
-#                                      mutate(across(c(meancort_propdiff,meanprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                    ~ scale(.x)[,1],
-#                                                    .names = "{.col}_scaled")))
-# summary(s_provis_cort_propdiff_TRES)
-#
-#
-#
-# ### Morning cort
-#
-#
-#
-# s_mornprovis_cort_s1_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                  family = binomial(link="logit"),
-#                                  data = dplyr::filter(s_with_provis_and_cort,
-#                                                       Species == "TRES",
-#                                                       !is.na(meanmaxt_nest),
-#                                                       !is.na(meanmint_nest),
-#                                                       !is.na(meancort_s1),
-#                                                       !is.na(meanmornprovis),
-#                                                       !is.na(meanh),
-#                                                       !is.na(meanage),
-#                                                       !is.na(meancond)) %>%
-#                                    mutate(across(c(meancort_s1,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                  ~ scale(.x)[,1],
-#                                                  .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_s1_TRES)
-#
-#
-#
-#
-# s_mornprovis_cort_absdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                       family = binomial(link="logit"),
-#                                       data = dplyr::filter(s_with_provis_and_cort,
-#                                                            Species == "TRES",
-#                                                            !is.na(meanmaxt_nest),
-#                                                            !is.na(meanmint_nest),
-#                                                            !is.na(meancort_absdiff),
-#                                                            !is.na(meanmornprovis),
-#                                                            !is.na(meanh),
-#                                                            !is.na(meanage),
-#                                                            !is.na(meancond)) %>%
-#                                         mutate(across(c(meancort_absdiff,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                       ~ scale(.x)[,1],
-#                                                       .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_absdiff_TRES)
-#
-#
-#
-#
-#
-# s_mornprovis_cort_propdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanmornprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                        family = binomial(link="logit"),
-#                                        data = dplyr::filter(s_with_provis_and_cort,
-#                                                             Species == "TRES",
-#                                                             !is.na(meanmaxt_nest),
-#                                                             !is.na(meanmint_nest),
-#                                                             !is.na(meancort_propdiff),
-#                                                             !is.na(meanmornprovis),
-#                                                             !is.na(meanh),
-#                                                             !is.na(meanage),
-#                                                             !is.na(meancond)) %>%
-#                                          mutate(across(c(meancort_propdiff,meanmornprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                        ~ scale(.x)[,1],
-#                                                        .names = "{.col}_scaled")))
-# summary(s_mornprovis_cort_propdiff_TRES)
-#
-#
-#
-# ### Afternoon cort
-#
-#
-#
-# s_aftprovis_cort_s1_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_s1_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                 family = binomial(link="logit"),
-#                                 data = dplyr::filter(s_with_provis_and_cort,
-#                                                      Species == "TRES",
-#                                                      !is.na(meanmaxt_nest),
-#                                                      !is.na(meanmint_nest),
-#                                                      !is.na(meancort_s1),
-#                                                      !is.na(meanaftprovis),
-#                                                      !is.na(meanh),
-#                                                      !is.na(meanage),
-#                                                      !is.na(meancond)) %>%
-#                                   mutate(across(c(meancort_s1,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                 ~ scale(.x)[,1],
-#                                                 .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_s1_TRES)
-#
-#
-#
-#
-# s_aftprovis_cort_absdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_absdiff_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                      family = binomial(link="logit"),
-#                                      data = dplyr::filter(s_with_provis_and_cort,
-#                                                           Species == "TRES",
-#                                                           !is.na(meanmaxt_nest),
-#                                                           !is.na(meanmint_nest),
-#                                                           !is.na(meancort_absdiff),
-#                                                           !is.na(meanaftprovis),
-#                                                           !is.na(meanh),
-#                                                           !is.na(meanage),
-#                                                           !is.na(meancond)) %>%
-#                                        mutate(across(c(meancort_absdiff,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                      ~ scale(.x)[,1],
-#                                                      .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_absdiff_TRES)
-#
-#
-#
-#
-#
-# s_aftprovis_cort_propdiff_TRES <- glm(cbind(nest_fledged,brood_size - nest_fledged) ~ meancort_propdiff_scaled + meanaftprovis_scaled + meanmaxt_nest_scaled + meanmint_nest_scaled + meanh_scaled + meanage_scaled + meancond_scaled,
-#                                       family = binomial(link="logit"),
-#                                       data = dplyr::filter(s_with_provis_and_cort,
-#                                                            Species == "TRES",
-#                                                            !is.na(meanmaxt_nest),
-#                                                            !is.na(meanmint_nest),
-#                                                            !is.na(meancort_propdiff),
-#                                                            !is.na(meanaftprovis),
-#                                                            !is.na(meanh),
-#                                                            !is.na(meanage),
-#                                                            !is.na(meancond)) %>%
-#                                         mutate(across(c(meancort_propdiff,meanaftprovis,meanmaxt_nest,meanmint_nest,meanh,meanage,meancond),
-#                                                       ~ scale(.x)[,1],
-#                                                       .names = "{.col}_scaled")))
-# summary(s_aftprovis_cort_propdiff_TRES)
-
-
-# Summary chart of findings?
 
 ## Other temperature measures
 ## WEBL
@@ -9167,16 +7453,11 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_webl_meanmaxhi <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with min temp.
-
-
 (survivalbyhabitat_summary_webl_meanmaxhi <- summary(s_nestpd_WEBL_addmax) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9200,18 +7481,7 @@ data = s_nestpd_WEBL_addmax$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_WEBL_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_webl = s_nestpd_WEBL_addmax$data
@@ -9226,8 +7496,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_webl_meanmaxhi <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -9325,16 +7593,11 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ degh
 (int_tab_survival_nestpd_webl_deghr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
-
-
 (survivalbyhabitat_summary_webl_deghr_30 <- summary(s_nestpd_WEBL_addmin) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9358,18 +7621,7 @@ data = s_nestpd_WEBL_addmin$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_WEBL_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_webl = s_nestpd_WEBL_addmin$data
@@ -9384,8 +7636,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_webl_deghr_30 <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -9483,16 +7733,11 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr
 (int_tab_survival_nestpd_webl_hihr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
-
-
 (survivalbyhabitat_summary_webl_hihr_30 <- summary(s_nestpd_WEBL_addmax) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9516,18 +7761,7 @@ data = s_nestpd_WEBL_addmax$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_WEBL_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_webl = s_nestpd_WEBL_addmax$data
@@ -9542,8 +7776,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                              inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_webl_hihr_30 <- data_webl %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -9643,16 +7875,11 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_tres_meanmaxhi <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with min temp.
-
-
 (survivalbyhabitat_summary_tres_meanmaxhi <- summary(s_nestpd_TRES_addmax) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9676,18 +7903,7 @@ data = s_nestpd_TRES_addmax$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_TRES_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_tres = s_nestpd_TRES_addmax$data
@@ -9702,8 +7918,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_tres_meanmaxhi <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -9801,16 +8015,11 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ degh
 (int_tab_survival_nestpd_tres_deghr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
-
-
 (survivalbyhabitat_summary_tres_deghr_30 <- summary(s_nestpd_TRES_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9834,18 +8043,7 @@ data = s_nestpd_TRES_noint$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_TRES_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_tres = s_nestpd_TRES_noint$data
@@ -9860,8 +8058,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_tres_deghr_30 <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -9959,16 +8155,11 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr
 (int_tab_survival_nestpd_tres_hihr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with cumulative degree hours.
-
-
 (survivalbyhabitat_summary_tres_hihr_30 <- summary(s_nestpd_TRES_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
     # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
     mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
            across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
 
-
-# There is a direct effect of min temp in the direction we expect (higher min temp = higher survival).
 
 #### Emtrends to calculate effect of max temp in each habitat
 
@@ -9992,18 +8183,7 @@ data = s_nestpd_TRES_noint$data
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-# Forest survival is lower than in the other land covers.
-
 ### Check for effect of temperature
-
-
-# (t <- summary(s_nestpd_TRES_noint) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-#    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-#    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-#           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>% gt())
-#
-#
-# Hot temps and low temps reduce survival overall.
 
 
 data_tres = s_nestpd_TRES_noint$data
@@ -10018,8 +8198,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                              inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt()
-#
 ss_year_survival_tres_hihr_30 <- data_tres %>% group_by(habitat,year_fct) %>% summarize(count = n()) %>%
   pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>% ungroup() %>% mutate(Total = `2021` + `2022` + `2023`)
 
@@ -10079,42 +8257,6 @@ p %>% dplyr::select(c(species, attempt_id)) %>% distinct() %>% summarize(.by = s
 
 
 ## Sample size:
-
-
-# p2 %>% dplyr::select(folder) %>% unique() %>% nrow()
-#
-#
-#
-# ## Objectives:
-#
-# # * Check videos associated with high provisioning rates
-# # * Prepare for D-RUG meeting- simplify Danny meeting notes
-#
-# ## Check vids w/ high provis rates
-#
-#
-# p1 %>% filter(valid_detections > 30) #%>% write_csv("../data/high_provis.csv")
-# p2 %>% filter(valid_detections > 30)
-#
-#
-#
-#
-# filter(p1,is.na(valid_detections))
-# rbind(p1,p2) %>% arrange(nestbox,start) %>% filter(folder == "MBNG7_card9")
-#
-#
-# What happens if I take the lower of the two valid_detections score?
-#
-#
-# rbind(p1,p2) %>% filter(valid_detections == min(valid_detections,na.rm = TRUE) & row_number() == 1,.by = c(folder,start)) %>% filter(valid_detections > 40) %>% arrange(folder) %>% pull(species)
-#
-#
-# I think I've solved it?? All of the high detections are in TRES boxes, where the nestlings do actually just like hang out at the edge of the box cuz they're hot.
-#
-# So the strategy is now, take the minimum valid_detections of these two models. They are generally very similar in terms of the number of detections, except in the cases where they have different tendencies to hallucinate. I think by combining the two models we've eliminated the very high detections where a huge series of videos is all tagged as bird. The ones left are where a TRES chick is hanging out in the box hole the whole time. I think that does mean that the models I built do not work for TRES so to do that we'd need to change our approach I think. Which is probably not worth it now.
-
-
-# p <- rbind(p1,p2) %>% dplyr::filter(!is.na(valid_detections)) %>% group_by(folder,start) %>% dplyr::filter(valid_detections == min(valid_detections)) %>% dplyr::filter(row_number() == 1) %>% ungroup()
 
 
 ## Is interaction significant?
@@ -10197,17 +8339,6 @@ provis_webl <- m_linint
 ### Sample size
 
 
-# ss_year_webl_provis <- m_linint$frame %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2021`,`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2021`+`2022`+`2023`)
-# ss_year_webl_provis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_webl_provis.html")
-
-
 ss_year_webl_provis <- m_linint$frame %>%
   group_by(habitat,year_fct) %>%
   summarize(count_ind = n(),count_attempt = n_distinct(attempt_id)) %>%
@@ -10247,28 +8378,6 @@ dat_text_webl <- data.frame(
 
 ## num nestboxes
 m_linint$frame %>% pull(attempt_id) %>% unique() %>% length()
-
-
-#
-# (pl <- predict_response(m,terms = c("mean_temp_scaled [all]","habitat"),bias_correction = TRUE) %>%
-#    plot(line_size = 1.5,alpha = .2,show_data = TRUE) +
-#    facet_wrap(~ group,ncol = 2) +
-#    # theme_classic() +
-#     xlab("Average hourly temp") +
-#     ylab("Nest visits per hour") +
-#     labs(title = NULL,color = "Cover type") +
-#    #ggtitle("Predicted growth across habitat and mean max daily temp") +
-#     scale_fill_viridis(discrete = TRUE) +
-#     scale_color_viridis(discrete = TRUE) +
-#     theme(text = element_text(size = 16)) +
-#     theme_classic() +
-#     xlab("Mean temp over 60 mins") +
-#     ylab("Visits/60 mins") +
-#     labs(title = "WEBL") +
-#    #ylim(0,80) +
-#    annotate("text", x = -1.5, y = 50, size = 5, label = paste("N =",nobs(m)))
-#    )
-#
 
 
 data_webl = dplyr::filter(p,!is.na(mean_temp),
@@ -10350,33 +8459,6 @@ data = data = dplyr::filter(p,!is.na(mean_temp),
   mutate(across(c(tod_h,mean_temp,julian_date,mean_nestling_age),
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"))
-
-# (t <- emmeans(m_linint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(mean_temp_scaled = (mean_temp_scaled * sd(data$mean_temp)) + mean(data$mean_temp),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            mean_temp_scaled = round(mean_temp_scaled),
-#            mean_temp_scaled = paste0(mean_temp_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`Temperature` = "mean_temp_scaled",`Predicted provisioning` = "response",`2.5%` = "asymp.LCL",`97.5%` = "asymp.UCL" ) %>%
-#     group_by(`Temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`Temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`Temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(m_linint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(m_linint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(m_linint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(m_linint,specs = pairwise ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(m_linint,formula = habitat ~ mean_temp_scaled, at = list(mean_temp_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ## Emmeans to check for effect of habitat
@@ -10472,17 +8554,6 @@ c <- anova(m,m_linint,m_noint) %>% tibble() %>% mutate(Model = c("No temp * LC i
 
 provis_tres <- m
 ### Sample size
-
-
-# ss_year_tres_provis <- m$frame %>%
-#   group_by(habitat,year_fct) %>% summarize(count = n()) %>% pivot_wider(values_from = count,names_from = year_fct) %>% as.tibble() %>% rename(Habitat = 'habitat') %>%
-#   relocate(`2021`,.before = `2022`) %>%
-#   ungroup() %>%
-#   mutate(across(c(`2021`,`2022`,`2023`),~ replace_na(.x,0)),
-#          Total = `2021`+`2022`+`2023`)
-# ss_year_tres_provis %>% gt() %>%
-#   grand_summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)) %>%
-#   gtsave("figures/ss_year_tres_provis.html")
 
 
 ss_year_tres_provis <- m$frame %>%
@@ -10639,33 +8710,6 @@ data = dplyr::filter(p,!is.na(mean_temp),
   mutate(across(c(tod_h,mean_temp,julian_date,mean_nestling_age),
                 ~ scale(.x)[,1],
                 .names = "{.col}_scaled"))
-
-# (t <- emmeans(m_noint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
-#     mutate(mean_temp_scaled = (mean_temp_scaled * sd(data$mean_temp)) + mean(data$mean_temp),
-#            across(where(is.numeric), ~ round(.x, digits = 2)),
-#            mean_temp_scaled = round(mean_temp_scaled),
-#            mean_temp_scaled = paste0(mean_temp_scaled,"\u00b0C")) %>%
-#     #tibble() %>%
-#     dplyr::select(-df) %>%
-#     #mutate(Model = rep(c("TA2 * LU + TA * LU", "TA2 + TA * LU", "TA2 + TA + LU"),2), type = c(rep("Maximum TA", 3),rep("Minimum TA",3)), .before = AIC) %>%
-#     rename(Habitat = "habitat",`Temperature` = "mean_temp_scaled",`Predicted provisioning` = "response",`2.5%` = "asymp.LCL",`97.5%` = "asymp.UCL" ) %>%
-#     group_by(`Temperature`) %>%
-#     mutate(row=row_number()) %>%
-#     pivot_longer(-c(`Temperature`, row,Habitat)) %>%
-#     pivot_wider(names_from=c(`Temperature`, name), values_from=value) %>%
-#     dplyr::select(-row) %>%
-#     #mutate(`Maximum TA_P` = if_else(`Maximum TA_P` == 0.000,"<0.001",as.character(`Maximum TA_P`))) %>%
-#     #mutate(`Minimum TA_P` = if_else(`Minimum TA_P` == 0.000,"<0.001",as.character(`Minimum TA_P`))) %>%
-#     gt() %>% tab_options(data_row.padding = px(1)) %>%
-#     tab_spanner_delim(
-#       delim="_"
-#     ))
-#
-
-# ((emmeans(m_noint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(2)),type = "response") %>% as.tibble() %>% pull(response))-(emmeans(m_noint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response)))/(emmeans(m_noint,specs = ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2)),type = "response") %>% as.tibble() %>% pull(response))
-#
-# emmeans(m_noint,specs = pairwise ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-# emmip(m_noint,formula = habitat ~ mean_temp_scaled, at = list(mean_temp_scaled = seq(from = -2.5, to = 2.5, by = .1)),CIs = TRUE, plotit = FALSE) %>% emmip_ggplot() + theme_classic()
 
 
 ## Other temperature measures
@@ -10896,8 +8940,6 @@ m <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_
                              ~ scale(.x)[,1],
                              .names = "{.col}_scaled")))
 
-#emmeans(m,specs = pairwise ~ habitat,by = c("hi_30min_scaled"), at = list(hi_30min_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
-#emmip(m,formula = habitat ~ hi_30min_scaled, at = list(hi_30min_scaled = seq(from = -2.5, to = 2.5, by = .1)))
 
 m_linint <- glmmTMB(valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
@@ -11516,9 +9558,6 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the max temp interaction model is slightly more explanatory so we'll go with that.
-
-
 anova(s_nestpd_WEBL_addmin, prior_model)
 
 
@@ -11549,7 +9588,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                           inverse = function(x){x})
 
 samp_webl <- data_webl %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_webl.html")
 
 
 dat_text_webl <- data.frame(
@@ -11713,9 +9751,6 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mean
 (int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-#Conclusion: For nest attempt overall, land cover interacts with either max or min temp but not both together. It looks like the max temp interaction model is slightly more explanatory so we'll go with that.
-
-
 anova(s_nestpd_TRES_noint, prior_model)
 
 
@@ -11746,7 +9781,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                           inverse = function(x){x})
 
 samp_tres <- data_tres %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("../figures/ss_tres.html")
 
 
 dat_text_tres <- data.frame(
@@ -11904,7 +9938,6 @@ anova(s1_lintemp_noint,prior_model)
 
 
 samp_s1_webl <- s1_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s1_webl %>% gt() %>% gtsave("figures/ss_webl_s1.html")
 
 
 dat_text_s1_webl <- data.frame(
@@ -11989,7 +10022,6 @@ s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmin
                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
 (int_tab_s1_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
-#gtsave(int_tab_s1_tres,"figures/int_tab_s1_tres.html")
 
 s1_tres <- s1_lintemp_addmax
 
@@ -12011,7 +10043,6 @@ anova(s1_lintemp_addmax,prior_model)
 
 
 samp_s1_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_s1.html")
 
 
 dat_text_s1_tres <- data.frame(
@@ -12065,7 +10096,6 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
 
 
 samp_s1_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_s1.html")
 
 
 dat_text_s1_tres <- data.frame(
@@ -12179,7 +10209,6 @@ abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled 
                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
 (int_tab_abs_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
-#gtsave(int_tab_abs_webl,"figures/int_tab_abs_webl.html")
 
 
 abs_webl <- abs_lintemp
@@ -12202,7 +10231,6 @@ anova(abs_lintemp,prior_model)
 
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_webl_abs.html")
 
 
 dat_text_webl <- data.frame(
@@ -12384,7 +10412,6 @@ anova(abs_lintemp_addmin,prior_model_addmin)
 
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_abs.html")
 
 
 dat_text_tres <- data.frame(
@@ -12552,7 +10579,6 @@ anova(s2_lintemp,prior_model)
 
 
 samp_s2_webl <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s2_webl %>% gt() %>% gtsave("figures/ss_webl_s2.html")
 
 
 dat_text_s2_webl <- data.frame(
@@ -12719,7 +10745,6 @@ anova(s2_lintemp_addmin,prior_model)
 
 
 samp_s2_tres <- s2_lintemp_addmin@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_s2.html")
 
 
 dat_text_s2_tres <- data.frame(
@@ -12886,7 +10911,6 @@ anova(s1_lintemp_addmax,prior_model)
 
 
 samp_s1_priordayt_webl <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s1_priordayt_webl %>% gt() %>% gtsave("figures/ss_webl_s1_priordayt_.html")
 
 
 dat_text_s1_priordayt_webl <- data.frame(
@@ -13053,7 +11077,6 @@ anova(s1_lintemp_addmax,prior_model)
 
 
 samp_s1_priordayt_tres <- s1_lintemp_addmax@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s1_priordayt_tres %>% gt() %>% gtsave("figures/ss_tres_s1_priordayt_.html")
 
 
 dat_text_s1_priordayt_tres <- data.frame(
@@ -13219,7 +11242,6 @@ anova(abs_lintemp_noint,prior_model)
 
 
 samp <- abs_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_webl_abs_priordayt.html")
 
 
 dat_text_webl <- data.frame(
@@ -13385,7 +11407,6 @@ anova(abs_lintemp,prior_model)
 
 
 samp <- abs_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_abs_priordayt.html")
 
 
 dat_text_tres <- data.frame(
@@ -13551,7 +11572,6 @@ anova(s2_lintemp_noint,prior_model)
 
 
 samp_s2_priordayt_webl <- s2_lintemp_noint@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s2_priordayt_webl %>% gt() %>% gtsave("figures/ss_webl_s2_priordayt_.html")
 
 
 dat_text_s2_priordayt_webl <- data.frame(
@@ -13718,7 +11738,6 @@ anova(s2_lintemp,prior_model)
 
 
 samp_s2_priordayt_tres <- s2_lintemp@frame %>% group_by(habitat) %>% summarize(count = n())
-# samp_s2_priordayt_tres %>% gt() %>% gtsave("figures/ss_tres_s2_priordayt_.html")
 
 
 dat_text_s2_priordayt_tres <- data.frame(
@@ -13944,7 +11963,6 @@ anova(m_linint,prior_model)
 
 
 samp <- m_linint$frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_webl_provis.html")
 
 
 dat_text_webl <- data.frame(
@@ -14180,7 +12198,6 @@ anova(m,prior_model)
 
 
 samp <- m$frame %>% group_by(habitat) %>% summarize(count = n())
-# samp %>% gt() %>% gtsave("figures/ss_tres_provis.html")
 
 
 dat_text_tres <- data.frame(
