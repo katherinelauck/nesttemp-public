@@ -16,10 +16,179 @@ library(lubridate)
 
 load("data/models_growth.RData")
 
-# Fig S5: WEBL + TRES growth supplement (p_full from RData is the fig6 assembly)
+# Fig S5: WEBL + TRES growth by cort x provisioning (6-panel)
+(fig6_provis_webl <- predict_response(g_provis_cort_webl, terms = c("provis_mean_scaled"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    theme_classic() +
+    xlab("Provisioning") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 24)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = provis_trans_webl,
+                       breaks = c((0-mean_provis_webl)/sd_provis_webl,
+                                  (5-mean_provis_webl)/sd_provis_webl,
+                                  (10-mean_provis_webl)/sd_provis_webl,
+                                  (15-mean_provis_webl)/sd_provis_webl,
+                                  (20-mean_provis_webl)/sd_provis_webl)) +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 40", x = -Inf, y = -Inf, size = 7, hjust = -.2, vjust = -.5))
+
+(fig6_corts1_webl <- predict_response(g_provis_cort_webl, terms = c("cort_s1_scaled [all]"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    aes(linetype = .data[["group"]]) +
+    theme_classic() +
+    xlab("Baseline corticosterone (ng/\U00B5L)") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = s1_trans_webl,
+                       breaks = c((2-mean_s1_webl)/sd_s1_webl,
+                                  (4-mean_s1_webl)/sd_s1_webl,
+                                  (6-mean_s1_webl)/sd_s1_webl,
+                                  (8-mean_s1_webl)/sd_s1_webl,
+                                  (10-mean_s1_webl)/sd_s1_webl,
+                                  (12-mean_s1_webl)/sd_s1_webl,
+                                  (14-mean_s1_webl)/sd_s1_webl)) +
+    scale_linetype_manual(values = "dotted") +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 40", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
+
+(fig6_abscort_webl <- predict_response(g_provis_abscort_webl, terms = c("abs_change_cort_scaled"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    aes(linetype = .data[["group"]]) +
+    theme_classic() +
+    xlab("Stress-induced corticosterone (ng/\U00B5L)") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = abs_trans_webl,
+                       breaks = c((0-mean_abs_webl)/sd_abs_webl,
+                                  (10-mean_abs_webl)/sd_abs_webl,
+                                  (20-mean_abs_webl)/sd_abs_webl,
+                                  (30-mean_abs_webl)/sd_abs_webl,
+                                  (40-mean_abs_webl)/sd_abs_webl,
+                                  (50-mean_abs_webl)/sd_abs_webl)) +
+    scale_linetype_manual(values = "dotted") +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 35", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
+
+(fig6_provis_tres <- predict_response(g_provis_cort_tres, terms = c("provis_mean_scaled"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    aes(linetype = .data[["group"]]) +
+    theme_classic() +
+    xlab("Provisioning (visits/hr)") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = provis_trans_tres,
+                       breaks = c((0-mean_provis_tres)/sd_provis_tres,
+                                  (10-mean_provis_tres)/sd_provis_tres,
+                                  (20-mean_provis_tres)/sd_provis_tres,
+                                  (30-mean_provis_tres)/sd_provis_tres,
+                                  (40-mean_provis_tres)/sd_provis_tres,
+                                  (50-mean_provis_tres)/sd_provis_tres)) +
+    scale_linetype_manual(values = "dotted") +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 16", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
+
+(fig6_corts1_tres <- predict_response(g_provis_cort_tres, terms = c("cort_s1_scaled [all]"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    theme_classic() +
+    xlab("Baseline corticosterone (ng/\U00B5L)") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = s1_trans_tres,
+                       breaks = c((5-mean_s1_tres)/sd_s1_tres,
+                                  (10-mean_s1_tres)/sd_s1_tres,
+                                  (15-mean_s1_tres)/sd_s1_tres,
+                                  (20-mean_s1_tres)/sd_s1_tres,
+                                  (25-mean_s1_tres)/sd_s1_tres)) +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 16", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
+
+(fig6_abscort_tres <- predict_response(g_provis_abscort_tres, terms = c("abs_change_cort_scaled"), bias_correction = TRUE, margin = "empirical") %>%
+    plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    aes(linetype = .data[["group"]]) +
+    theme_classic() +
+    xlab("Stress-induced corticosterone (ng/\U00B5L)") +
+    ylab("Growth (g/day)") +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = abs_trans_tres,
+                       breaks = c((20-mean_abs_tres)/sd_abs_tres,
+                                  (40-mean_abs_tres)/sd_abs_tres,
+                                  (60-mean_abs_tres)/sd_abs_tres,
+                                  (80-mean_abs_tres)/sd_abs_tres,
+                                  (100-mean_abs_tres)/sd_abs_tres)) +
+    scale_linetype_manual(values = "dotted") +
+    theme(legend.position = "none") +
+    annotate(geom = "text", label = "N = 14", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
+
+ggplot_build(fig6_provis_webl)$layout$panel_scales_y
+ggplot_build(fig6_provis_tres)$layout$panel_scales_y
+ggplot_build(fig6_corts1_webl)$layout$panel_scales_y
+ggplot_build(fig6_corts1_tres)$layout$panel_scales_y
+ggplot_build(fig6_abscort_webl)$layout$panel_scales_y
+ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
+(p_full <- ggarrange(fig6_provis_webl + theme(text = element_text(size = 12),
+                                       legend.position = "none",
+                                       axis.title.x = element_blank(),
+                                       axis.title.y = element_text(hjust = -3)),
+                     fig6_provis_tres + theme(axis.text.y = element_blank(),
+                                       axis.ticks.y = element_blank(),
+                                       text = element_text(size = 12),
+                                       axis.title.y = element_blank(),
+                                       legend.position = 'none',
+                                       axis.title.x = element_text(hjust = -.7)) +
+                       ylim(-.183, 2.73),
+                     fig6_corts1_webl + theme(text = element_text(size = 12),
+                                            legend.position = "none",
+                                            axis.title.x = element_blank(),
+                                            axis.title.y = element_blank()),
+                     fig6_corts1_tres + theme(axis.text.y = element_blank(),
+                                                 axis.ticks.y = element_blank(),
+                                                 text = element_text(size = 12),
+                                                 axis.title.y = element_blank(),
+                                                 legend.position = 'none',
+                                                 axis.title.x = element_text(hjust = -2.7)) +
+                       ylim(-.183, 2.73),
+                     fig6_abscort_webl + theme(text = element_text(size = 12),
+                                               legend.position = "none",
+                                               axis.title.x = element_blank(),
+                                               axis.title.y = element_blank()),
+                     fig6_abscort_tres + xlab("Stress-induced - Baseline corticosterone (ng/\U00B5L)") + theme(axis.text.y = element_blank(),
+                                               axis.ticks.y = element_blank(),
+                                               text = element_text(size = 12),
+                                               axis.title.y = element_blank(),
+                                               legend.position = 'none',
+                                               axis.title.x = element_text(hjust = 2.5)) +
+                       ylim(-.183, 2.73),
+                     ncol = 2,
+                     labels = c("(a): Western Bluebird", "(b): Tree Swallow", "", "", "", "")))
 ggsave("figures/fig6_growth_by_temp_hab.png", p_full, width = 6.25, height = 8)
 
 # Fig 2: WEBL + TRES growth ~ max temp x habitat
+(fig2_tres <- ggpredict(g_lintemp_addmin_tres, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) %>%
+   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
+    aes(linetype = .data[["group"]]) +
+    theme_classic() +
+   facet_wrap(~ group, ncol = 2) +
+    xlab("Mean daily max temp over preceding week (°C)") +
+    ylab("Growth (g/day)") +
+   scale_fill_viridis(discrete = TRUE) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_linetype_manual(values = c("Forest" = "dashed", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "solid")) +
+    theme(text = element_text(size = 16)) +
+    labs(title = element_blank()) +
+    scale_x_continuous(trans = temp_trans_tres,
+                       breaks = c((20-mean_temp_tres)/sd_temp_tres,
+                                  (25-mean_temp_tres)/sd_temp_tres,
+                                  (30-mean_temp_tres)/sd_temp_tres,
+                                  (35-mean_temp_tres)/sd_temp_tres,
+                                  (40-mean_temp_tres)/sd_temp_tres)) +
+   geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
+    theme(legend.position = "none"))
 ggplot_build(fig2_webl)$layout$panel_scales_y
 ggplot_build(fig2_tres)$layout$panel_scales_y
 (p_full <- ggarrange(fig2_webl + theme(text = element_text(size = 12), axis.title.x = element_blank()),
