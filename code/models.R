@@ -28,14 +28,31 @@ library(future)
 library(egg)
 library(patchwork)
 
-p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
+# --- Abbreviations -----------------------------------------------------------
+# Species:  WEBL = Western Bluebird, TRES = Tree Swallow
+# Cort:     s1 = baseline (pre-stress) corticosterone sample
+#           s2 = stress-induced corticosterone sample
+#           abs = absolute change (s2 - s1)
+# Temp vars:
+#   I suffix (e.g. meanmaxtempI) = Fahrenheit / Imperial units
+#   hi                           = heat index
+#   cum                          = cumulative over the nest/sampling period
+#   priorday / priorweek         = rolling window ending the day/week before sampling
+#   degreehours_over_30C         = accumulated degree-hours exceeding 30 C
+# Habitats: Forest, Orchard, Grassland, Row crop
+# Data frames: dat_growth = growth & cort records; dat_provis = provisioning;
+#              dat_surv = nest survival
+# Scaled vars: original name + _scaled suffix; squared term + _scaled_sq suffix
+# -----------------------------------------------------------------------------
+
+dat_provis <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),
          year_fct = as.factor(year))
 
-g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
+dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))
 
-s <- read_rds("data/survival_attempt.rds") %>%
+dat_surv <- read_rds("data/survival_attempt.rds") %>%
   mutate(juliandate_inc = yday(inc_date),
          juliandate_hatch = yday(hatch_date),
          year_fct = factor(year),
@@ -57,6 +74,23 @@ s <- read_rds("data/survival_attempt.rds") %>%
 
 scale_cols <- function(data, cols) {
   data %>% mutate(across(all_of(cols), ~ scale(.x)[,1], .names = "{.col}_scaled"))
+}
+# Filter dat to species, drop NA rows for temp_var and min_temp_var, scale
+# cols_to_scale, and append a squared column for temp_var (add_sq = TRUE).
+prep_model_data <- function(dat, species, temp_var, min_temp_var, cols_to_scale,
+                             add_sq = TRUE) {
+  d <- dat %>%
+    dplyr::filter(
+      Species == species,
+      !is.na(.data[[temp_var]]),
+      !is.na(.data[[min_temp_var]])
+    ) %>%
+    scale_cols(cols_to_scale)
+  if (add_sq) {
+    sq_col <- paste0(temp_var, "_scaled_sq")
+    d[[sq_col]] <- d[[paste0(temp_var, "_scaled")]]^2
+  }
+  d
 }
 
 make_temp_trans <- function(data, col) {
@@ -105,29 +139,29 @@ anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
 ## ================================================================
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
 (int_tab_growth_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -175,12 +209,6 @@ dat_text_webl <- data.frame(
 )
 
 
-data_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_webl <- mean(data_webl %>% pull(meanmaxtempI))
 sd_temp_webl <- sd(data_webl %>% pull(meanmaxtempI))
@@ -208,13 +236,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -239,13 +261,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
-    #ylim(-5,5) +
     # geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
@@ -259,11 +275,9 @@ temp_trans_webl <- trans_new("temp_trans_webl",
    gt())
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -286,11 +300,9 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
 ## min temp
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp <- mean(data %>% pull(meanmintempI))
@@ -316,13 +328,7 @@ temp_trans <- trans_new("temp_trans",
                                   (12-mean_temp)/sd_temp,
                                   (16-mean_temp)/sd_temp,
                                   (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmintempI,na.rm = TRUE))/sd(g$meanmintempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmintempI,na.rm = TRUE))/sd(g$meanmintempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -336,11 +342,9 @@ temp_trans <- trans_new("temp_trans",
    gt())
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmintempI", "meanmintempI",
+  c("gweight","meanmintempI","meanmintempI","juliandate","brood_size","age"))
 
 (t <- emmeans(g_lintemp,specs = ~ habitat,by = c("meanmintempI_scaled"), at = list(meanmintempI_scaled = c(-2,0,2)),type = "response") %>% as.tibble() %>% #gt() %>%
   mutate(meanmintempI_scaled = (meanmintempI_scaled * sd(data$meanmintempI)) + mean(data$meanmintempI),
@@ -412,11 +416,9 @@ dat_text_maxhiweek_webl <- data.frame(
 )
 
 
-data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
+data_maxhiweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp_maxhiweek_webl <- mean(data_maxhiweek_webl %>% pull(maxhi_week))
@@ -445,13 +447,7 @@ temp_trans_maxhiweek_webl <- trans_new("temp_trans_maxhiweek_webl",
                                   (30-mean_temp_maxhiweek_webl)/sd_temp_maxhiweek_webl,
                                   (35-mean_temp_maxhiweek_webl)/sd_temp_maxhiweek_webl,
                                   (40-mean_temp_maxhiweek_webl)/sd_temp_maxhiweek_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$maxhi_week,na.rm = TRUE))/sd(g$maxhi_week,na.rm = TRUE),
-                       #            (55-mean(g$maxhi_week,na.rm = TRUE))/sd(g$maxhi_week,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_maxhiweek_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -465,11 +461,9 @@ temp_trans_maxhiweek_webl <- trans_new("temp_trans_maxhiweek_webl",
     gt())
 
 
-data_maxhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
+data_maxhiweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -519,11 +513,9 @@ dat_text_maxhiday_webl <- data.frame(
 )
 
 
-data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
+data_maxhiday_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "meanmintempI",
+  c("gweight","maxhi_prior","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp_maxhiday_webl <- mean(data_maxhiday_webl %>% pull(maxhi_prior))
@@ -552,13 +544,7 @@ temp_trans_maxhiday_webl <- trans_new("temp_trans_maxhiday_webl",
                                   (30-mean_temp_maxhiday_webl)/sd_temp_maxhiday_webl,
                                   (35-mean_temp_maxhiday_webl)/sd_temp_maxhiday_webl,
                                   (40-mean_temp_maxhiday_webl)/sd_temp_maxhiday_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$maxhi_prior,na.rm = TRUE))/sd(g$maxhi_prior,na.rm = TRUE),
-                       #            (55-mean(g$maxhi_prior,na.rm = TRUE))/sd(g$maxhi_prior,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_maxhiday_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -572,11 +558,9 @@ temp_trans_maxhiday_webl <- trans_new("temp_trans_maxhiday_webl",
     gt())
 
 
-data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
+data_maxhiday_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "meanmintempI",
+  c("gweight","maxhi_prior","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -599,29 +583,29 @@ data_maxhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.n
 #### degreehours_over_30C_priorweek
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(`degreehours_over_30C_priorweek`),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_deghr30week_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_deghr30week_webl)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_webl)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_webl)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_webl)
 
 (int_tab_growth_deghr30week_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -648,12 +632,6 @@ dat_text_deghr30week_webl <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
 
 
 mean_temp_deghr30week_webl <- mean(data_deghr30week_webl %>% pull(degreehours_over_30C_priorweek))
@@ -682,13 +660,7 @@ temp_trans_deghr30week_webl <- trans_new("temp_trans_deghr30week_webl",
                                   (2000-mean_temp_deghr30week_webl)/sd_temp_deghr30week_webl,
                                   (3000-mean_temp_deghr30week_webl)/sd_temp_deghr30week_webl,
                                   (4000-mean_temp_deghr30week_webl)/sd_temp_deghr30week_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$degreehours_over_30C_priorweek,na.rm = TRUE))/sd(g$degreehours_over_30C_priorweek,na.rm = TRUE),
-                       #            (55-mean(g$degreehours_over_30C_priorweek,na.rm = TRUE))/sd(g$degreehours_over_30C_priorweek,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_deghr30week_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -702,11 +674,9 @@ temp_trans_deghr30week_webl <- trans_new("temp_trans_deghr30week_webl",
     gt())
 
 
-data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
+data_deghr30week_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -728,29 +698,29 @@ data_deghr30week_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_ove
 #### hihours_over_30hi_priorweek
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(`hihours_over_30hi_priorweek`),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_hihr25week_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_hihr25week_webl)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_webl)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_webl)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_webl)
 
 (int_tab_growth_hihr25week_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -777,12 +747,6 @@ dat_text_hihr25week_webl <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
 
 
 mean_temp_hihr25week_webl <- mean(data_hihr25week_webl %>% pull(hihours_over_30hi_priorweek))
@@ -811,13 +775,7 @@ temp_trans_hihr25week_webl <- trans_new("temp_trans_hihr25week_webl",
                                   (2000-mean_temp_hihr25week_webl)/sd_temp_hihr25week_webl,
                                   (3000-mean_temp_hihr25week_webl)/sd_temp_hihr25week_webl,
                                   (4000-mean_temp_hihr25week_webl)/sd_temp_hihr25week_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$hihours_over_30hi_priorweek,na.rm = TRUE))/sd(g$hihours_over_30hi_priorweek,na.rm = TRUE),
-                       #            (55-mean(g$hihours_over_30hi_priorweek,na.rm = TRUE))/sd(g$hihours_over_30hi_priorweek,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_hihr25week_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -831,11 +789,9 @@ temp_trans_hihr25week_webl <- trans_new("temp_trans_hihr25week_webl",
     gt())
 
 
-data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
+data_hihr25week_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -858,29 +814,29 @@ data_hihr25week_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30h
 ### TRES
 #### maxhi_week
 
-g_lintemp <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_maxhiweek_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiweek_tres)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiweek_tres)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiweek_tres)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiweek_tres)
 
 (int_tab_growth_maxhiweek_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -907,12 +863,6 @@ dat_text_maxhiweek_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
 
 
 mean_temp_maxhiweek_tres <- mean(data_maxhiweek_tres %>% pull(maxhi_week))
@@ -941,13 +891,7 @@ temp_trans_maxhiweek_tres <- trans_new("temp_trans_maxhiweek_tres",
                                   (30-mean_temp_maxhiweek_tres)/sd_temp_maxhiweek_tres,
                                   (35-mean_temp_maxhiweek_tres)/sd_temp_maxhiweek_tres,
                                   (40-mean_temp_maxhiweek_tres)/sd_temp_maxhiweek_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$maxhi_week,na.rm = TRUE))/sd(g$maxhi_week,na.rm = TRUE),
-                       #            (55-mean(g$maxhi_week,na.rm = TRUE))/sd(g$maxhi_week,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_maxhiweek_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -961,11 +905,9 @@ temp_trans_maxhiweek_tres <- trans_new("temp_trans_maxhiweek_tres",
     gt())
 
 
-data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
+data_maxhiweek_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -988,29 +930,29 @@ data_maxhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.n
 #### maxhi_prior
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_maxhiday_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_prior", "meanmintempI",
+  c("gweight","maxhi_prior","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ maxhi_prior_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiday_tres)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ maxhi_prior_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiday_tres)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ maxhi_prior_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ maxhi_prior_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiday_tres)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ maxhi_prior_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_maxhiday_tres)
 
 (int_tab_growth_maxhiday_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -1037,12 +979,6 @@ dat_text_maxhiday_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
 
 
 mean_temp_maxhiday_tres <- mean(data_maxhiday_tres %>% pull(maxhi_prior))
@@ -1071,13 +1007,7 @@ temp_trans_maxhiday_tres <- trans_new("temp_trans_maxhiday_tres",
                                   (30-mean_temp_maxhiday_tres)/sd_temp_maxhiday_tres,
                                   (35-mean_temp_maxhiday_tres)/sd_temp_maxhiday_tres,
                                   (40-mean_temp_maxhiday_tres)/sd_temp_maxhiday_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$maxhi_prior,na.rm = TRUE))/sd(g$maxhi_prior,na.rm = TRUE),
-                       #            (55-mean(g$maxhi_prior,na.rm = TRUE))/sd(g$maxhi_prior,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_maxhiday_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1091,11 +1021,9 @@ temp_trans_maxhiday_tres <- trans_new("temp_trans_maxhiday_tres",
     gt())
 
 
-data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_prior,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
+data_maxhiday_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_prior", "meanmintempI",
+  c("gweight","maxhi_prior","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -1118,29 +1046,29 @@ data_maxhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.n
 #### degreehours_over_30C_priorweek
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(`degreehours_over_30C_priorweek`),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_deghr30week_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_deghr30week_tres)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_tres)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_tres)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_deghr30week_tres)
 
 (int_tab_growth_deghr30week_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -1167,12 +1095,6 @@ dat_text_deghr30week_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
 
 
 mean_temp_deghr30week_tres <- mean(data_deghr30week_tres %>% pull(degreehours_over_30C_priorweek))
@@ -1201,13 +1123,7 @@ temp_trans_deghr30week_tres <- trans_new("temp_trans_deghr30week_tres",
                                   (2000-mean_temp_deghr30week_tres)/sd_temp_deghr30week_tres,
                                   (3000-mean_temp_deghr30week_tres)/sd_temp_deghr30week_tres,
                                   (4000-mean_temp_deghr30week_tres)/sd_temp_deghr30week_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$degreehours_over_30C_priorweek,na.rm = TRUE))/sd(g$degreehours_over_30C_priorweek,na.rm = TRUE),
-                       #            (55-mean(g$degreehours_over_30C_priorweek,na.rm = TRUE))/sd(g$degreehours_over_30C_priorweek,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_deghr30week_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1221,11 +1137,9 @@ temp_trans_deghr30week_tres <- trans_new("temp_trans_deghr30week_tres",
     gt())
 
 
-data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
+data_deghr30week_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -1247,29 +1161,29 @@ data_deghr30week_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_ove
 #### hihours_over_30hi_priorweek
 
 
-g_lintemp <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(`hihours_over_30hi_priorweek`),!is.na(meanmintempI)) %>%
-                              mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                            ~ scale(.x)[,1],
-                                            .names = "{.col}_scaled"),
-                                     hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_hihr25week_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_hihr25week_tres)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_tres)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                    mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                  .names = "{.col}_scaled"),
-                                           hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_tres)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_hihr25week_tres)
 
 (int_tab_growth_hihr25week_tres <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -1296,12 +1210,6 @@ dat_text_hihr25week_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-
-data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
 
 
 mean_temp_hihr25week_tres <- mean(data_hihr25week_tres %>% pull(hihours_over_30hi_priorweek))
@@ -1330,13 +1238,7 @@ temp_trans_hihr25week_tres <- trans_new("temp_trans_hihr25week_tres",
                                   (2000-mean_temp_hihr25week_tres)/sd_temp_hihr25week_tres,
                                   (3000-mean_temp_hihr25week_tres)/sd_temp_hihr25week_tres,
                                   (4000-mean_temp_hihr25week_tres)/sd_temp_hihr25week_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$hihours_over_30hi_priorweek,na.rm = TRUE))/sd(g$hihours_over_30hi_priorweek,na.rm = TRUE),
-                       #            (55-mean(g$hihours_over_30hi_priorweek,na.rm = TRUE))/sd(g$hihours_over_30hi_priorweek,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_hihr25week_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1350,11 +1252,9 @@ temp_trans_hihr25week_tres <- trans_new("temp_trans_hihr25week_tres",
     gt())
 
 
-data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
+data_hihr25week_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
 
 ## Emmeans to check for effect of habitat
@@ -1379,36 +1279,36 @@ data_hihr25week_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30h
 
 save(list = ls(), file = "data/models_growth.RData")
 rm(list = ls()); gc()
-g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
+dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))
 
 ## ================================================================
 ## SECTION 2: CORTICOSTERONE MODELS
 ## ================================================================
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s1_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_webl)
 
 (int_tab_s1_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -1473,12 +1373,6 @@ dat_text_s1_webl <- data.frame(
 )
 
 
-data_s1_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s1_webl <- mean(data_s1_webl %>% pull(meanmaxtempI))
 sd_temp_s1_webl <- sd(data_s1_webl %>% pull(meanmaxtempI))
@@ -1505,24 +1399,16 @@ temp_trans_s1_webl <- trans_new("temp_trans_s1_webl",
                                   (30-mean_temp_s1_webl)/sd_temp_s1_webl,
                                   (35-mean_temp_s1_webl)/sd_temp_s1_webl,
                                   (40-mean_temp_s1_webl)/sd_temp_s1_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp <- mean(data %>% pull(meanmintempI))
@@ -1551,13 +1437,7 @@ temp_trans <- trans_new("temp_trans",
                                   (16-mean_temp)/sd_temp,
                                   (18-mean_temp)/sd_temp,
                                   (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1566,29 +1446,29 @@ temp_trans <- trans_new("temp_trans",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
 (int_tab_abs_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -1644,12 +1524,6 @@ dat_text_webl <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_webl <- mean(data_webl %>% pull(meanmaxtempI))
 sd_temp_webl <- sd(data_webl %>% pull(meanmaxtempI))
@@ -1676,11 +1550,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
     ylim(0,60) +
@@ -1689,11 +1558,9 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp <- mean(data %>% pull(meanmintempI))
@@ -1722,13 +1589,7 @@ temp_trans <- trans_new("temp_trans",
                                   (16-mean_temp)/sd_temp,
                                   (18-mean_temp)/sd_temp,
                                   (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1742,11 +1603,9 @@ temp_trans <- trans_new("temp_trans",
     gt())
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 ### Minimum temperature
@@ -1760,37 +1619,35 @@ data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintemp
     gt())
 
 
-data = dplyr::filter(g,Species == "WEBL",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
+data <- prep_model_data(
+  dat_growth, "WEBL", "meanmintempI", "meanmintempI",
+  c("gweight","meanmintempI","meanmintempI","juliandate","brood_size","age"))
 
 
 #### s2_cort
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s2_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_webl)
 
 (int_tab_s2_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -1854,12 +1711,6 @@ dat_text_s2_webl <- data.frame(
 )
 
 
-data_s2_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s2_webl <- mean(data_s2_webl %>% pull(meanmaxtempI))
 sd_temp_s2_webl <- sd(data_s2_webl %>% pull(meanmaxtempI))
@@ -1886,14 +1737,8 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
                                   (30-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (35-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (40-mean_temp_s2_webl)/sd_temp_s2_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -1902,29 +1747,29 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
 #### use prior day temp to predict cort instead
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s1_priordayt_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
 (int_tab_s1_priordayt_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -1966,12 +1811,6 @@ dat_text_s1_priordayt_webl <- data.frame(
 )
 
 
-data_s1_priordayt_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s1_priordayt_webl <- mean(data_s1_priordayt_webl %>% pull(maxt_prior))
 sd_temp_s1_priordayt_webl <- sd(data_s1_priordayt_webl %>% pull(maxt_prior))
@@ -1998,14 +1837,8 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
                                   (30-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (35-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (40-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2014,29 +1847,29 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
 #### use prior day temp to predict cort instead
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s2_priordayt_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
 (int_tab_s2_priordayt_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -2078,12 +1911,6 @@ dat_text_s2_priordayt_webl <- data.frame(
 )
 
 
-data_s2_priordayt_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s2_priordayt_webl <- mean(data_s2_priordayt_webl %>% pull(maxt_prior))
 sd_temp_s2_priordayt_webl <- sd(data_s2_priordayt_webl %>% pull(maxt_prior))
@@ -2110,14 +1937,8 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
                                   (30-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (35-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (40-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2126,29 +1947,29 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_webl_priordayt <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordayt)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordayt)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordayt)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordayt)
 
 (int_tab_abs_priordayt_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -2181,12 +2002,6 @@ dat_text_webl <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_priordayt = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_webl_priordayt <- mean(data_webl_priordayt %>% pull(maxt_prior))
 sd_temp_webl_priordayt <- sd(data_webl_priordayt %>% pull(maxt_prior))
@@ -2213,14 +2028,8 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
                                   (30-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (35-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (40-mean_temp_webl_priordayt)/sd_temp_webl_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2237,29 +2046,29 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
 #### use prior day heat index to predict cort instead
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                               mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_webl_priordaymaxhhi <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "minhi_prior",
+  c("gweight","maxhi_prior","minhi_prior","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
 (int_tab_s1_priordaymaxhhi_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -2301,11 +2110,9 @@ dat_text_s1_priordaymaxhhi_webl <- data.frame(
 )
 
 
-data_s1_priordaymaxhhi_webl =  dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
+data_s1_priordaymaxhhi_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "mint_prior",
+  c("gweight","maxhi_prior","mint_prior","juliandate","brood_size","age"))
 
 
 mean_temp_s1_priordaymaxhhi_webl <- mean(data_s1_priordaymaxhhi_webl %>% pull(maxhi_prior))
@@ -2333,14 +2140,8 @@ temp_trans_s1_priordaymaxhhi_webl <- trans_new("temp_trans_s1_priordaymaxhhi_web
                                   (60-mean_temp_s1_priordaymaxhhi_webl)/sd_temp_s1_priordaymaxhhi_webl,
                                   (80-mean_temp_s1_priordaymaxhhi_webl)/sd_temp_s1_priordaymaxhhi_webl,
                                   (100-mean_temp_s1_priordaymaxhhi_webl)/sd_temp_s1_priordaymaxhhi_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordaymaxhhi_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2348,29 +2149,29 @@ temp_trans_s1_priordaymaxhhi_webl <- trans_new("temp_trans_s1_priordaymaxhhi_web
 
 #### s2 cort
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                               mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_webl_priordaymaxhhi <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "minhi_prior",
+  c("gweight","maxhi_prior","minhi_prior","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
 (int_tab_s2_priordaymaxhhi_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -2412,11 +2213,9 @@ dat_text_s2_priordaymaxhhi_webl <- data.frame(
 )
 
 
-data_s2_priordaymaxhhi_webl =  dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
+data_s2_priordaymaxhhi_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "mint_prior",
+  c("gweight","maxhi_prior","mint_prior","juliandate","brood_size","age"))
 
 
 mean_temp_s2_priordaymaxhhi_webl <- mean(data_s2_priordaymaxhhi_webl %>% pull(maxhi_prior))
@@ -2444,14 +2243,8 @@ temp_trans_s2_priordaymaxhhi_webl <- trans_new("temp_trans_s2_priordaymaxhhi_web
                                   (60-mean_temp_s2_priordaymaxhhi_webl)/sd_temp_s2_priordaymaxhhi_webl,
                                   (80-mean_temp_s2_priordaymaxhhi_webl)/sd_temp_s2_priordaymaxhhi_webl,
                                   (100-mean_temp_s2_priordaymaxhhi_webl)/sd_temp_s2_priordaymaxhhi_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordaymaxhhi_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2460,29 +2253,29 @@ temp_trans_s2_priordaymaxhhi_webl <- trans_new("temp_trans_s2_priordaymaxhhi_web
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_webl_priordaymaxhhi <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_prior", "minhi_prior",
+  c("gweight","maxhi_prior","minhi_prior","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                       mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                       mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled + minhi_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + minhi_prior_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled + minhi_prior_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_priordaymaxhhi)
 
 (int_tab_abs_priordaymaxhhi_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -2515,12 +2308,6 @@ dat_text_priordaymaxhhi_webl <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_priordaymaxhhi = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_prior),!is.na(minhi_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,minhi_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
 
 mean_temp_webl_priordaymaxhhi <- mean(data_webl_priordaymaxhhi %>% pull(maxhi_prior))
 sd_temp_webl_priordaymaxhhi <- sd(data_webl_priordaymaxhhi %>% pull(maxhi_prior))
@@ -2547,14 +2334,8 @@ temp_trans_webl_priordaymaxhhi <- trans_new("temp_trans_webl_priordaymaxhhi",
                                   (60-mean_temp_webl_priordaymaxhhi)/sd_temp_webl_priordaymaxhhi,
                                   (80-mean_temp_webl_priordaymaxhhi)/sd_temp_webl_priordaymaxhhi,
                                   (100-mean_temp_webl_priordaymaxhhi)/sd_temp_webl_priordaymaxhhi),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_priordaymaxhhi_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2571,29 +2352,29 @@ temp_trans_webl_priordaymaxhhi <- trans_new("temp_trans_webl_priordaymaxhhi",
 #### use prior week heat index to predict cort instead
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_s1_weekhi_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_weekhi_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_webl)
 
 (int_tab_s1_weekhi_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -2635,12 +2416,6 @@ dat_text_s1_weekhi_webl <- data.frame(
 )
 
 
-data_s1_weekhi_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_s1_weekhi_webl <- mean(data_s1_weekhi_webl %>% pull(maxhi_week))
 sd_temp_s1_weekhi_webl <- sd(data_s1_weekhi_webl %>% pull(maxhi_week))
@@ -2667,14 +2442,8 @@ temp_trans_s1_weekhi_webl <- trans_new("temp_trans_s1_weekhi_webl",
                                   (40-mean_temp_s1_weekhi_webl)/sd_temp_s1_weekhi_webl,
                                   (50-mean_temp_s1_weekhi_webl)/sd_temp_s1_weekhi_webl,
                                   (60-mean_temp_s1_weekhi_webl)/sd_temp_s1_weekhi_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_weekhi_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2683,29 +2452,29 @@ temp_trans_s1_weekhi_webl <- trans_new("temp_trans_s1_weekhi_webl",
 #### s2 cort
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_s2_weekhi_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_weekhi_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_webl)
 
 (int_tab_s2_weekhi_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -2747,12 +2516,6 @@ dat_text_s2_weekhi_webl <- data.frame(
 )
 
 
-data_s2_weekhi_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_s2_weekhi_webl <- mean(data_s2_weekhi_webl %>% pull(maxhi_week))
 sd_temp_s2_weekhi_webl <- sd(data_s2_weekhi_webl %>% pull(maxhi_week))
@@ -2779,14 +2542,8 @@ temp_trans_s2_weekhi_webl <- trans_new("temp_trans_s2_weekhi_webl",
                                   (40-mean_temp_s2_weekhi_webl)/sd_temp_s2_weekhi_webl,
                                   (50-mean_temp_s2_weekhi_webl)/sd_temp_s2_weekhi_webl,
                                   (60-mean_temp_s2_weekhi_webl)/sd_temp_s2_weekhi_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_weekhi_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2795,29 +2552,29 @@ temp_trans_s2_weekhi_webl <- trans_new("temp_trans_s2_weekhi_webl",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_webl_weekhi <- prep_model_data(
+  dat_growth, "WEBL", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_weekhi)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_weekhi)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_weekhi)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl_weekhi)
 
 (int_tab_abs_weekhi_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -2850,12 +2607,6 @@ dat_text_webl_weekhi <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_weekhi = dplyr::filter(g,Species == "WEBL",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_webl_weekhi <- mean(data_webl_weekhi %>% pull(maxhi_week))
 sd_temp_webl_weekhi <- sd(data_webl_weekhi %>% pull(maxhi_week))
@@ -2882,14 +2633,8 @@ temp_trans_webl_weekhi <- trans_new("temp_trans_webl_weekhi",
                                   (40-mean_temp_webl_weekhi)/sd_temp_webl_weekhi,
                                   (50-mean_temp_webl_weekhi)/sd_temp_webl_weekhi,
                                   (60-mean_temp_webl_weekhi)/sd_temp_webl_weekhi),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl_weekhi, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -2906,29 +2651,29 @@ temp_trans_webl_weekhi <- trans_new("temp_trans_webl_weekhi",
 #### use cumulative prior day hi to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_s1_cumhiday_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_webl)
 
 (int_tab_s1_cumhiday_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -2970,12 +2715,6 @@ dat_text_s1_cumhiday_webl <- data.frame(
 )
 
 
-data_s1_cumhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_s1_cumhiday_webl <- mean(data_s1_cumhiday_webl %>% pull(hihours_over_30hi_priorday))
 sd_temp_s1_cumhiday_webl <- sd(data_s1_cumhiday_webl %>% pull(hihours_over_30hi_priorday))
@@ -3002,14 +2741,8 @@ temp_trans_s1_cumhiday_webl <- trans_new("temp_trans_s1_cumhiday_webl",
                                   (400-mean_temp_s1_cumhiday_webl)/sd_temp_s1_cumhiday_webl,
                                   (600-mean_temp_s1_cumhiday_webl)/sd_temp_s1_cumhiday_webl,
                                   (800-mean_temp_s1_cumhiday_webl)/sd_temp_s1_cumhiday_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumhiday_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3018,29 +2751,29 @@ temp_trans_s1_cumhiday_webl <- trans_new("temp_trans_s1_cumhiday_webl",
 #### use cumulative prior day hi to predict cort
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_s2_cumhiday_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_webl)
 
 (int_tab_s2_cumhiday_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -3082,12 +2815,6 @@ dat_text_s2_cumhiday_webl <- data.frame(
 )
 
 
-data_s2_cumhiday_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_s2_cumhiday_webl <- mean(data_s2_cumhiday_webl %>% pull(hihours_over_30hi_priorday))
 sd_temp_s2_cumhiday_webl <- sd(data_s2_cumhiday_webl %>% pull(hihours_over_30hi_priorday))
@@ -3114,14 +2841,8 @@ temp_trans_s2_cumhiday_webl <- trans_new("temp_trans_s2_cumhiday_webl",
                                   (400-mean_temp_s2_cumhiday_webl)/sd_temp_s2_cumhiday_webl,
                                   (600-mean_temp_s2_cumhiday_webl)/sd_temp_s2_cumhiday_webl,
                                   (800-mean_temp_s2_cumhiday_webl)/sd_temp_s2_cumhiday_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumhiday_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3130,29 +2851,29 @@ temp_trans_s2_cumhiday_webl <- trans_new("temp_trans_s2_cumhiday_webl",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_webl_cumhiday <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumhiday)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumhiday)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumhiday)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumhiday)
 
 (int_tab_abs_cumhiday_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -3185,12 +2906,6 @@ dat_text_webl_cumhiday <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_cumhiday = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_webl_cumhiday <- mean(data_webl_cumhiday %>% pull(hihours_over_30hi_priorday))
 sd_temp_webl_cumhiday <- sd(data_webl_cumhiday %>% pull(hihours_over_30hi_priorday))
@@ -3217,14 +2932,8 @@ temp_trans_webl_cumhiday <- trans_new("temp_trans_webl_cumhiday",
                                   (400-mean_temp_webl_cumhiday)/sd_temp_webl_cumhiday,
                                   (600-mean_temp_webl_cumhiday)/sd_temp_webl_cumhiday,
                                   (800-mean_temp_webl_cumhiday)/sd_temp_webl_cumhiday),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "solid","Grassland" = "solid","Row crop" = "solid")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl_cumhiday, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3241,29 +2950,29 @@ temp_trans_webl_cumhiday <- trans_new("temp_trans_webl_cumhiday",
 #### use cumulative prior week hi to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_s1_cumhiweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_webl)
 
 (int_tab_s1_cumhiweek_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -3305,12 +3014,6 @@ dat_text_s1_cumhiweek_webl <- data.frame(
 )
 
 
-data_s1_cumhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_temp_s1_cumhiweek_webl <- mean(data_s1_cumhiweek_webl %>% pull(hihours_over_30hi_priorweek))
 sd_temp_s1_cumhiweek_webl <- sd(data_s1_cumhiweek_webl %>% pull(hihours_over_30hi_priorweek))
@@ -3337,14 +3040,8 @@ temp_trans_s1_cumhiweek_webl <- trans_new("temp_trans_s1_cumhiweek_webl",
                                   (2000-mean_temp_s1_cumhiweek_webl)/sd_temp_s1_cumhiweek_webl,
                                   (3000-mean_temp_s1_cumhiweek_webl)/sd_temp_s1_cumhiweek_webl,
                                   (4000-mean_temp_s1_cumhiweek_webl)/sd_temp_s1_cumhiweek_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumhiweek_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3353,29 +3050,29 @@ temp_trans_s1_cumhiweek_webl <- trans_new("temp_trans_s1_cumhiweek_webl",
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_s2_cumhiweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_webl)
 
 (int_tab_s2_cumhiweek_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -3417,12 +3114,6 @@ dat_text_s2_cumhiweek_webl <- data.frame(
 )
 
 
-data_s2_cumhiweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_temp_s2_cumhiweek_webl <- mean(data_s2_cumhiweek_webl %>% pull(hihours_over_30hi_priorweek))
 sd_temp_s2_cumhiweek_webl <- sd(data_s2_cumhiweek_webl %>% pull(hihours_over_30hi_priorweek))
@@ -3449,14 +3140,8 @@ temp_trans_s2_cumhiweek_webl <- trans_new("temp_trans_s2_cumhiweek_webl",
                                   (2000-mean_temp_s2_cumhiweek_webl)/sd_temp_s2_cumhiweek_webl,
                                   (3000-mean_temp_s2_cumhiweek_webl)/sd_temp_s2_cumhiweek_webl,
                                   (4000-mean_temp_s2_cumhiweek_webl)/sd_temp_s2_cumhiweek_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dashed","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumhiweek_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3465,29 +3150,29 @@ temp_trans_s2_cumhiweek_webl <- trans_new("temp_trans_s2_cumhiweek_webl",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_abs_webl_cumhiweek <- prep_model_data(
+  dat_growth, "WEBL", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_webl_cumhiweek)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_webl_cumhiweek)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_webl_cumhiweek)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_webl_cumhiweek)
 
 (int_tab_abs_cumhiweek_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -3520,12 +3205,6 @@ dat_abs_text_webl_cumhiweek <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_abs_webl_cumhiweek = dplyr::filter(g,Species == "WEBL",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_abs_temp_webl_cumhiweek <- mean(data_abs_webl_cumhiweek %>% pull(hihours_over_30hi_priorweek))
 sd_abs_temp_webl_cumhiweek <- sd(data_abs_webl_cumhiweek %>% pull(hihours_over_30hi_priorweek))
@@ -3552,14 +3231,8 @@ temp_abs_trans_webl_cumhiweek <- trans_new("temp_trans_webl_cumhiweek",
                                   (2000-mean_abs_temp_webl_cumhiweek)/sd_abs_temp_webl_cumhiweek,
                                   (3000-mean_abs_temp_webl_cumhiweek)/sd_abs_temp_webl_cumhiweek,
                                   (4000-mean_abs_temp_webl_cumhiweek)/sd_abs_temp_webl_cumhiweek),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dashed","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_abs_text_webl_cumhiweek, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3576,29 +3249,29 @@ temp_abs_trans_webl_cumhiweek <- trans_new("temp_trans_webl_cumhiweek",
 #### use cumulative prior day temp to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_s1_cumdegreeday_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_webl)
 
 (int_tab_s1_cumdegreeday_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -3640,12 +3313,6 @@ dat_text_s1_cumdegreeday_webl <- data.frame(
 )
 
 
-data_s1_cumdegreeday_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_s1_cumdegreeday_webl <- mean(data_s1_cumdegreeday_webl %>% pull(degreehours_over_30C_priorday))
 sd_temp_s1_cumdegreeday_webl <- sd(data_s1_cumdegreeday_webl %>% pull(degreehours_over_30C_priorday))
@@ -3672,14 +3339,8 @@ temp_trans_s1_cumdegreeday_webl <- trans_new("temp_trans_s1_cumdegreeday_webl",
                                   (200-mean_temp_s1_cumdegreeday_webl)/sd_temp_s1_cumdegreeday_webl,
                                   (300-mean_temp_s1_cumdegreeday_webl)/sd_temp_s1_cumdegreeday_webl,
                                   (400-mean_temp_s1_cumdegreeday_webl)/sd_temp_s1_cumdegreeday_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumdegreeday_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3688,29 +3349,29 @@ temp_trans_s1_cumdegreeday_webl <- trans_new("temp_trans_s1_cumdegreeday_webl",
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_s2_cumdegreeday_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_webl)
 
 (int_tab_s2_cumdegreeday_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -3752,12 +3413,6 @@ dat_text_s2_cumdegreeday_webl <- data.frame(
 )
 
 
-data_s2_cumdegreeday_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_s2_cumdegreeday_webl <- mean(data_s2_cumdegreeday_webl %>% pull(degreehours_over_30C_priorday))
 sd_temp_s2_cumdegreeday_webl <- sd(data_s2_cumdegreeday_webl %>% pull(degreehours_over_30C_priorday))
@@ -3784,14 +3439,8 @@ temp_trans_s2_cumdegreeday_webl <- trans_new("temp_trans_s2_cumdegreeday_webl",
                                   (200-mean_temp_s2_cumdegreeday_webl)/sd_temp_s2_cumdegreeday_webl,
                                   (300-mean_temp_s2_cumdegreeday_webl)/sd_temp_s2_cumdegreeday_webl,
                                   (400-mean_temp_s2_cumdegreeday_webl)/sd_temp_s2_cumdegreeday_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumdegreeday_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3800,29 +3449,29 @@ temp_trans_s2_cumdegreeday_webl <- trans_new("temp_trans_s2_cumdegreeday_webl",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_webl_cumdegreeday <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeday)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeday)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeday)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeday)
 
 (int_tab_abs_cumdegreeday_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -3855,12 +3504,6 @@ dat_text_webl_cumdegreeday <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_cumdegreeday = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_webl_cumdegreeday <- mean(data_webl_cumdegreeday %>% pull(degreehours_over_30C_priorday))
 sd_temp_webl_cumdegreeday <- sd(data_webl_cumdegreeday %>% pull(degreehours_over_30C_priorday))
@@ -3887,14 +3530,8 @@ temp_trans_webl_cumdegreeday <- trans_new("temp_trans_webl_cumdegreeday",
                                   (200-mean_temp_webl_cumdegreeday)/sd_temp_webl_cumdegreeday,
                                   (300-mean_temp_webl_cumdegreeday)/sd_temp_webl_cumdegreeday,
                                   (400-mean_temp_webl_cumdegreeday)/sd_temp_webl_cumdegreeday),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl_cumdegreeday, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -3911,29 +3548,29 @@ temp_trans_webl_cumdegreeday <- trans_new("temp_trans_webl_cumdegreeday",
 #### use cumulative prior week temp to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_s1_cumdegreeweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_webl)
 
 (int_tab_s1_cumdegreeweek_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -3975,12 +3612,6 @@ dat_text_s1_cumdegreeweek_webl <- data.frame(
 )
 
 
-data_s1_cumdegreeweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_s1_cumdegreeweek_webl <- mean(data_s1_cumdegreeweek_webl %>% pull(degreehours_over_30C_priorweek))
 sd_temp_s1_cumdegreeweek_webl <- sd(data_s1_cumdegreeweek_webl %>% pull(degreehours_over_30C_priorweek))
@@ -4007,14 +3638,8 @@ temp_trans_s1_cumdegreeweek_webl <- trans_new("temp_trans_s1_cumdegreeweek_webl"
                                   (2000-mean_temp_s1_cumdegreeweek_webl)/sd_temp_s1_cumdegreeweek_webl,
                                   (3000-mean_temp_s1_cumdegreeweek_webl)/sd_temp_s1_cumdegreeweek_webl,
                                   (4000-mean_temp_s1_cumdegreeweek_webl)/sd_temp_s1_cumdegreeweek_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("solid","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumdegreeweek_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4023,29 +3648,29 @@ temp_trans_s1_cumdegreeweek_webl <- trans_new("temp_trans_s1_cumdegreeweek_webl"
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_s2_cumdegreeweek_webl <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_webl)
 
 (int_tab_s2_cumdegreeweek_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -4087,12 +3712,6 @@ dat_text_s2_cumdegreeweek_webl <- data.frame(
 )
 
 
-data_s2_cumdegreeweek_webl = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_s2_cumdegreeweek_webl <- mean(data_s2_cumdegreeweek_webl %>% pull(degreehours_over_30C_priorweek))
 sd_temp_s2_cumdegreeweek_webl <- sd(data_s2_cumdegreeweek_webl %>% pull(degreehours_over_30C_priorweek))
@@ -4119,14 +3738,8 @@ temp_trans_s2_cumdegreeweek_webl <- trans_new("temp_trans_s2_cumdegreeweek_webl"
                                   (2000-mean_temp_s2_cumdegreeweek_webl)/sd_temp_s2_cumdegreeweek_webl,
                                   (3000-mean_temp_s2_cumdegreeweek_webl)/sd_temp_s2_cumdegreeweek_webl,
                                   (4000-mean_temp_s2_cumdegreeweek_webl)/sd_temp_s2_cumdegreeweek_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumdegreeweek_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4135,29 +3748,29 @@ temp_trans_s2_cumdegreeweek_webl <- trans_new("temp_trans_s2_cumdegreeweek_webl"
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_webl_cumdegreeweek <- prep_model_data(
+  dat_growth, "WEBL", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeweek)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeweek)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeweek)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_cumdegreeweek)
 
 (int_tab_abs_cumdegreeweek_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -4190,12 +3803,6 @@ dat_text_webl_cumdegreeweek <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_webl_cumdegreeweek = dplyr::filter(g,Species == "WEBL",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_webl_cumdegreeweek <- mean(data_webl_cumdegreeweek %>% pull(degreehours_over_30C_priorweek))
 sd_temp_webl_cumdegreeweek <- sd(data_webl_cumdegreeweek %>% pull(degreehours_over_30C_priorweek))
@@ -4222,14 +3829,8 @@ temp_trans_webl_cumdegreeweek <- trans_new("temp_trans_webl_cumdegreeweek",
                                   (2000-mean_temp_webl_cumdegreeweek)/sd_temp_webl_cumdegreeweek,
                                   (3000-mean_temp_webl_cumdegreeweek)/sd_temp_webl_cumdegreeweek,
                                   (4000-mean_temp_webl_cumdegreeweek)/sd_temp_webl_cumdegreeweek),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl_cumdegreeweek, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4248,29 +3849,29 @@ temp_trans_webl_cumdegreeweek <- trans_new("temp_trans_webl_cumdegreeweek",
 #### cort_s1
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s1_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_tres)
 
 (int_tab_s1_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -4325,12 +3926,6 @@ dat_text_s1_tres <- data.frame(
     gt())
 
 
-data_s1_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s1_tres <- mean(data_s1_tres %>% pull(meanmaxtempI))
 sd_temp_s1_tres <- sd(data_s1_tres %>% pull(meanmaxtempI))
@@ -4357,24 +3952,16 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
                                   (30-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (35-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (40-mean_temp_s1_tres)/sd_temp_s1_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
 
 
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp <- mean(data %>% pull(meanmintempI))
@@ -4403,13 +3990,7 @@ temp_trans <- trans_new("temp_trans",
                                   (16-mean_temp)/sd_temp,
                                   (18-mean_temp)/sd_temp,
                                   (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4437,29 +4018,29 @@ temp_trans <- trans_new("temp_trans",
 #### cort_s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s2_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_tres)
 
 (int_tab_s2_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -4518,12 +4099,6 @@ dat_text_s2_tres <- data.frame(
     gt())
 
 
-data_s2_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s2_tres <- mean(data_s2_tres %>% pull(meanmaxtempI))
 sd_temp_s2_tres <- sd(data_s2_tres %>% pull(meanmaxtempI))
@@ -4550,14 +4125,8 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
                                   (30-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (35-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (40-mean_temp_s2_tres)/sd_temp_s2_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4566,29 +4135,29 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres)
 
 (int_tab_abs_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -4634,12 +4203,6 @@ dat_text_tres <- data.frame(
 )
 
 
-data_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_tres <- mean(data_tres %>% pull(meanmaxtempI))
 sd_temp_tres <- sd(data_tres %>% pull(meanmaxtempI))
@@ -4666,24 +4229,16 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dashed","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
 
 
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp <- mean(data %>% pull(meanmintempI))
@@ -4712,13 +4267,7 @@ temp_trans <- trans_new("temp_trans",
                                   (16-mean_temp)/sd_temp,
                                   (18-mean_temp)/sd_temp,
                                   (20-mean_temp)/sd_temp),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4743,11 +4292,9 @@ temp_trans <- trans_new("temp_trans",
     gt())
 
 
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
+data <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 ### Minimum temperature
@@ -4761,39 +4308,37 @@ data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintemp
     gt())
 
 
-data = dplyr::filter(g,Species == "TRES",!is.na(meanmintempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmintempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmintempI_scaled_sq = meanmintempI_scaled * meanmintempI_scaled)
+data <- prep_model_data(
+  dat_growth, "TRES", "meanmintempI", "meanmintempI",
+  c("gweight","meanmintempI","meanmintempI","juliandate","brood_size","age"))
 
 
 #### use prior day temp to predict cort instead
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s1_priordayt_tres <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
 (int_tab_s1_priordayt_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -4835,12 +4380,6 @@ dat_text_s1_priordayt_tres <- data.frame(
 )
 
 
-data_s1_priordayt_tres = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s1_priordayt_tres <- mean(data_s1_priordayt_tres %>% pull(maxt_prior))
 sd_temp_s1_priordayt_tres <- sd(data_s1_priordayt_tres %>% pull(maxt_prior))
@@ -4867,14 +4406,8 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
                                   (45-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (55-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (65-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dashed","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4883,29 +4416,29 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s2_priordayt_tres <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
 (int_tab_s2_priordayt_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -4947,12 +4480,6 @@ dat_text_s2_priordayt_tres <- data.frame(
 )
 
 
-data_s2_priordayt_tres = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s2_priordayt_tres <- mean(data_s2_priordayt_tres %>% pull(maxt_prior))
 sd_temp_s2_priordayt_tres <- sd(data_s2_priordayt_tres %>% pull(maxt_prior))
@@ -4979,14 +4506,8 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
                                   (45-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (55-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (65-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dashed")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -4995,29 +4516,29 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_tres_priordayt <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordayt)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordayt)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordayt)
 
 (int_tab_abs_priordayt_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -5050,12 +4571,6 @@ dat_text_tres <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_priordayt = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_tres_priordayt <- mean(data_tres_priordayt %>% pull(maxt_prior))
 sd_temp_tres_priordayt <- sd(data_tres_priordayt %>% pull(maxt_prior))
@@ -5082,14 +4597,8 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
                                   (30-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (35-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (40-mean_temp_tres_priordayt)/sd_temp_tres_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5106,29 +4615,29 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
 #### use prior day heat index to predict cort instead
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_s1_priordaymaxhhi_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_prior", "mint_prior",
+  c("gweight","maxhi_prior","mint_prior","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordaymaxhhi_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordaymaxhhi_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordaymaxhhi_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordaymaxhhi_tres)
 
 (int_tab_s1_priordaymaxhhi_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -5170,12 +4679,6 @@ dat_text_s1_priordaymaxhhi_tres <- data.frame(
 )
 
 
-data_s1_priordaymaxhhi_tres =  dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
 
 mean_temp_s1_priordaymaxhhi_tres <- mean(data_s1_priordaymaxhhi_tres %>% pull(maxhi_prior))
 sd_temp_s1_priordaymaxhhi_tres <- sd(data_s1_priordaymaxhhi_tres %>% pull(maxhi_prior))
@@ -5202,14 +4705,8 @@ temp_trans_s1_priordaymaxhhi_tres <- trans_new("temp_trans_s1_priordaymaxhhi_tre
                                   (60-mean_temp_s1_priordaymaxhhi_tres)/sd_temp_s1_priordaymaxhhi_tres,
                                   (80-mean_temp_s1_priordaymaxhhi_tres)/sd_temp_s1_priordaymaxhhi_tres,
                                   (100-mean_temp_s1_priordaymaxhhi_tres)/sd_temp_s1_priordaymaxhhi_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("solid","solid","solid","solid")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordaymaxhhi_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5218,29 +4715,29 @@ temp_trans_s1_priordaymaxhhi_tres <- trans_new("temp_trans_s1_priordaymaxhhi_tre
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_s2_priordaymaxhhi_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_prior", "mint_prior",
+  c("gweight","maxhi_prior","mint_prior","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordaymaxhhi_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordaymaxhhi_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordaymaxhhi_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordaymaxhhi_tres)
 
 (int_tab_s2_priordaymaxhhi_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -5282,12 +4779,6 @@ dat_text_s2_priordaymaxhhi_tres <- data.frame(
 )
 
 
-data_s2_priordaymaxhhi_tres =  dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
 
 mean_temp_s2_priordaymaxhhi_tres <- mean(data_s2_priordaymaxhhi_tres %>% pull(maxhi_prior))
 sd_temp_s2_priordaymaxhhi_tres <- sd(data_s2_priordaymaxhhi_tres %>% pull(maxhi_prior))
@@ -5314,14 +4805,8 @@ temp_trans_s2_priordaymaxhhi_tres <- trans_new("temp_trans_s2_priordaymaxhhi_tre
                                   (60-mean_temp_s2_priordaymaxhhi_tres)/sd_temp_s2_priordaymaxhhi_tres,
                                   (80-mean_temp_s2_priordaymaxhhi_tres)/sd_temp_s2_priordaymaxhhi_tres,
                                   (100-mean_temp_s2_priordaymaxhhi_tres)/sd_temp_s2_priordaymaxhhi_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","solid","dotted","dashed")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordaymaxhhi_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5330,29 +4815,29 @@ temp_trans_s2_priordaymaxhhi_tres <- trans_new("temp_trans_s2_priordaymaxhhi_tre
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+data_tres_priordaymaxhhi <- prep_model_data(
+  dat_growth, "TRES", "maxhi_prior", "mint_prior",
+  c("gweight","maxhi_prior","mint_prior","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_priordaymaxhhi)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordaymaxhhi)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordaymaxhhi)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_tres_priordaymaxhhi)
 
 (int_tab_abs_priordaymaxhhi_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -5385,12 +4870,6 @@ dat_text_priordaymaxhhi_tres <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_priordaymaxhhi = dplyr::filter(g,Species == "TRES",!is.na(maxhi_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxhi_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_prior_scaled_sq = maxhi_prior_scaled * maxhi_prior_scaled)
-
 
 mean_temp_tres_priordaymaxhhi <- mean(data_tres_priordaymaxhhi %>% pull(maxhi_prior))
 sd_temp_tres_priordaymaxhhi <- sd(data_tres_priordaymaxhhi %>% pull(maxhi_prior))
@@ -5417,14 +4896,8 @@ temp_trans_tres_priordaymaxhhi <- trans_new("temp_trans_tres_priordaymaxhhi",
                                   (60-mean_temp_tres_priordaymaxhhi)/sd_temp_tres_priordaymaxhhi,
                                   (80-mean_temp_tres_priordaymaxhhi)/sd_temp_tres_priordaymaxhhi,
                                   (100-mean_temp_tres_priordaymaxhhi)/sd_temp_tres_priordaymaxhhi),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_priordaymaxhhi_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5441,29 +4914,29 @@ temp_trans_tres_priordaymaxhhi <- trans_new("temp_trans_tres_priordaymaxhhi",
 ## Use prior week heat index to test against cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_s1_weekhi_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_weekhi_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_weekhi_tres)
 
 (int_tab_s1_weekhi_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -5505,12 +4978,6 @@ dat_text_s1_weekhi_tres <- data.frame(
 )
 
 
-data_s1_weekhi_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_s1_weekhi_tres <- mean(data_s1_weekhi_tres %>% pull(maxhi_week))
 sd_temp_s1_weekhi_tres <- sd(data_s1_weekhi_tres %>% pull(maxhi_week))
@@ -5537,14 +5004,8 @@ temp_trans_s1_weekhi_tres <- trans_new("temp_trans_s1_weekhi_tres",
                                   (40-mean_temp_s1_weekhi_tres)/sd_temp_s1_weekhi_tres,
                                   (50-mean_temp_s1_weekhi_tres)/sd_temp_s1_weekhi_tres,
                                   (60-mean_temp_s1_weekhi_tres)/sd_temp_s1_weekhi_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_weekhi_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5553,29 +5014,29 @@ temp_trans_s1_weekhi_tres <- trans_new("temp_trans_s1_weekhi_tres",
 ## s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_s2_weekhi_tres <- prep_model_data(
+  dat_growth, "TRES", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_weekhi_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_weekhi_tres)
 
 (int_tab_s2_weekhi_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -5617,12 +5078,6 @@ dat_text_s2_weekhi_tres <- data.frame(
 )
 
 
-data_s2_weekhi_tres = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_s2_weekhi_tres <- mean(data_s2_weekhi_tres %>% pull(maxhi_week))
 sd_temp_s2_weekhi_tres <- sd(data_s2_weekhi_tres %>% pull(maxhi_week))
@@ -5649,14 +5104,8 @@ temp_trans_s2_weekhi_tres <- trans_new("temp_trans_s2_weekhi_tres",
                                   (40-mean_temp_s2_weekhi_tres)/sd_temp_s2_weekhi_tres,
                                   (50-mean_temp_s2_weekhi_tres)/sd_temp_s2_weekhi_tres,
                                   (60-mean_temp_s2_weekhi_tres)/sd_temp_s2_weekhi_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dashed","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_weekhi_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5665,29 +5114,29 @@ temp_trans_s2_weekhi_tres <- trans_new("temp_trans_s2_weekhi_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+data_tres_weekhi <- prep_model_data(
+  dat_growth, "TRES", "maxhi_week", "meanmintempI",
+  c("gweight","maxhi_week","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_weekhi)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_weekhi)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_weekhi)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxhi_week_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_weekhi)
 
 (int_tab_abs_weekhi_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -5720,12 +5169,6 @@ dat_text_tres_weekhi <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_weekhi = dplyr::filter(g,Species == "TRES",!is.na(maxhi_week),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,maxhi_week,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxhi_week_scaled_sq = maxhi_week_scaled * maxhi_week_scaled)
-
 
 mean_temp_tres_weekhi <- mean(data_tres_weekhi %>% pull(maxhi_week))
 sd_temp_tres_weekhi <- sd(data_tres_weekhi %>% pull(maxhi_week))
@@ -5752,14 +5195,8 @@ temp_trans_tres_weekhi <- trans_new("temp_trans_tres_weekhi",
                                   (50-mean_temp_tres_weekhi)/sd_temp_tres_weekhi,
                                   (60-mean_temp_tres_weekhi)/sd_temp_tres_weekhi,
                                   (70-mean_temp_tres_weekhi)/sd_temp_tres_weekhi),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres_weekhi, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5776,29 +5213,29 @@ temp_trans_tres_weekhi <- trans_new("temp_trans_tres_weekhi",
 #### use cumulative prior day hi to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_s1_cumhiday_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiday_tres)
 
 (int_tab_s1_cumhiday_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -5840,12 +5277,6 @@ dat_text_s1_cumhiday_tres <- data.frame(
 )
 
 
-data_s1_cumhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_s1_cumhiday_tres <- mean(data_s1_cumhiday_tres %>% pull(hihours_over_30hi_priorday))
 sd_temp_s1_cumhiday_tres <- sd(data_s1_cumhiday_tres %>% pull(hihours_over_30hi_priorday))
@@ -5872,14 +5303,8 @@ temp_trans_s1_cumhiday_tres <- trans_new("temp_trans_s1_cumhiday_tres",
                                   (400-mean_temp_s1_cumhiday_tres)/sd_temp_s1_cumhiday_tres,
                                   (600-mean_temp_s1_cumhiday_tres)/sd_temp_s1_cumhiday_tres,
                                   (800-mean_temp_s1_cumhiday_tres)/sd_temp_s1_cumhiday_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumhiday_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -5888,29 +5313,29 @@ temp_trans_s1_cumhiday_tres <- trans_new("temp_trans_s1_cumhiday_tres",
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_s2_cumhiday_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiday_tres)
 
 (int_tab_s2_cumhiday_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -5952,12 +5377,6 @@ dat_text_s2_cumhiday_tres <- data.frame(
 )
 
 
-data_s2_cumhiday_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_s2_cumhiday_tres <- mean(data_s2_cumhiday_tres %>% pull(hihours_over_30hi_priorday))
 sd_temp_s2_cumhiday_tres <- sd(data_s2_cumhiday_tres %>% pull(hihours_over_30hi_priorday))
@@ -5984,14 +5403,8 @@ temp_trans_s2_cumhiday_tres <- trans_new("temp_trans_s2_cumhiday_tres",
                                   (400-mean_temp_s2_cumhiday_tres)/sd_temp_s2_cumhiday_tres,
                                   (600-mean_temp_s2_cumhiday_tres)/sd_temp_s2_cumhiday_tres,
                                   (800-mean_temp_s2_cumhiday_tres)/sd_temp_s2_cumhiday_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumhiday_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6000,29 +5413,29 @@ temp_trans_s2_cumhiday_tres <- trans_new("temp_trans_s2_cumhiday_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+data_tres_cumhiday <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorday", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorday","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumhiday)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumhiday)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumhiday)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumhiday)
 
 (int_tab_abs_cumhiday_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -6055,12 +5468,6 @@ dat_text_tres_cumhiday <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_cumhiday = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorday_scaled_sq = hihours_over_30hi_priorday_scaled * hihours_over_30hi_priorday_scaled)
-
 
 mean_temp_tres_cumhiday <- mean(data_tres_cumhiday %>% pull(hihours_over_30hi_priorday))
 sd_temp_tres_cumhiday <- sd(data_tres_cumhiday %>% pull(hihours_over_30hi_priorday))
@@ -6087,14 +5494,8 @@ temp_trans_tres_cumhiday <- trans_new("temp_trans_tres_cumhiday",
                                   (400-mean_temp_tres_cumhiday)/sd_temp_tres_cumhiday,
                                   (600-mean_temp_tres_cumhiday)/sd_temp_tres_cumhiday,
                                   (800-mean_temp_tres_cumhiday)/sd_temp_tres_cumhiday),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dashed","Orchard" = "dashed","Grassland" = "dashed","Row crop" = "dashed")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres_cumhiday, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6111,29 +5512,29 @@ temp_trans_tres_cumhiday <- trans_new("temp_trans_tres_cumhiday",
 #### use cumulative prior week hi to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_s1_cumhiweek_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_cumhiweek_tres)
 
 (int_tab_s1_cumhiweek_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -6175,12 +5576,6 @@ dat_text_s1_cumhiweek_tres <- data.frame(
 )
 
 
-data_s1_cumhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_temp_s1_cumhiweek_tres <- mean(data_s1_cumhiweek_tres %>% pull(hihours_over_30hi_priorweek))
 sd_temp_s1_cumhiweek_tres <- sd(data_s1_cumhiweek_tres %>% pull(hihours_over_30hi_priorweek))
@@ -6207,14 +5602,8 @@ temp_trans_s1_cumhiweek_tres <- trans_new("temp_trans_s1_cumhiweek_tres",
                                   (2000-mean_temp_s1_cumhiweek_tres)/sd_temp_s1_cumhiweek_tres,
                                   (3000-mean_temp_s1_cumhiweek_tres)/sd_temp_s1_cumhiweek_tres,
                                   (4000-mean_temp_s1_cumhiweek_tres)/sd_temp_s1_cumhiweek_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumhiweek_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6223,29 +5612,29 @@ temp_trans_s1_cumhiweek_tres <- trans_new("temp_trans_s1_cumhiweek_tres",
 #### s2
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_s2_cumhiweek_tres <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_cumhiweek_tres)
 
 (int_tab_s2_cumhiweek_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -6287,12 +5676,6 @@ dat_text_s2_cumhiweek_tres <- data.frame(
 )
 
 
-data_s2_cumhiweek_tres = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_temp_s2_cumhiweek_tres <- mean(data_s2_cumhiweek_tres %>% pull(hihours_over_30hi_priorweek))
 sd_temp_s2_cumhiweek_tres <- sd(data_s2_cumhiweek_tres %>% pull(hihours_over_30hi_priorweek))
@@ -6319,14 +5702,8 @@ temp_trans_s2_cumhiweek_tres <- trans_new("temp_trans_s2_cumhiweek_tres",
                                   (2000-mean_temp_s2_cumhiweek_tres)/sd_temp_s2_cumhiweek_tres,
                                   (3000-mean_temp_s2_cumhiweek_tres)/sd_temp_s2_cumhiweek_tres,
                                   (4000-mean_temp_s2_cumhiweek_tres)/sd_temp_s2_cumhiweek_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumhiweek_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6335,29 +5712,29 @@ temp_trans_s2_cumhiweek_tres <- trans_new("temp_trans_s2_cumhiweek_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+data_abs_tres_cumhiweek <- prep_model_data(
+  dat_growth, "TRES", "hihours_over_30hi_priorweek", "meanmintempI",
+  c("gweight","hihours_over_30hi_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_tres_cumhiweek)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_tres_cumhiweek)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_tres_cumhiweek)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ hihours_over_30hi_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_abs_tres_cumhiweek)
 
 (int_tab_abs_cumhiweek_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -6390,12 +5767,6 @@ dat_abs_text_tres_cumhiweek <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_abs_tres_cumhiweek = dplyr::filter(g,Species == "TRES",!is.na(hihours_over_30hi_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,hihours_over_30hi_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         hihours_over_30hi_priorweek_scaled_sq = hihours_over_30hi_priorweek_scaled * hihours_over_30hi_priorweek_scaled)
-
 
 mean_abs_temp_tres_cumhiweek <- mean(data_abs_tres_cumhiweek %>% pull(hihours_over_30hi_priorweek))
 sd_abs_temp_tres_cumhiweek <- sd(data_abs_tres_cumhiweek %>% pull(hihours_over_30hi_priorweek))
@@ -6422,14 +5793,8 @@ temp_abs_trans_tres_cumhiweek <- trans_new("temp_trans_tres_cumhiweek",
                                   (2000-mean_abs_temp_tres_cumhiweek)/sd_abs_temp_tres_cumhiweek,
                                   (3000-mean_abs_temp_tres_cumhiweek)/sd_abs_temp_tres_cumhiweek,
                                   (4000-mean_abs_temp_tres_cumhiweek)/sd_abs_temp_tres_cumhiweek),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_abs_text_tres_cumhiweek, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6446,29 +5811,29 @@ temp_abs_trans_tres_cumhiweek <- trans_new("temp_trans_tres_cumhiweek",
 #### use cumulative prior day temp to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_s1_cumdegreeday_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeday_tres)
 
 (int_tab_s1_cumdegreeday_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -6510,12 +5875,6 @@ dat_text_s1_cumdegreeday_tres <- data.frame(
 )
 
 
-data_s1_cumdegreeday_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_s1_cumdegreeday_tres <- mean(data_s1_cumdegreeday_tres %>% pull(degreehours_over_30C_priorday))
 sd_temp_s1_cumdegreeday_tres <- sd(data_s1_cumdegreeday_tres %>% pull(degreehours_over_30C_priorday))
@@ -6542,14 +5901,8 @@ temp_trans_s1_cumdegreeday_tres <- trans_new("temp_trans_s1_cumdegreeday_tres",
                                   (200-mean_temp_s1_cumdegreeday_tres)/sd_temp_s1_cumdegreeday_tres,
                                   (300-mean_temp_s1_cumdegreeday_tres)/sd_temp_s1_cumdegreeday_tres,
                                   (400-mean_temp_s1_cumdegreeday_tres)/sd_temp_s1_cumdegreeday_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumdegreeday_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6558,29 +5911,29 @@ temp_trans_s1_cumdegreeday_tres <- trans_new("temp_trans_s1_cumdegreeday_tres",
 #### use cumulative prior day temp to predict cort
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_s2_cumdegreeday_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeday_tres)
 
 (int_tab_s2_cumdegreeday_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -6622,12 +5975,6 @@ dat_text_s2_cumdegreeday_tres <- data.frame(
 )
 
 
-data_s2_cumdegreeday_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_s2_cumdegreeday_tres <- mean(data_s2_cumdegreeday_tres %>% pull(degreehours_over_30C_priorday))
 sd_temp_s2_cumdegreeday_tres <- sd(data_s2_cumdegreeday_tres %>% pull(degreehours_over_30C_priorday))
@@ -6654,14 +6001,8 @@ temp_trans_s2_cumdegreeday_tres <- trans_new("temp_trans_s2_cumdegreeday_tres",
                                   (200-mean_temp_s2_cumdegreeday_tres)/sd_temp_s2_cumdegreeday_tres,
                                   (300-mean_temp_s2_cumdegreeday_tres)/sd_temp_s2_cumdegreeday_tres,
                                   (400-mean_temp_s2_cumdegreeday_tres)/sd_temp_s2_cumdegreeday_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dashed","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumdegreeday_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6670,29 +6011,29 @@ temp_trans_s2_cumdegreeday_tres <- trans_new("temp_trans_s2_cumdegreeday_tres",
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+data_tres_cumdegreeday <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorday", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorday","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeday)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeday)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeday)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorday_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeday)
 
 (int_tab_abs_cumdegreeday_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -6725,12 +6066,6 @@ dat_text_tres_cumdegreeday <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_cumdegreeday = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorday),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorday,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorday_scaled_sq = degreehours_over_30C_priorday_scaled * degreehours_over_30C_priorday_scaled)
-
 
 mean_temp_tres_cumdegreeday <- mean(data_tres_cumdegreeday %>% pull(degreehours_over_30C_priorday))
 sd_temp_tres_cumdegreeday <- sd(data_tres_cumdegreeday %>% pull(degreehours_over_30C_priorday))
@@ -6757,14 +6092,8 @@ temp_trans_tres_cumdegreeday <- trans_new("temp_trans_tres_cumdegreeday",
                                   (200-mean_temp_tres_cumdegreeday)/sd_temp_tres_cumdegreeday,
                                   (300-mean_temp_tres_cumdegreeday)/sd_temp_tres_cumdegreeday,
                                   (400-mean_temp_tres_cumdegreeday)/sd_temp_tres_cumdegreeday),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres_cumdegreeday, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6781,29 +6110,29 @@ temp_trans_tres_cumdegreeday <- trans_new("temp_trans_tres_cumdegreeday",
 #### use cumulative prior week temp to predict cort
 
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_s1_cumdegreeweek_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_cumdegreeweek_tres)
 
 (int_tab_s1_cumdegreeweek_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -6845,12 +6174,6 @@ dat_text_s1_cumdegreeweek_tres <- data.frame(
 )
 
 
-data_s1_cumdegreeweek_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_s1_cumdegreeweek_tres <- mean(data_s1_cumdegreeweek_tres %>% pull(degreehours_over_30C_priorweek))
 sd_temp_s1_cumdegreeweek_tres <- sd(data_s1_cumdegreeweek_tres %>% pull(degreehours_over_30C_priorweek))
@@ -6877,14 +6200,8 @@ temp_trans_s1_cumdegreeweek_tres <- trans_new("temp_trans_s1_cumdegreeweek_tres"
                                   (2000-mean_temp_s1_cumdegreeweek_tres)/sd_temp_s1_cumdegreeweek_tres,
                                   (3000-mean_temp_s1_cumdegreeweek_tres)/sd_temp_s1_cumdegreeweek_tres,
                                   (4000-mean_temp_s1_cumdegreeweek_tres)/sd_temp_s1_cumdegreeweek_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_cumdegreeweek_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -6893,29 +6210,29 @@ temp_trans_s1_cumdegreeweek_tres <- trans_new("temp_trans_s1_cumdegreeweek_tres"
 #### use cumulative prior week temp to predict cort
 
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_s2_cumdegreeweek_tres <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_cumdegreeweek_tres)
 
 (int_tab_s2_cumdegreeweek_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -6957,12 +6274,6 @@ dat_text_s2_cumdegreeweek_tres <- data.frame(
 )
 
 
-data_s2_cumdegreeweek_tres = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_s2_cumdegreeweek_tres <- mean(data_s2_cumdegreeweek_tres %>% pull(degreehours_over_30C_priorweek))
 sd_temp_s2_cumdegreeweek_tres <- sd(data_s2_cumdegreeweek_tres %>% pull(degreehours_over_30C_priorweek))
@@ -6989,14 +6300,8 @@ temp_trans_s2_cumdegreeweek_tres <- trans_new("temp_trans_s2_cumdegreeweek_tres"
                                   (2000-mean_temp_s2_cumdegreeweek_tres)/sd_temp_s2_cumdegreeweek_tres,
                                   (3000-mean_temp_s2_cumdegreeweek_tres)/sd_temp_s2_cumdegreeweek_tres,
                                   (4000-mean_temp_s2_cumdegreeweek_tres)/sd_temp_s2_cumdegreeweek_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_cumdegreeweek_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -7005,29 +6310,29 @@ temp_trans_s2_cumdegreeweek_tres <- trans_new("temp_trans_s2_cumdegreeweek_tres"
 #### abs_change_cort
 
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+data_tres_cumdegreeweek <- prep_model_data(
+  dat_growth, "TRES", "degreehours_over_30C_priorweek", "meanmintempI",
+  c("gweight","degreehours_over_30C_priorweek","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeweek)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeweek)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled * habitat + meanmintempI_scaled + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeweek)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ degreehours_over_30C_priorweek_scaled + meanmintempI_scaled + habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_cumdegreeweek)
 
 (int_tab_abs_cumdegreeweek_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -7060,12 +6365,6 @@ dat_text_tres_cumdegreeweek <- data.frame(
            across(p.value,~round(.x,digits = 3))) %>% gt())
 
 
-data_tres_cumdegreeweek = dplyr::filter(g,Species == "TRES",!is.na(degreehours_over_30C_priorweek),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,degreehours_over_30C_priorweek,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         degreehours_over_30C_priorweek_scaled_sq = degreehours_over_30C_priorweek_scaled * degreehours_over_30C_priorweek_scaled)
-
 
 mean_temp_tres_cumdegreeweek <- mean(data_tres_cumdegreeweek %>% pull(degreehours_over_30C_priorweek))
 sd_temp_tres_cumdegreeweek <- sd(data_tres_cumdegreeweek %>% pull(degreehours_over_30C_priorweek))
@@ -7092,14 +6391,8 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
                                   (2000-mean_temp_tres_cumdegreeweek)/sd_temp_tres_cumdegreeweek,
                                   (3000-mean_temp_tres_cumdegreeweek)/sd_temp_tres_cumdegreeweek,
                                   (4000-mean_temp_tres_cumdegreeweek)/sd_temp_tres_cumdegreeweek),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres_cumdegreeweek, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -7115,7 +6408,7 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
 
 save(list = ls(), file = "data/models_cort.RData")
 rm(list = ls()); gc()
-s <- read_rds("data/survival_attempt.rds") %>%
+dat_surv <- read_rds("data/survival_attempt.rds") %>%
   mutate(juliandate_inc = yday(inc_date),
          juliandate_hatch = yday(hatch_date),
          year_fct = factor(year),
@@ -7140,7 +6433,7 @@ s <- read_rds("data/survival_attempt.rds") %>%
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "WEBL",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7152,7 +6445,7 @@ s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_n
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7164,7 +6457,7 @@ s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7176,7 +6469,7 @@ s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "WEBL",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -7269,7 +6562,7 @@ dat_text_webl <- data.frame(
 
 s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                family = binomial(link = "logit"),
-               data = dplyr::filter(s,
+               data = dplyr::filter(dat_surv,
                                     Species == "TRES",
                                     !is.na(nest_fledged),
                                     !is.na(clutch_size)) %>%
@@ -7281,7 +6574,7 @@ s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_n
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                family = binomial(link = "logit"),
-               data = dplyr::filter(s,
+               data = dplyr::filter(dat_surv,
                                     Species == "TRES",
                                     !is.na(nest_fledged),
                                     !is.na(clutch_size)) %>%
@@ -7293,7 +6586,7 @@ s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                family = binomial(link = "logit"),
-               data = dplyr::filter(s,
+               data = dplyr::filter(dat_surv,
                                     Species == "TRES",
                                     !is.na(nest_fledged),
                                     !is.na(clutch_size)) %>%
@@ -7304,7 +6597,7 @@ s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
                )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                family = binomial(link = "logit"),
-               data = dplyr::filter(s,
+               data = dplyr::filter(dat_surv,
                                     Species == "TRES",
                                     !is.na(nest_fledged),
                                     !is.na(clutch_size)) %>%
@@ -7350,7 +6643,6 @@ prop_trans_tres <- trans_new("prop_trans_tres",
 dat_tres <- predict_response(s_nestpd_TRES_noint,terms = c("habitat"))
 
 (fig3_tres <- ggplot(data = dat_tres, mapping = aes(x = x, color = x, y = predicted,ymin = conf.low,ymax = conf.high)) +
-   # plot(line_size = 1.5,alpha = .2,show_data = TRUE,limit_range = TRUE,colors = viridis(4)) +
    geom_point(size = 4) +
     geom_linerange(linewidth = 2) +
    theme_classic() +
@@ -7364,21 +6656,13 @@ dat_tres <- predict_response(s_nestpd_TRES_noint,terms = c("habitat"))
     scale_y_continuous(trans = prop_trans_tres,
                        breaks = c(.2,.4,.6,.8),
                        labels = c("20%","40%","60%","80%")) +
-   # scale_x_continuous(trans = temp_trans,
    #                     breaks = c((20-mean_temp)/sd_temp,
-   #                                (25-mean_temp)/sd_temp,
-   #                                (30-mean_temp)/sd_temp,
-   #                                (35-mean_temp)/sd_temp,
-   #                                (40-mean_temp)/sd_temp#,
-   #                                #(45-mean_temp)/sd_temp
    #                                ),
    #                     # breaks = c(20,30,40,50),
    #                     # labels = c("20","30","40","50"),
    #                     # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-   #                     #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
    #                     # limits = c(18,5)
    #                     ) +
-   # ylim(0,1.1) +
    geom_text(data = dat_text_tres, mapping = aes(x = c(1,2,3,4), y = -Inf,label = label),hjust = .5,vjust = -.2,inherit.aes = FALSE) +
     theme(legend.position = "none") +
     annotate(geom = "text", x = c(1,2,3,4),y = Inf,hjust = .5,vjust = 1,label = c("a","ab","b","b"))
@@ -7405,7 +6689,7 @@ ggplot_build(fig3_webl)$layout$panel_scales_y
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "WEBL",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7417,7 +6701,7 @@ s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7429,7 +6713,7 @@ s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7440,7 +6724,7 @@ s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "WEBL",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -7527,13 +6811,7 @@ dat_text_webl <- data.frame(
                                   (40-mean_temp_webl)/sd_temp_webl#,
                                   #(45-mean_temp)/sd_temp
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -7545,7 +6823,7 @@ dat_text_webl <- data.frame(
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "WEBL",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7557,7 +6835,7 @@ s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_s
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7569,7 +6847,7 @@ s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deg
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7580,7 +6858,7 @@ s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deg
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "WEBL",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -7667,13 +6945,7 @@ dat_text_webl <- data.frame(
                                   (8000-mean_temp_webl)/sd_temp_webl#,
                                   #(10000-mean_temp_webl)/sd_temp_webl#,
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -7685,7 +6957,7 @@ dat_text_webl <- data.frame(
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "WEBL",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7697,7 +6969,7 @@ s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_sc
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7709,7 +6981,7 @@ s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hih
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7720,7 +6992,7 @@ s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hih
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "WEBL",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -7807,13 +7079,7 @@ dat_text_webl <- data.frame(
                                   (12000-mean_temp_webl)/sd_temp_webl,
                                   (15000-mean_temp_webl)/sd_temp_webl#,
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -7827,7 +7093,7 @@ dat_text_webl <- data.frame(
 
 s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "TRES",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7839,7 +7105,7 @@ s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7851,7 +7117,7 @@ s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7862,7 +7128,7 @@ s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "TRES",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -7949,13 +7215,7 @@ dat_text_tres <- data.frame(
                                   (40-mean_temp_tres)/sd_temp_tres#,
                                   #(45-mean_temp)/sd_temp
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -7967,7 +7227,7 @@ dat_text_tres <- data.frame(
 
 s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "TRES",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -7979,7 +7239,7 @@ s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_s
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -7991,7 +7251,7 @@ s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deg
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -8002,7 +7262,7 @@ s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deg
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "TRES",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -8089,13 +7349,7 @@ dat_text_tres <- data.frame(
                                   (8000-mean_temp_tres)/sd_temp_tres#,
                                   #(10000-mean_temp_tres)/sd_temp_tres#,
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "solid","Grassland" = "solid","Row crop" = "solid")) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -8107,7 +7361,7 @@ dat_text_tres <- data.frame(
 
 s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "TRES",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -8119,7 +7373,7 @@ s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_sc
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -8131,7 +7385,7 @@ s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hih
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -8142,7 +7396,7 @@ s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hih
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "TRES",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -8229,13 +7483,7 @@ dat_text_tres <- data.frame(
                                   (12000-mean_temp_tres)/sd_temp_tres,
                                   (15000-mean_temp_tres)/sd_temp_tres#,
                        ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
-    # ylim(0,100) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -8244,7 +7492,7 @@ dat_text_tres <- data.frame(
 
 save(list = ls(), file = "data/models_survival.RData")
 rm(list = ls()); gc()
-p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
+dat_provis <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),
          year_fct = as.factor(year))
 
@@ -8253,7 +7501,7 @@ p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset
 ## ================================================================
 
 
-p %>% dplyr::select(c(species, attempt_id)) %>% distinct() %>% summarize(.by = species,n = n())
+dat_provis %>% dplyr::select(c(species, attempt_id)) %>% distinct() %>% summarize(.by = species,n = n())
 
 
 ## Sample size:
@@ -8264,10 +7512,12 @@ p %>% dplyr::select(c(species, attempt_id)) %>% distinct() %>% summarize(.by = s
 ### WEBL
 
 
-m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
-             data = dplyr::filter(p,!is.na(mean_temp),
+             data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                   !is.na(julian_date),
                                   !is.na(mean_nestling_age),
                                   !is.na(tod_h),
@@ -8286,10 +7536,12 @@ m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date
 emmeans(m,specs = pairwise ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
 emmip(m,formula = habitat ~ mean_temp_scaled, at = list(mean_temp_scaled = seq(from = -2.5, to = 2.5, by = .1)))
 
-m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
-                    data = dplyr::filter(p,!is.na(mean_temp),
+                    data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                          !is.na(julian_date),
                                          !is.na(mean_nestling_age),
                                          !is.na(tod_h),
@@ -8305,10 +7557,12 @@ m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_te
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
-                   data = dplyr::filter(p,!is.na(mean_temp),
+                   data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                         !is.na(julian_date),
                                         !is.na(mean_nestling_age),
                                         !is.na(tod_h),
@@ -8380,7 +7634,7 @@ dat_text_webl <- data.frame(
 m_linint$frame %>% pull(attempt_id) %>% unique() %>% length()
 
 
-data_webl = dplyr::filter(p,!is.na(mean_temp),
+data_webl = dplyr::filter(dat_provis,!is.na(mean_temp),
                           !is.na(julian_date),
                           !is.na(mean_nestling_age),
                           !is.na(tod_h),
@@ -8422,14 +7676,8 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dashed","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -8444,7 +7692,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
     gt())
 
 
-data = data = dplyr::filter(p,!is.na(mean_temp),
+data = data = dplyr::filter(dat_provis,!is.na(mean_temp),
                             !is.na(julian_date),
                             !is.na(mean_nestling_age),
                             !is.na(tod_h),
@@ -8481,10 +7729,12 @@ data = data = dplyr::filter(p,!is.na(mean_temp),
 ### TRES
 
 
-m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
-             data = dplyr::filter(p,!is.na(mean_temp),
+             data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                   !is.na(julian_date),
                                   !is.na(mean_nestling_age),
                                   !is.na(tod_h),
@@ -8501,10 +7751,12 @@ m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date
                              ~ scale(.x)[,1],
                              .names = "{.col}_scaled")))
 
-m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
-                    data = dplyr::filter(p,!is.na(mean_temp),
+                    data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                          !is.na(julian_date),
                                          !is.na(mean_nestling_age),
                                          !is.na(tod_h),
@@ -8521,10 +7773,12 @@ m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_te
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
-                   data = dplyr::filter(p,!is.na(mean_temp),
+                   data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                         !is.na(julian_date),
                                         !is.na(mean_nestling_age),
                                         !is.na(tod_h),
@@ -8598,7 +7852,7 @@ dat_text_tres <- data.frame(
 m$frame %>% pull(attempt_id) %>% unique() %>% length()
 
 
-data_tres = dplyr::filter(p,!is.na(mean_temp),
+data_tres = dplyr::filter(dat_provis,!is.na(mean_temp),
                           !is.na(julian_date),
                           !is.na(mean_nestling_age),
                           !is.na(tod_h),
@@ -8641,11 +7895,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     ylim(0,50) +
@@ -8694,7 +7943,7 @@ ggplot_build(fig5_tres)$layout$panel_scales_y
     gt())
 
 
-data = dplyr::filter(p,!is.na(mean_temp),
+data = dplyr::filter(dat_provis,!is.na(mean_temp),
                      !is.na(julian_date),
                      !is.na(mean_nestling_age),
                      !is.na(tod_h),
@@ -8723,7 +7972,9 @@ instant_temp <- read_rds("data/provis_manytempmeasures.rds")
 #### maxhi of closest 30 min period to start time of hour
 
 
-m <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
              data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -8745,7 +7996,9 @@ m <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_
 emmeans(m,specs = pairwise ~ habitat,by = c("hi_30min_scaled"), at = list(hi_30min_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
 emmip(m,formula = habitat ~ hi_30min_scaled, at = list(hi_30min_scaled = seq(from = -2.5, to = 2.5, by = .1)))
 
-m_linint <- glmmTMB(valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
                     data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -8764,7 +8017,9 @@ m_linint <- glmmTMB(valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(hi_30min_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
                    data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -8862,14 +8117,8 @@ hi_30min_trans_webl <- trans_new("hi_30min_trans_webl",
                                   (30-mean_hi_30min_webl)/sd_hi_30min_webl,
                                   (35-mean_hi_30min_webl)/sd_hi_30min_webl,
                                   (40-mean_hi_30min_webl)/sd_hi_30min_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "solid","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_webl_hi, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -8921,7 +8170,9 @@ data = dplyr::filter(instant_temp,!is.na(hi_30min),
 #### maxhi of closest 30 min period to start time of hour
 
 
-m <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
              data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -8941,7 +8192,9 @@ m <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) * habitat + julian_date_
                              .names = "{.col}_scaled")))
 
 
-m_linint <- glmmTMB(valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
                     data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -8960,7 +8213,9 @@ m_linint <- glmmTMB(valid_detections ~ hi_30min_scaled * habitat + poly(hi_30min
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(hi_30min_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(hi_30min_scaled,2) + habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
                    data = dplyr::filter(instant_temp,!is.na(hi_30min),
@@ -9058,11 +8313,6 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
                                   (30-mean_hi_30min_tres)/sd_hi_30min_tres,
                                   (35-mean_hi_30min_tres)/sd_hi_30min_tres,
                                   (40-mean_hi_30min_tres)/sd_hi_30min_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
     ylim(0,60) +
@@ -9130,12 +8380,12 @@ ggplot_build(fig5_tres_hi)$layout$panel_scales_y
 
 save(list = ls(), file = "data/models_provis.RData")
 rm(list = ls()); gc()
-p <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
+dat_provis <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") %>%
   mutate(year = year(date),
          year_fct = as.factor(year))
-g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
+dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))
-s <- read_rds("data/survival_attempt.rds") %>%
+dat_surv <- read_rds("data/survival_attempt.rds") %>%
   mutate(juliandate_inc = yday(inc_date),
          juliandate_hatch = yday(hatch_date),
          year_fct = factor(year),
@@ -9156,35 +8406,34 @@ s <- read_rds("data/survival_attempt.rds") %>%
 ## ================================================================
 
 
-prior_model <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl)
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp_addmax <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+g_lintemp_addmin <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
+
+g_lintemp_noint <- lmerTest::lmer(
+  gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_webl)
 
 (int_tab_growth_webl <- anova_int_tab(g_lintemp, g_lintemp_addmin, g_lintemp_addmax, g_lintemp_noint))
 
@@ -9220,12 +8469,6 @@ dat_text_webl <- data.frame(
 )
 
 
-data_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                  ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                           meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_webl <- mean(data_webl %>% pull(meanmaxtempI))
 sd_temp_webl <- sd(data_webl %>% pull(meanmaxtempI))
@@ -9253,13 +8496,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -9283,13 +8520,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -9313,43 +8544,37 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
-    #ylim(-5,5) +
     # geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+prior_model <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+g_lintemp <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+g_lintemp_addmax <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+g_lintemp_addmin <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
 
-g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+g_lintemp_noint <- lmerTest::lmer(gweight ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
@@ -9390,7 +8615,7 @@ dat_text_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
+data_tres = dplyr::filter(dat_growth,Species == "TRES",!is.na(meanmaxtempI),meanmaxtempI < 45,!is.na(meanmintempI)) %>%
   mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
                                                   ~ scale(.x)[,1],
                                                    .names = "{.col}_scaled"),
@@ -9424,13 +8649,7 @@ temp_trans_tres <- trans_new("temp_trans",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    #geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -9454,13 +8673,7 @@ temp_trans_tres <- trans_new("temp_trans",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   #ylim(-5,5) +
    geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
    )
@@ -9484,13 +8697,7 @@ temp_trans_tres <- trans_new("temp_trans",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
-    #ylim(-5,5) +
     # geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
@@ -9498,7 +8705,7 @@ temp_trans_tres <- trans_new("temp_trans",
 
 prior_model <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -9510,7 +8717,7 @@ prior_model <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nes
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "WEBL",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -9522,7 +8729,7 @@ s_nestpd_WEBL <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_n
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -9534,7 +8741,7 @@ s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "WEBL",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -9545,7 +8752,7 @@ s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "WEBL",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -9614,13 +8821,7 @@ dat_text_webl <- data.frame(
                                   (40-mean_temp_webl)/sd_temp_webl#,
                                   #(45-mean_temp)/sd_temp
                                   ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   # ylim(0,100) +
    scale_linetype_manual(values = c("Forest" = "dashed","Orchard" = "dashed","Grassland" = "dotted","Row crop" = "dashed")) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -9646,13 +8847,7 @@ dat_text_webl <- data.frame(
                                   (40-mean_temp_webl)/sd_temp_webl#,
                                   #(45-mean_temp)/sd_temp
                                   ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   # ylim(0,100) +
    scale_linetype_manual(values = c("Forest" = "dashed","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
    geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -9677,13 +8872,7 @@ dat_text_webl <- data.frame(
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
-    #ylim(-5,5) +
     # geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
@@ -9691,7 +8880,7 @@ dat_text_webl <- data.frame(
 
 prior_model <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "TRES",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -9703,7 +8892,7 @@ prior_model <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nes
 
 s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                      family = binomial(link = "logit"),
-                     data = dplyr::filter(s,
+                     data = dplyr::filter(dat_surv,
                                           Species == "TRES",
                                           !is.na(nest_fledged),
                                           !is.na(clutch_size)) %>%
@@ -9715,7 +8904,7 @@ s_nestpd_TRES <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_n
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -9727,7 +8916,7 @@ s_nestpd_TRES_addmax <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                             family = binomial(link = "logit"),
-                            data = dplyr::filter(s,
+                            data = dplyr::filter(dat_surv,
                                                  Species == "TRES",
                                                  !is.na(nest_fledged),
                                                  !is.na(clutch_size)) %>%
@@ -9738,7 +8927,7 @@ s_nestpd_TRES_addmin <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ mea
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged,clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
                            family = binomial(link = "logit"),
-                           data = dplyr::filter(s,
+                           data = dplyr::filter(dat_surv,
                                                 Species == "TRES",
                                                 !is.na(nest_fledged),
                                                 !is.na(clutch_size)) %>%
@@ -9807,13 +8996,7 @@ dat_text_tres <- data.frame(
                                   (40-mean_temp_tres)/sd_temp_tres#,
                                   #(45-mean_temp)/sd_temp
                                   ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   # ylim(0,100) +
    scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
    geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -9839,13 +9022,7 @@ dat_text_tres <- data.frame(
                                   (40-mean_temp_tres)/sd_temp_tres#,
                                   #(45-mean_temp)/sd_temp
                                   ),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
                        ) +
-   # ylim(0,100) +
    scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
    geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = -Inf,label = label),hjust = -.2,vjust = -.7,inherit.aes = FALSE) +
     theme(legend.position = "none")
@@ -9870,50 +9047,43 @@ dat_text_tres <- data.frame(
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
-    #ylim(-5,5) +
     # geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
 
 
-g <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
+dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") %>%
   mutate(year_fct = as.factor(year))
 
-prior_model <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + habitat + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s1_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + habitat + meanmintempI_scaled + habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_webl)
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_webl)
 
 (int_tab_s1_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -9946,12 +9116,6 @@ dat_text_s1_webl <- data.frame(
 )
 
 
-data_s1_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s1_webl <- mean(data_s1_webl %>% pull(meanmaxtempI))
 sd_temp_s1_webl <- sd(data_s1_webl %>% pull(meanmaxtempI))
@@ -9978,48 +9142,41 @@ temp_trans_s1_webl <- trans_new("temp_trans_s1_webl",
                                   (30-mean_temp_s1_webl)/sd_temp_s1_webl,
                                   (35-mean_temp_s1_webl)/sd_temp_s1_webl,
                                   (40-mean_temp_s1_webl)/sd_temp_s1_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     #geom_text(data = dat_text_s1_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     #theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s1_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_tres)
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_tres)
 
 (int_tab_s1_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -10050,12 +9207,6 @@ dat_text_s1_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_s1_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s1_tres <- mean(data_s1_tres %>% pull(meanmaxtempI))
 sd_temp_s1_tres <- sd(data_s1_tres %>% pull(meanmaxtempI))
@@ -10082,14 +9233,8 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
                                   (30-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (35-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (40-mean_temp_s1_tres)/sd_temp_s1_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     # geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10103,11 +9248,9 @@ dat_text_s1_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_s1_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
+data_s1_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
 
 mean_temp_s1_tres <- mean(data_s1_tres %>% pull(meanmaxtempI))
@@ -10135,14 +9278,8 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
                                   (30-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (35-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (40-mean_temp_s1_tres)/sd_temp_s1_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     # geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10165,48 +9302,41 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
                                   (30-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (35-mean_temp_s1_tres)/sd_temp_s1_tres,
                                   (40-mean_temp_s1_tres)/sd_temp_s1_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) #+
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     # geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     #theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl)
 
 (int_tab_abs_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -10238,12 +9368,6 @@ dat_text_webl <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_webl <- mean(data_webl %>% pull(meanmaxtempI))
 sd_temp_webl <- sd(data_webl %>% pull(meanmaxtempI))
@@ -10270,11 +9394,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
     ylim(0,60) +
@@ -10300,11 +9419,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
     ylim(0,60) +
@@ -10330,54 +9444,46 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    # ylim(0,60) +
     # geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
 
-prior_model_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                       mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres)
 
 (int_tab_abs_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -10420,12 +9526,6 @@ dat_text_tres <- data.frame(
 )
 
 
-data_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_tres <- mean(data_tres %>% pull(meanmaxtempI))
 sd_temp_tres <- sd(data_tres %>% pull(meanmaxtempI))
@@ -10452,14 +9552,8 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dashed","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10482,14 +9576,8 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10512,48 +9600,41 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     # geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s2_webl <- prep_model_data(
+  dat_growth, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_webl)
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_webl)
 
 (int_tab_s2_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -10587,12 +9668,6 @@ dat_text_s2_webl <- data.frame(
 )
 
 
-data_s2_webl = dplyr::filter(g,Species == "WEBL",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s2_webl <- mean(data_s2_webl %>% pull(meanmaxtempI))
 sd_temp_s2_webl <- sd(data_s2_webl %>% pull(meanmaxtempI))
@@ -10619,14 +9694,8 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
                                   (30-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (35-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (40-mean_temp_s2_webl)/sd_temp_s2_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10649,14 +9718,8 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
                                   (30-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (35-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (40-mean_temp_s2_webl)/sd_temp_s2_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10679,11 +9742,6 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
                                   (30-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (35-mean_temp_s2_webl)/sd_temp_s2_webl,
                                   (40-mean_temp_s2_webl)/sd_temp_s2_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
     # #ylim(-5,5) +
@@ -10692,35 +9750,34 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+data_s2_tres <- prep_model_data(
+  dat_growth, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight","meanmaxtempI","meanmintempI","juliandate","brood_size","age"))
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                               mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_tres)
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                      mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled * habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled + meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-                                     mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled * habitat + meanmintempI_scaled + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ meanmaxtempI_scaled + meanmintempI_scaled + habitat + age_scaled +
+    meanmaxtempI_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_tres)
 
 (int_tab_s2_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -10753,12 +9810,6 @@ dat_text_s2_tres <- data.frame(
 )
 
 
-data_s2_tres = dplyr::filter(g,Species == "TRES",!is.na(meanmaxtempI),!is.na(meanmintempI)) %>%
-  mutate(across(c(gweight,meanmaxtempI,meanmintempI,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         meanmaxtempI_scaled_sq = meanmaxtempI_scaled * meanmaxtempI_scaled)
-
 
 mean_temp_s2_tres <- mean(data_s2_tres %>% pull(meanmaxtempI))
 sd_temp_s2_tres <- sd(data_s2_tres %>% pull(meanmaxtempI))
@@ -10785,14 +9836,8 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
                                   (30-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (35-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (40-mean_temp_s2_tres)/sd_temp_s2_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10815,14 +9860,8 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
                                   (30-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (35-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (40-mean_temp_s2_tres)/sd_temp_s2_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10845,48 +9884,41 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
                                   (30-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (35-mean_temp_s2_tres)/sd_temp_s2_tres,
                                   (40-mean_temp_s2_tres)/sd_temp_s2_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("dotted","dotted","solid","dotted")) +
-    #ylim(-5,5) +
     # geom_text(data = dat_text_s2_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s1_priordayt_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_webl)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_webl)
 
 (int_tab_s1_priordayt_webl <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -10919,12 +9951,6 @@ dat_text_s1_priordayt_webl <- data.frame(
 )
 
 
-data_s1_priordayt_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s1_priordayt_webl <- mean(data_s1_priordayt_webl %>% pull(maxt_prior))
 sd_temp_s1_priordayt_webl <- sd(data_s1_priordayt_webl %>% pull(maxt_prior))
@@ -10951,14 +9977,8 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
                                   (30-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (35-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (40-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -10981,14 +10001,8 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
                                   (30-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (35-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (40-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11011,11 +10025,6 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
                                   (30-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (35-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl,
                                   (40-mean_temp_s1_priordayt_webl)/sd_temp_s1_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
     # #ylim(-5,5) +
@@ -11024,35 +10033,34 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s1_priordayt_tres <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s1_lintemp <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
-s1_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
-s1_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
-s1_lintemp_noint <- lmerTest::lmer(sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s1_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_tres)
+
+s1_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s1_priordayt_tres)
 
 (int_tab_s1_priordayt_tres <- anova_int_tab(s1_lintemp, s1_lintemp_addmin, s1_lintemp_addmax, s1_lintemp_noint, digits = 3))
 
@@ -11085,12 +10093,6 @@ dat_text_s1_priordayt_tres <- data.frame(
 )
 
 
-data_s1_priordayt_tres = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s1_priordayt_tres <- mean(data_s1_priordayt_tres %>% pull(maxt_prior))
 sd_temp_s1_priordayt_tres <- sd(data_s1_priordayt_tres %>% pull(maxt_prior))
@@ -11117,14 +10119,8 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
                                   (45-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (55-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (65-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("solid","solid","solid","solid")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11147,14 +10143,8 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
                                   (45-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (55-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (65-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("solid","solid","solid","solid")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s1_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11177,11 +10167,6 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
                                   (45-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (55-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres,
                                   (65-mean_temp_s1_priordayt_tres)/sd_temp_s1_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
 #     scale_linetype_manual(values = c("dotted","dashed","dotted","dotted")) +
 #     #ylim(-5,5) +
@@ -11190,35 +10175,34 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_webl_priordayt <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_webl_priordayt)
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_priordayt)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_priordayt)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_priordayt)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_webl_priordayt)
 
 (int_tab_abs_priordayt_webl <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -11249,12 +10233,6 @@ dat_text_webl <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_webl_priordayt = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_webl_priordayt <- mean(data_webl_priordayt %>% pull(maxt_prior))
 sd_temp_webl_priordayt <- sd(data_webl_priordayt %>% pull(maxt_prior))
@@ -11281,14 +10259,8 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
                                   (30-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (35-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (40-mean_temp_webl_priordayt)/sd_temp_webl_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11311,14 +10283,8 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
                                   (30-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (35-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (40-mean_temp_webl_priordayt)/sd_temp_webl_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11341,11 +10307,6 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
                                   (30-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (35-mean_temp_webl_priordayt)/sd_temp_webl_priordayt,
                                   (40-mean_temp_webl_priordayt)/sd_temp_webl_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     # # ylim(0,60) +
@@ -11354,35 +10315,34 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_tres_priordayt <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-abs_lintemp <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +  maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                              ~ scale(.x)[,1],
-                                              .names = "{.col}_scaled"),
-                                       maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
 
-abs_lintemp_addmax <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled +  maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+     maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
 
-abs_lintemp_addmin <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled +  maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                       mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                     ~ scale(.x)[,1],
-                                                     .names = "{.col}_scaled"),
-                                              maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmax <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled +
+     maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
 
-abs_lintemp_noint <- lmerTest::lmer(sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled +  maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+abs_lintemp_addmin <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled +
+     maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
+
+abs_lintemp_noint <- lmerTest::lmer(
+  sqrt(abs_change_cort) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled +
+     maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_tres_priordayt)
 
 (int_tab_abs_priordayt_tres <- anova_int_tab(abs_lintemp, abs_lintemp_addmin, abs_lintemp_addmax, abs_lintemp_noint, digits = 3))
 
@@ -11414,12 +10374,6 @@ dat_text_tres <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_tres_priordayt = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_tres_priordayt <- mean(data_tres_priordayt %>% pull(maxt_prior))
 sd_temp_tres_priordayt <- sd(data_tres_priordayt %>% pull(maxt_prior))
@@ -11446,14 +10400,8 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
                                   (30-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (35-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (40-mean_temp_tres_priordayt)/sd_temp_tres_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11476,14 +10424,8 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
                                   (30-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (35-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (40-mean_temp_tres_priordayt)/sd_temp_tres_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,60) +
     geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11506,11 +10448,6 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
                                   (30-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (35-mean_temp_tres_priordayt)/sd_temp_tres_priordayt,
                                   (40-mean_temp_tres_priordayt)/sd_temp_tres_priordayt),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "dotted","Orchard" = "solid","Grassland" = "dotted","Row crop" = "dotted")) +
     # # ylim(0,60) +
@@ -11519,35 +10456,34 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s2_priordayt_webl <- prep_model_data(
+  dat_growth, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+    (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_webl)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_webl)
 
 (int_tab_s2_priordayt_webl <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -11580,12 +10516,6 @@ dat_text_s2_priordayt_webl <- data.frame(
 )
 
 
-data_s2_priordayt_webl = dplyr::filter(g,Species == "WEBL",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s2_priordayt_webl <- mean(data_s2_priordayt_webl %>% pull(maxt_prior))
 sd_temp_s2_priordayt_webl <- sd(data_s2_priordayt_webl %>% pull(maxt_prior))
@@ -11612,14 +10542,8 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
                                   (30-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (35-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (40-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11642,14 +10566,8 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
                                   (30-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (35-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (40-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11672,11 +10590,6 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
                                   (30-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (35-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl,
                                   (40-mean_temp_s2_priordayt_webl)/sd_temp_s2_priordayt_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
     # #ylim(-5,5) +
@@ -11685,35 +10598,34 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
 )
 
 
-prior_model <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+data_s2_priordayt_tres <- prep_model_data(
+  dat_growth, "TRES", "maxt_prior", "mint_prior",
+  c("gweight","maxt_prior","mint_prior","juliandate","brood_size","age"))
 
-s2_lintemp <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                               mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                             ~ scale(.x)[,1],
-                                             .names = "{.col}_scaled"),
-                                      maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+prior_model <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled + juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
-s2_lintemp_addmax <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled * habitat + age_scaled +
+    maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
-s2_lintemp_addmin <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                      mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                    ~ scale(.x)[,1],
-                                                    .names = "{.col}_scaled"),
-                                             maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmax <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
-s2_lintemp_noint <- lmerTest::lmer(sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled + year_fct + (1|attempt_id),data = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-                                     mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                                                   ~ scale(.x)[,1],
-                                                   .names = "{.col}_scaled"),
-                                            maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled))
+s2_lintemp_addmin <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
+
+s2_lintemp_noint <- lmerTest::lmer(
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + maxt_prior_scaled * juliandate_scaled +
+    year_fct + (1|attempt_id),
+  data = data_s2_priordayt_tres)
 
 (int_tab_s2_priordayt_tres <- anova_int_tab(s2_lintemp, s2_lintemp_addmin, s2_lintemp_addmax, s2_lintemp_noint, digits = 3))
 
@@ -11746,12 +10658,6 @@ dat_text_s2_priordayt_tres <- data.frame(
 )
 
 
-data_s2_priordayt_tres = dplyr::filter(g,Species == "TRES",!is.na(maxt_prior),!is.na(mint_prior)) %>%
-  mutate(across(c(gweight,maxt_prior,mint_prior,juliandate,brood_size,age),
-                ~ scale(.x)[,1],
-                .names = "{.col}_scaled"),
-         maxt_prior_scaled_sq = maxt_prior_scaled * maxt_prior_scaled)
-
 
 mean_temp_s2_priordayt_tres <- mean(data_s2_priordayt_tres %>% pull(maxt_prior))
 sd_temp_s2_priordayt_tres <- sd(data_s2_priordayt_tres %>% pull(maxt_prior))
@@ -11778,14 +10684,8 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
                                   (45-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (55-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (65-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dashed")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11808,14 +10708,8 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
                                   (45-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (55-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (65-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("dotted","dotted","dotted","dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_s2_priordayt_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -11838,11 +10732,6 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
                                   (45-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (55-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres,
                                   (65-mean_temp_s2_priordayt_tres)/sd_temp_s2_priordayt_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("dotted","dotted","dotted","dashed")) +
     # #ylim(-5,5) +
@@ -11851,10 +10740,12 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
 )
 
 
-prior_model <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+prior_model <- glmmTMB(
+  valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
-                    data = dplyr::filter(p,!is.na(mean_temp),
+                    data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                          !is.na(julian_date),
                                          !is.na(mean_nestling_age),
                                          !is.na(tod_h),
@@ -11870,10 +10761,12 @@ prior_model <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
-             data = dplyr::filter(p,!is.na(mean_temp),
+             data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                   !is.na(julian_date),
                                   !is.na(mean_nestling_age),
                                   !is.na(tod_h),
@@ -11892,10 +10785,12 @@ m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_s
 emmeans(m,specs = pairwise ~ habitat,by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2,0,2))) %>% plot(comparisons = TRUE)
 emmip(m,formula = habitat ~ mean_temp_scaled, at = list(mean_temp_scaled = seq(from = -2.5, to = 2.5, by = .1)))
 
-m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + mean_temp_scaled * julian_date_scaled +
+    poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
-                    data = dplyr::filter(p,!is.na(mean_temp),
+                    data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                          !is.na(julian_date),
                                          !is.na(mean_nestling_age),
                                          !is.na(tod_h),
@@ -11911,10 +10806,12 @@ m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_te
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) + habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) + habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
-                   data = dplyr::filter(p,!is.na(mean_temp),
+                   data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                         !is.na(julian_date),
                                         !is.na(mean_nestling_age),
                                         !is.na(tod_h),
@@ -11970,7 +10867,7 @@ dat_text_webl <- data.frame(
   group   = factor(c("Forest","Orchard","Grassland","Row crop"))
 )
 
-data_webl = dplyr::filter(p,!is.na(mean_temp),
+data_webl = dplyr::filter(dat_provis,!is.na(mean_temp),
                           !is.na(julian_date),
                           !is.na(mean_nestling_age),
                           !is.na(tod_h),
@@ -12012,14 +10909,8 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dashed","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -12042,14 +10933,8 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "solid","Grassland" = "solid","Row crop" = "dotted")) +
-    #ylim(-5,5) +
     geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     theme(legend.position = "none")
 )
@@ -12072,11 +10957,6 @@ temp_trans_webl <- trans_new("temp_trans_webl",
                                   (30-mean_temp_webl)/sd_temp_webl,
                                   (35-mean_temp_webl)/sd_temp_webl,
                                   (40-mean_temp_webl)/sd_temp_webl),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dashed","Grassland" = "solid","Row crop" = "dotted")) +
     # #ylim(-5,5) +
@@ -12085,10 +10965,12 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-prior_model <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+prior_model <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) * habitat + julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
-             data = dplyr::filter(p,!is.na(mean_temp),
+             data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                   !is.na(julian_date),
                                   !is.na(mean_nestling_age),
                                   !is.na(tod_h),
@@ -12105,10 +10987,12 @@ prior_model <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + j
                              ~ scale(.x)[,1],
                              .names = "{.col}_scaled")))
 
-m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
              ziformula = ~ 1,
              family = nbinom2(),
-             data = dplyr::filter(p,!is.na(mean_temp),
+             data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                   !is.na(julian_date),
                                   !is.na(mean_nestling_age),
                                   !is.na(tod_h),
@@ -12125,10 +11009,12 @@ m <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) * habitat + mean_temp_s
                              ~ scale(.x)[,1],
                              .names = "{.col}_scaled")))
 
-m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_linint <- glmmTMB(
+  valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled,2) + mean_temp_scaled * julian_date_scaled +
+    poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                     ziformula = ~ 1,
                     family = nbinom2(),
-                    data = dplyr::filter(p,!is.na(mean_temp),
+                    data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                          !is.na(julian_date),
                                          !is.na(mean_nestling_age),
                                          !is.na(tod_h),
@@ -12145,10 +11031,12 @@ m_linint <- glmmTMB(valid_detections ~ mean_temp_scaled * habitat + poly(mean_te
                                     ~ scale(.x)[,1],
                                     .names = "{.col}_scaled")))
 
-m_noint <- glmmTMB(valid_detections ~ poly(mean_temp_scaled,2) + habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) + mean_nestling_age_scaled + (1|attempt_id) + year_fct,
+m_noint <- glmmTMB(
+  valid_detections ~ poly(mean_temp_scaled,2) + habitat + mean_temp_scaled * julian_date_scaled + poly(tod_h_scaled,2) +
+    mean_nestling_age_scaled + (1|attempt_id) + year_fct,
                    ziformula = ~ 1,
                    family = nbinom2(),
-                   data = dplyr::filter(p,!is.na(mean_temp),
+                   data = dplyr::filter(dat_provis,!is.na(mean_temp),
                                         !is.na(julian_date),
                                         !is.na(mean_nestling_age),
                                         !is.na(tod_h),
@@ -12206,7 +11094,7 @@ dat_text_tres <- data.frame(
 )
 
 
-data_tres = dplyr::filter(p,!is.na(mean_temp),
+data_tres = dplyr::filter(dat_provis,!is.na(mean_temp),
                           !is.na(julian_date),
                           !is.na(mean_nestling_age),
                           !is.na(tod_h),
@@ -12249,11 +11137,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     ylim(0,50) +
@@ -12279,11 +11162,6 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) +
     scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
     ylim(0,50) +
@@ -12309,14 +11187,8 @@ temp_trans_tres <- trans_new("temp_trans_tres",
                                   (30-mean_temp_tres)/sd_temp_tres,
                                   (35-mean_temp_tres)/sd_temp_tres,
                                   (40-mean_temp_tres)/sd_temp_tres),
-                       # breaks = c(20,30,40,50),
-                       # labels = c("20","30","40","50"),
-                       # limits = c((15-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE),
-                       #            (55-mean(g$meanmaxtempI,na.rm = TRUE))/sd(g$meanmaxtempI,na.rm = TRUE))
-                       # limits = c(18,5)
     ) # +
     # scale_linetype_manual(values = c("Forest" = "solid","Orchard" = "dotted","Grassland" = "dotted","Row crop" = "dotted")) +
-    # ylim(0,50) +
     # geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf,label = label),hjust = -.2, vjust = 1.2,inherit.aes = FALSE) +
     # theme(legend.position = "none")
 )
