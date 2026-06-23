@@ -8028,60 +8028,35 @@ source("code/helpers.R")
 #### Nest period model
 
 
+dat_webl_nestpd <- dplyr::filter(
+  dat_surv,
+  Species == "WEBL",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_WEBL <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 (int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
@@ -8177,59 +8152,34 @@ dat_text_webl <- data.frame(
 #### Nest period model
 
 
+dat_tres_nestpd <- dplyr::filter(
+  dat_surv,
+  Species == "TRES",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_TRES <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 
@@ -8322,59 +8272,34 @@ ggplot_build(fig3_webl)$layout$panel_scales_y
 ### meanmaxhi_nestpd
 
 
+dat_webl_nestpd_hi <- dplyr::filter(
+  dat_surv,
+  Species == "WEBL",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_WEBL <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hi
 )
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hi
 )
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hi
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hi
 )
 
 (int_tab_survival_nestpd_webl_meanmaxhi <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
@@ -8474,59 +8399,34 @@ dat_text_webl <- data.frame(
 ### deghr_30
 
 
+dat_webl_nestpd_deghr30 <- dplyr::filter(
+  dat_surv,
+  Species == "WEBL",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_WEBL <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_deghr30
 )
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_deghr30
 )
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_deghr30
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_deghr30
 )
 
 (int_tab_survival_nestpd_webl_deghr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
@@ -8626,59 +8526,34 @@ dat_text_webl <- data.frame(
 ### hihr_30
 
 
+dat_webl_nestpd_hihr30 <- dplyr::filter(
+  dat_surv,
+  Species == "WEBL",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_WEBL <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hihr30
 )
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hihr30
 )
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hihr30
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd_hihr30
 )
 
 (int_tab_survival_nestpd_webl_hihr_30 <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
@@ -8780,59 +8655,34 @@ dat_text_webl <- data.frame(
 ### meanmaxhi_nestpd
 
 
+dat_tres_nestpd_hi <- dplyr::filter(
+  dat_surv,
+  Species == "TRES",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_TRES <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hi
 )
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hi
 )
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled * habitat + meanminhi_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hi
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxhi_nestpd_scaled + meanminhi_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxhi_nestpd, meanminhi_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hi
 )
 
 (int_tab_survival_nestpd_tres_meanmaxhi <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
@@ -8932,59 +8782,34 @@ dat_text_tres <- data.frame(
 ### deghr_30
 
 
+dat_tres_nestpd_deghr30 <- dplyr::filter(
+  dat_surv,
+  Species == "TRES",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_TRES <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_deghr30
 )
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_deghr30
 )
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_deghr30
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deghr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(deghr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_deghr30
 )
 
 (int_tab_survival_nestpd_tres_deghr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
@@ -9084,59 +8909,34 @@ dat_text_tres <- data.frame(
 ### hihr_30
 
 
+dat_tres_nestpd_hihr30 <- dplyr::filter(
+  dat_surv,
+  Species == "TRES",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 s_nestpd_TRES <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hihr30
 )
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled * habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hihr30
 )
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hihr30
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hihr_30_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(hihr_30, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd_hihr30
 )
 
 (int_tab_survival_nestpd_tres_hihr_30 <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
@@ -9262,25 +9062,27 @@ dat_provis |>
 ### WEBL
 
 
+dat_webl_provis <- dplyr::filter(
+  dat_provis, !is.na(mean_temp),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  species == "WEBL"
+) |>
+  mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 m <- glmmTMB(
   valid_detections ~ poly(mean_temp_scaled, 2) * habitat + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 
 emmeans(m, specs = pairwise ~ habitat, by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2, 0, 2))) |> plot(comparisons = TRUE)
@@ -9291,20 +9093,7 @@ m_linint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 
 m_noint <- glmmTMB(
@@ -9312,20 +9101,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 c <- anova(m, m_linint, m_noint) |>
   tibble() |>
@@ -9498,26 +9274,28 @@ data <- data <- dplyr::filter(
 ### TRES
 
 
+dat_tres_provis <- dplyr::filter(
+  dat_provis, !is.na(mean_temp),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  valid_detections < 40,
+  species == "TRES"
+) |>
+  mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 m <- glmmTMB(
   valid_detections ~ poly(mean_temp_scaled, 2) * habitat + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 m_linint <- glmmTMB(
@@ -9525,21 +9303,7 @@ m_linint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 m_noint <- glmmTMB(
@@ -9547,21 +9311,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 c <- anova(m, m_linint, m_noint) |>
@@ -9770,25 +9520,27 @@ instant_temp <- read_rds("data/provis_manytempmeasures.rds")
 #### maxhi of closest 30 min period to start time of hour
 
 
+dat_webl_provis_hi <- dplyr::filter(
+  instant_temp, !is.na(hi_30min),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  species == "WEBL"
+) |>
+  mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 m <- glmmTMB(
   valid_detections ~ poly(hi_30min_scaled, 2) * habitat + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis_hi
 )
 
 emmeans(m, specs = pairwise ~ habitat, by = c("hi_30min_scaled"), at = list(hi_30min_scaled = c(-2, 0, 2))) |> plot(comparisons = TRUE)
@@ -9799,20 +9551,7 @@ m_linint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis_hi
 )
 
 m_noint <- glmmTMB(
@@ -9820,20 +9559,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis_hi
 )
 c <- anova(m, m_linint, m_noint) |>
   tibble() |>
@@ -9989,25 +9715,27 @@ data <- dplyr::filter(
 #### maxhi of closest 30 min period to start time of hour
 
 
+dat_tres_provis_hi <- dplyr::filter(
+  instant_temp, !is.na(hi_30min),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  species == "TRES"
+) |>
+  mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 m <- glmmTMB(
   valid_detections ~ poly(hi_30min_scaled, 2) * habitat + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis_hi
 )
 
 
@@ -10016,20 +9744,7 @@ m_linint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis_hi
 )
 
 m_noint <- glmmTMB(
@@ -10037,20 +9752,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    instant_temp, !is.na(hi_30min),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, hi_30min, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis_hi
 )
 c <- anova(m, m_linint, m_noint) |>
   tibble() |>
@@ -10607,73 +10309,39 @@ temp_trans_tres <- trans_new("temp_trans",
 )
 
 
+dat_webl_nestpd <- dplyr::filter(
+  dat_surv,
+  Species == "WEBL",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 prior_model <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 s_nestpd_WEBL_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "WEBL",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_nestpd
 )
 
 (int_tab_survival_nestpd_webl <- anova_int_tab(s_nestpd_WEBL, s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmax, s_nestpd_WEBL_noint))
@@ -10789,73 +10457,39 @@ dat_text_webl <- data.frame(
 )
 
 
+dat_tres_nestpd <- dplyr::filter(
+  dat_surv,
+  Species == "TRES",
+  !is.na(nest_fledged),
+  !is.na(clutch_size)
+) |>
+  mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 prior_model <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 s_nestpd_TRES <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 s_nestpd_TRES_addmax <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled * habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 s_nestpd_TRES_addmin <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + meanmaxt_nestpd_scaled * juliandate_hatch_scaled + year_fct + site,
   family = binomial(link = "logit"),
-  data = dplyr::filter(
-    dat_surv,
-    Species == "TRES",
-    !is.na(nest_fledged),
-    !is.na(clutch_size)
-  ) |>
-    mutate(across(c(meanmaxt_nestpd, meanmint_nestpd, juliandate_hatch),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_nestpd
 )
 
 (int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
@@ -12691,25 +12325,27 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
 )
 
 
+dat_webl_provis <- dplyr::filter(
+  dat_provis, !is.na(mean_temp),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  species == "WEBL"
+) |>
+  mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 prior_model <- glmmTMB(
   valid_detections ~ mean_temp_scaled * habitat + poly(mean_temp_scaled, 2) + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 
 m <- glmmTMB(
@@ -12717,20 +12353,7 @@ m <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 
 emmeans(m, specs = pairwise ~ habitat, by = c("mean_temp_scaled"), at = list(mean_temp_scaled = c(-2, 0, 2))) |> plot(comparisons = TRUE)
@@ -12741,20 +12364,7 @@ m_linint <- glmmTMB(
     poly(tod_h_scaled, 2) + mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 
 m_noint <- glmmTMB(
@@ -12762,20 +12372,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    species == "WEBL"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_webl_provis
 )
 c <- anova(m, m_linint, m_noint) |>
   tibble() |>
@@ -12927,26 +12524,28 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
+dat_tres_provis <- dplyr::filter(
+  dat_provis, !is.na(mean_temp),
+  !is.na(julian_date),
+  !is.na(mean_nestling_age),
+  !is.na(tod_h),
+  !is.na(site),
+  !is.na(attempt_id),
+  !is.na(year),
+  valid_detections < 40,
+  species == "TRES"
+) |>
+  mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
+    ~ scale(.x)[, 1],
+    .names = "{.col}_scaled"
+  ))
+
 prior_model <- glmmTMB(
   valid_detections ~ poly(mean_temp_scaled, 2) * habitat + julian_date_scaled + poly(tod_h_scaled, 2) +
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 m <- glmmTMB(
@@ -12954,21 +12553,7 @@ m <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 m_linint <- glmmTMB(
@@ -12976,21 +12561,7 @@ m_linint <- glmmTMB(
     poly(tod_h_scaled, 2) + mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 m_noint <- glmmTMB(
@@ -12998,21 +12569,7 @@ m_noint <- glmmTMB(
     mean_nestling_age_scaled + (1 | attempt_id) + year_fct,
   ziformula = ~1,
   family = nbinom2(),
-  data = dplyr::filter(
-    dat_provis, !is.na(mean_temp),
-    !is.na(julian_date),
-    !is.na(mean_nestling_age),
-    !is.na(tod_h),
-    !is.na(site),
-    !is.na(attempt_id),
-    !is.na(year),
-    valid_detections < 40,
-    species == "TRES"
-  ) |>
-    mutate(across(c(tod_h, mean_temp, julian_date, mean_nestling_age),
-      ~ scale(.x)[, 1],
-      .names = "{.col}_scaled"
-    ))
+  data = dat_tres_provis
 )
 
 c <- anova(m, m_linint, m_noint) |>
