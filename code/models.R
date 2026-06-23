@@ -74,77 +74,7 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
   )
 
 
-## ================================================================
-## HELPER FUNCTIONS
-## ================================================================
-
-scale_cols <- function(data, cols) {
-  data |> mutate(across(all_of(cols), ~ scale(.x)[, 1], .names = "{.col}_scaled"))
-}
-# Filter dat to species, drop NA rows for temp_var and min_temp_var, scale
-# cols_to_scale, and append a squared column for temp_var (add_sq = TRUE).
-prep_model_data <- function(dat, species, temp_var, min_temp_var, cols_to_scale,
-                            add_sq = TRUE) {
-  d <- dat |>
-    dplyr::filter(
-      Species == species,
-      !is.na(.data[[temp_var]]),
-      !is.na(.data[[min_temp_var]])
-    ) |>
-    scale_cols(cols_to_scale)
-  if (add_sq) {
-    sq_col <- paste0(temp_var, "_scaled_sq")
-    d[[sq_col]] <- d[[paste0(temp_var, "_scaled")]]^2
-  }
-  d
-}
-
-make_temp_trans <- function(data, col) {
-  m <- mean(data[[col]], na.rm = TRUE)
-  s <- sd(data[[col]], na.rm = TRUE)
-  list(
-    mean = m, sd = s,
-    trans = scales::trans_new(col,
-      transform = function(x) (x - m) / s,
-      inverse   = function(x) x * s + m
-    )
-  )
-}
-
-anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
-  if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint, test = "Chisq") |>
-        tibble() |>
-        rename(Chisq = Deviance) |>
-        mutate(AIC = c(AIC(m_full), AIC(m_single), AIC(m_noint)), .before = Df) |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = Df)
-    }
-    p_col <- "Pr(>Chi)"
-    rnd_cols <- "Chisq"
-  } else {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint) |>
-        tibble() |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = npar)
-    }
-    p_col <- "Pr(>Chisq)"
-    rnd_cols <- c("AIC", "Chisq")
-  }
-  bind_rows(mk_row(m_addmin), mk_row(m_addmax)) |>
-    as_tibble() |>
-    mutate(across(where(is.numeric), ~ round(.x, digits = digits)),
-      P = .data[[p_col]]
-    ) |>
-    dplyr::select(Model, AIC, Chisq, P) |>
-    mutate(
-      max_or_min = c(rep("Max temp", times = 3), rep("Min temp", times = 3)),
-      across(all_of(rnd_cols), ~ round(.x, digits = 2)),
-      P = if_else(P < 0.001, "<0.001", as.character(P))
-    ) |>
-    group_by(max_or_min) |>
-    gt()
-}
+source("code/helpers.R")
 
 
 ## ================================================================
@@ -295,13 +225,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(weblgrowthtrendmax <- emtrends(g_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblgrowthtrendmax <- format_emtrends_table(g_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 data <- prep_model_data(
@@ -313,11 +237,7 @@ data <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_webl <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_webl <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -376,13 +296,7 @@ temp_trans <- trans_new("temp_trans",
 )
 
 
-(t <- emtrends(g_lintemp, specs = ~habitat, var = c("meanmintempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Min temp trend` = "meanmintempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(t <- format_emtrends_table(g_lintemp, "meanmintempI_scaled", "Min temp trend"))
 
 
 data <- prep_model_data(
@@ -537,23 +451,13 @@ temp_trans_maxhiweek_webl <- trans_new("temp_trans_maxhiweek_webl",
 )
 
 
-(weblgrowthtrendmaxhiweek <- emtrends(g_lintemp, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblgrowthtrendmaxhiweek <- format_emtrends_table(g_lintemp, "maxhi_week_scaled", "Max temp trend"))
 
 
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_maxhiweek_webl <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_maxhiweek_webl <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -675,23 +579,13 @@ temp_trans_maxhiday_webl <- trans_new("temp_trans_maxhiday_webl",
 )
 
 
-(weblgrowthtrendmaxhiday <- emtrends(g_lintemp, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblgrowthtrendmaxhiday <- format_emtrends_table(g_lintemp, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_maxhiday_webl <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_maxhiday_webl <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -811,13 +705,7 @@ temp_trans_deghr30week_webl <- trans_new("temp_trans_deghr30week_webl",
 )
 
 
-(weblgrowthtrenddeghr30week <- emtrends(g_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblgrowthtrenddeghr30week <- format_emtrends_table(g_lintemp, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 data_deghr30week_webl <- prep_model_data(
@@ -829,11 +717,7 @@ data_deghr30week_webl <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_deghr30week_webl <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_deghr30week_webl <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -952,13 +836,7 @@ temp_trans_hihr25week_webl <- trans_new("temp_trans_hihr25week_webl",
 )
 
 
-(weblgrowthtrendhihr25week <- emtrends(g_lintemp, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblgrowthtrendhihr25week <- format_emtrends_table(g_lintemp, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 data_hihr25week_webl <- prep_model_data(
@@ -970,11 +848,7 @@ data_hihr25week_webl <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_hihr25week_webl <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_hihr25week_webl <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -1094,13 +968,7 @@ temp_trans_maxhiweek_tres <- trans_new("temp_trans_maxhiweek_tres",
 )
 
 
-(tresgrowthtrendmaxhiweek <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresgrowthtrendmaxhiweek <- format_emtrends_table(g_lintemp_addmin, "maxhi_week_scaled", "Max temp trend"))
 
 
 data_maxhiweek_tres <- prep_model_data(
@@ -1112,11 +980,7 @@ data_maxhiweek_tres <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_maxhiweek_tres <- emmeans(g_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_maxhiweek_tres <- format_emmeans_table(g_lintemp_addmin))
 
 
 ### Check for effect of temperature
@@ -1236,13 +1100,7 @@ temp_trans_maxhiday_tres <- trans_new("temp_trans_maxhiday_tres",
 )
 
 
-(tresgrowthtrendmaxhiday <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresgrowthtrendmaxhiday <- format_emtrends_table(g_lintemp_addmin, "maxhi_prior_scaled", "Max temp trend"))
 
 
 data_maxhiday_tres <- prep_model_data(
@@ -1254,11 +1112,7 @@ data_maxhiday_tres <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_maxhiday_tres <- emmeans(g_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_maxhiday_tres <- format_emmeans_table(g_lintemp))
 
 
 ### Check for effect of temperature
@@ -1378,13 +1232,7 @@ temp_trans_deghr30week_tres <- trans_new("temp_trans_deghr30week_tres",
 )
 
 
-(tresgrowthtrenddeghr30week <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresgrowthtrenddeghr30week <- format_emtrends_table(g_lintemp_addmin, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 data_deghr30week_tres <- prep_model_data(
@@ -1396,11 +1244,7 @@ data_deghr30week_tres <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_deghr30week_tres <- emmeans(g_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_deghr30week_tres <- format_emmeans_table(g_lintemp_addmin))
 
 
 ### Check for effect of temperature
@@ -1519,13 +1363,7 @@ temp_trans_hihr25week_tres <- trans_new("temp_trans_hihr25week_tres",
 )
 
 
-(tresgrowthtrendhihr25week <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresgrowthtrendhihr25week <- format_emtrends_table(g_lintemp_addmin, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 data_hihr25week_tres <- prep_model_data(
@@ -1537,11 +1375,7 @@ data_hihr25week_tres <- prep_model_data(
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_hihr25week_tres <- emmeans(g_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_hihr25week_tres <- format_emmeans_table(g_lintemp_addmin))
 
 
 ### Check for effect of temperature
@@ -1712,13 +1546,7 @@ temp_trans_tres <- trans_new("temp_trans",
 summary(g_lintemp_addmin)
 
 
-(tresgrowthtrendmax <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresgrowthtrendmax <- format_emtrends_table(g_lintemp_addmin, "meanmaxtempI_scaled", "Max temp trend"))
 
 data <- dplyr::filter(dat_growth, Species == "TRES", !is.na(meanmaxtempI), meanmaxtempI < 45, !is.na(meanmintempI)) |>
   mutate(
@@ -1733,11 +1561,7 @@ data <- dplyr::filter(dat_growth, Species == "TRES", !is.na(meanmaxtempI), meanm
 ## Emmeans to check for effect of habitat
 
 
-(growthbyhabitat_tres <- emmeans(g_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(growthbyhabitat_tres <- format_emmeans_table(g_lintemp_addmin))
 
 
 ## min temp
@@ -1797,13 +1621,7 @@ temp_trans <- trans_new("temp_trans",
 summary(g_lintemp_addmin)
 
 
-(t <- emtrends(g_lintemp_addmin, specs = ~habitat, var = c("meanmintempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Min temp trend` = "meanmintempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(t <- format_emtrends_table(g_lintemp_addmin, "meanmintempI_scaled", "Min temp trend"))
 
 
 data <- dplyr::filter(dat_growth, Species == "TRES", !is.na(meanmintempI), meanmaxtempI < 45, !is.na(meanmintempI)) |>
@@ -2318,54 +2136,9 @@ abs_trans_tres <- trans_new("abs_trans_tres",
 save(list = ls(), file = "data/models_growth.RData")
 rm(list = ls())
 gc()
+source("code/helpers.R")
 dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") |>
   mutate(year_fct = as.factor(year))
-scale_cols <- function(data, cols) {
-  data |> mutate(across(all_of(cols), ~ scale(.x)[, 1], .names = "{.col}_scaled"))
-}
-prep_model_data <- function(dat, species, temp_var, min_temp_var, cols_to_scale,
-                            add_sq = TRUE) {
-  d <- dat |>
-    dplyr::filter(Species == species, !is.na(.data[[temp_var]]), !is.na(.data[[min_temp_var]])) |>
-    scale_cols(cols_to_scale)
-  if (add_sq) {
-    sq_col <- paste0(temp_var, "_scaled_sq")
-    d[[sq_col]] <- d[[paste0(temp_var, "_scaled")]]^2
-  }
-  d
-}
-anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
-  if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint, test = "Chisq") |>
-        tibble() |>
-        rename(Chisq = Deviance) |>
-        mutate(AIC = c(AIC(m_full), AIC(m_single), AIC(m_noint)), .before = Df) |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = Df)
-    }
-    p_col <- "Pr(>Chi)"
-    rnd_cols <- "Chisq"
-  } else {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint) |>
-        tibble() |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = npar)
-    }
-    p_col <- "Pr(>Chisq)"
-    rnd_cols <- c("AIC", "Chisq")
-  }
-  bind_rows(mk_row(m_addmin), mk_row(m_addmax)) |>
-    as_tibble() |>
-    mutate(across(where(is.numeric), ~ round(.x, digits = digits)), P = .data[[p_col]]) |>
-    dplyr::select(Model, AIC, Chisq, P) |>
-    mutate(
-      max_or_min = c(rep("Max temp", times = 3), rep("Min temp", times = 3)),
-      across(all_of(rnd_cols), ~ round(.x, digits = 2)),
-      P = if_else(P < 0.001, "<0.001", as.character(P))
-    ) |>
-    group_by(max_or_min) |>
-    gt()
-}
 
 
 ## ================================================================
@@ -2409,22 +2182,12 @@ s1_webl <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_webl <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_webl <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(webls1trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1trendmax <- format_emtrends_table(s1_lintemp_noint, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -2648,11 +2411,7 @@ dat_text_webl <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(absbyhabitat_webl <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(absbyhabitat_webl <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_webl <- mean(data_webl |> pull(meanmaxtempI))
@@ -2742,13 +2501,7 @@ temp_trans <- trans_new("temp_trans",
 )
 
 
-(weblabstrendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabstrendmax <- format_emtrends_table(abs_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 data <- prep_model_data(
@@ -2760,13 +2513,7 @@ data <- prep_model_data(
 ### Minimum temperature
 
 
-(t <- emtrends(abs_lintemp, specs = ~habitat, var = c("meanmintempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `min temp trend` = "meanmintempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(t <- format_emtrends_table(abs_lintemp, "meanmintempI_scaled", "min temp trend"))
 
 
 data <- prep_model_data(
@@ -2813,22 +2560,12 @@ s2_webl <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_webl <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_webl <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(webls2trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2trendmax <- format_emtrends_table(s2_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -2957,22 +2694,12 @@ s1_prior_day_webl <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_priordayt_webl <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_priordayt_webl <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(webls1_priordayt_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxt_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3082,22 +2809,12 @@ s2_prior_day_webl <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_priordayt_webl <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_priordayt_webl <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(webls2_priordayt_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_priordayt_trendmax <- format_emtrends_table(s2_lintemp_noint, "maxt_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3235,11 +2952,7 @@ dat_text_webl <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abspriordayt_byhabitat_webl <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abspriordayt_byhabitat_webl <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_webl_priordayt <- mean(data_webl_priordayt |> pull(maxt_prior))
@@ -3282,13 +2995,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
 )
 
 
-(weblabs_priordayt_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_priordayt_trendmax <- format_emtrends_table(abs_lintemp_noint, "maxt_prior_scaled", "Max temp trend"))
 
 
 #### use prior day heat index to predict cort instead
@@ -3331,22 +3038,12 @@ s1_priordaymaxhhi_webl <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_priordaymaxhhi_webl <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_priordaymaxhhi_webl <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(webls1_priordaymaxhhi_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_priordaymaxhhi_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3461,22 +3158,12 @@ s2_priordaymaxhhi_webl <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_priordaymaxhhi_webl <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_priordaymaxhhi_webl <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(webls2_priordaymaxhhi_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_priordaymaxhhi_trendmax <- format_emtrends_table(s2_lintemp_noint, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3620,11 +3307,7 @@ dat_text_priordaymaxhhi_webl <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abspriordaymaxhhi_byhabitat_webl <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abspriordaymaxhhi_byhabitat_webl <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_webl_priordaymaxhhi <- mean(data_webl_priordaymaxhhi |> pull(maxhi_prior))
@@ -3667,13 +3350,7 @@ temp_trans_webl_priordaymaxhhi <- trans_new("temp_trans_webl_priordaymaxhhi",
 )
 
 
-(weblabs_priordaymaxhhi_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_priordaymaxhhi_trendmax <- format_emtrends_table(abs_lintemp_noint, "maxhi_prior_scaled", "Max temp trend"))
 
 
 #### use prior week heat index to predict cort instead
@@ -3716,22 +3393,12 @@ s1_weekhi_webl <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_weekhi_webl <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_weekhi_webl <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(webls1_weekhi_trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_weekhi_trendmax <- format_emtrends_table(s1_lintemp_noint, "maxhi_week_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3841,22 +3508,12 @@ s2_weekhi_webl <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_weekhi_webl <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_weekhi_webl <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(webls2_weekhi_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_weekhi_trendmax <- format_emtrends_table(s2_lintemp, "maxhi_week_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -3994,11 +3651,7 @@ dat_text_webl_weekhi <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(absweekhi_byhabitat_webl <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(absweekhi_byhabitat_webl <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_webl_weekhi <- mean(data_webl_weekhi |> pull(maxhi_week))
@@ -4041,13 +3694,7 @@ temp_trans_webl_weekhi <- trans_new("temp_trans_webl_weekhi",
 )
 
 
-(weblabs_weekhi_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_weekhi_trendmax <- format_emtrends_table(abs_lintemp, "maxhi_week_scaled", "Max temp trend"))
 
 
 #### use cumulative prior day hi to predict cort
@@ -4090,22 +3737,12 @@ s1_cumhiday_webl <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumhiday_webl <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumhiday_webl <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(webls1_cumhiday_trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_cumhiday_trendmax <- format_emtrends_table(s1_lintemp_noint, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -4215,22 +3852,12 @@ s2_cumhiday_webl <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumhiday_webl <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumhiday_webl <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(webls2_cumhiday_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_cumhiday_trendmax <- format_emtrends_table(s2_lintemp_noint, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -4368,11 +3995,7 @@ dat_text_webl_cumhiday <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumhiday_byhabitat_webl <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumhiday_byhabitat_webl <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_webl_cumhiday <- mean(data_webl_cumhiday |> pull(hihours_over_30hi_priorday))
@@ -4415,13 +4038,7 @@ temp_trans_webl_cumhiday <- trans_new("temp_trans_webl_cumhiday",
 )
 
 
-(weblabs_cumhiday_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_cumhiday_trendmax <- format_emtrends_table(abs_lintemp_noint, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 #### use cumulative prior week hi to predict cort
@@ -4464,22 +4081,12 @@ s1_cumhiweek_webl <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumhiweek_webl <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumhiweek_webl <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(webls1_cumhiweek_trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_cumhiweek_trendmax <- format_emtrends_table(s1_lintemp_noint, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -4589,22 +4196,12 @@ s2_cumhiweek_webl <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumhiweek_webl <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumhiweek_webl <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(webls2_cumhiweek_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_cumhiweek_trendmax <- format_emtrends_table(s2_lintemp, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -4742,11 +4339,7 @@ dat_abs_text_webl_cumhiweek <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumhiweek_byhabitat_webl <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumhiweek_byhabitat_webl <- format_emmeans_table(abs_lintemp))
 
 
 mean_abs_temp_webl_cumhiweek <- mean(data_abs_webl_cumhiweek |> pull(hihours_over_30hi_priorweek))
@@ -4789,13 +4382,7 @@ temp_abs_trans_webl_cumhiweek <- trans_new("temp_trans_webl_cumhiweek",
 )
 
 
-(weblabs_cumhiweek_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_cumhiweek_trendmax <- format_emtrends_table(abs_lintemp, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 #### use cumulative prior day temp to predict cort
@@ -4838,22 +4425,12 @@ s1_cumdegreeday_webl <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumdegreeday_webl <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumdegreeday_webl <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(webls1_cumdegreeday_trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_cumdegreeday_trendmax <- format_emtrends_table(s1_lintemp_noint, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -4963,22 +4540,12 @@ s2_cumdegreeday_webl <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumdegreeday_webl <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumdegreeday_webl <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(webls2_cumdegreeday_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_cumdegreeday_trendmax <- format_emtrends_table(s2_lintemp_noint, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -5116,11 +4683,7 @@ dat_text_webl_cumdegreeday <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumdegreeday_byhabitat_webl <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumdegreeday_byhabitat_webl <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_webl_cumdegreeday <- mean(data_webl_cumdegreeday |> pull(degreehours_over_30C_priorday))
@@ -5163,13 +4726,7 @@ temp_trans_webl_cumdegreeday <- trans_new("temp_trans_webl_cumdegreeday",
 )
 
 
-(weblabs_cumdegreeday_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_cumdegreeday_trendmax <- format_emtrends_table(abs_lintemp, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 #### use cumulative prior week temp to predict cort
@@ -5212,22 +4769,12 @@ s1_cumdegreeweek_webl <- s1_lintemp_addmin
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumdegreeweek_webl <- emmeans(s1_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumdegreeweek_webl <- format_emmeans_table(s1_lintemp_addmin))
 
 
 ## trends
 ##
-(webls1_cumdegreeweek_trendmax <- emtrends(s1_lintemp_addmin, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_cumdegreeweek_trendmax <- format_emtrends_table(s1_lintemp_addmin, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -5337,22 +4884,12 @@ s2_cumdegreeweek_webl <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumdegreeweek_webl <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumdegreeweek_webl <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(webls2_cumdegreeweek_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_cumdegreeweek_trendmax <- format_emtrends_table(s2_lintemp, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -5490,11 +5027,7 @@ dat_text_webl_cumdegreeweek <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumdegreeweek_byhabitat_webl <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumdegreeweek_byhabitat_webl <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_webl_cumdegreeweek <- mean(data_webl_cumdegreeweek |> pull(degreehours_over_30C_priorweek))
@@ -5537,13 +5070,7 @@ temp_trans_webl_cumdegreeweek <- trans_new("temp_trans_webl_cumdegreeweek",
 )
 
 
-(weblabs_cumdegreeweek_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_cumdegreeweek_trendmax <- format_emtrends_table(abs_lintemp, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 ### TRES
@@ -5632,13 +5159,7 @@ dat_text_s1_tres <- data.frame(
 
 ## trends
 ##
-(tress1trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1trendmax <- format_emtrends_table(s1_lintemp_addmax, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 mean_temp_s1_tres <- mean(data_s1_tres |> pull(meanmaxtempI))
@@ -5730,23 +5251,13 @@ temp_trans <- trans_new("temp_trans",
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ### Minimum temperature
 
 
-(t <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("meanmintempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `min temp trend` = "meanmintempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(t <- format_emtrends_table(s1_lintemp_addmax, "meanmintempI_scaled", "min temp trend"))
 
 
 #### cort_s2
@@ -5830,22 +5341,12 @@ dat_text_s2_tres <- data.frame(
   group = factor(c("Forest", "Orchard", "Grassland", "Row crop"))
 )
 
-(s2byhabitat_tres <- emmeans(s2_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_tres <- format_emmeans_table(s2_lintemp_addmin))
 
 
 ## trends
 ##
-(tress2trendmax <- emtrends(s2_lintemp_addmin, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2trendmax <- format_emtrends_table(s2_lintemp_addmin, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 mean_temp_s2_tres <- mean(data_s2_tres |> pull(meanmaxtempI))
@@ -6060,23 +5561,13 @@ temp_trans <- trans_new("temp_trans",
 ## Emmeans to check for effect of habitat
 
 
-(absbyhabitat_tres <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(absbyhabitat_tres <- format_emmeans_table(abs_lintemp))
 
 
 ### Maximum temperature
 
 
-(tresabstrendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabstrendmax <- format_emtrends_table(abs_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 data <- prep_model_data(
@@ -6088,13 +5579,7 @@ data <- prep_model_data(
 ### Minimum temperature
 
 
-(t <- emtrends(abs_lintemp, specs = ~habitat, var = c("meanmintempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `min temp trend` = "meanmintempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(t <- format_emtrends_table(abs_lintemp, "meanmintempI_scaled", "min temp trend"))
 
 
 data <- prep_model_data(
@@ -6143,22 +5628,12 @@ s1_prior_day_tres <- s1_lintemp_addmin
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_priordayt_tres <- emmeans(s1_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_priordayt_tres <- format_emmeans_table(s1_lintemp_addmin))
 
 
 ## trends
 ##
-(tress1_priordayt_trendmax <- emtrends(s1_lintemp_addmin, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmin, "maxt_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -6268,22 +5743,12 @@ s2_prior_day_tres <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_priordayt_tres <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_priordayt_tres <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(tress2_priordayt_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_priordayt_trendmax <- format_emtrends_table(s2_lintemp, "maxt_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -6421,11 +5886,7 @@ dat_text_tres <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abspriordayt_byhabitat_tres <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abspriordayt_byhabitat_tres <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_tres_priordayt <- mean(data_tres_priordayt |> pull(maxt_prior))
@@ -6468,13 +5929,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
 )
 
 
-(tresabs_priordayt_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_priordayt_trendmax <- format_emtrends_table(abs_lintemp, "maxt_prior_scaled", "Max temp trend"))
 
 
 #### use prior day heat index to predict cort instead
@@ -6517,22 +5972,12 @@ s1_priordaymaxhhi_tres <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_priordaymaxhhi_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_priordaymaxhhi_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(tress1_priordaymaxhhi_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_priordaymaxhhi_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -6642,22 +6087,12 @@ s2_priordaymaxhhi_tres <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_priordaymaxhhi_tres <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_priordaymaxhhi_tres <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(tress2_priordaymaxhhi_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_priordaymaxhhi_trendmax <- format_emtrends_table(s2_lintemp, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -6795,11 +6230,7 @@ dat_text_priordaymaxhhi_tres <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abspriordaymaxhhi_byhabitat_tres <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abspriordaymaxhhi_byhabitat_tres <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_tres_priordaymaxhhi <- mean(data_tres_priordaymaxhhi |> pull(maxhi_prior))
@@ -6842,13 +6273,7 @@ temp_trans_tres_priordaymaxhhi <- trans_new("temp_trans_tres_priordaymaxhhi",
 )
 
 
-(tresabs_priordaymaxhhi_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("maxhi_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_priordaymaxhhi_trendmax <- format_emtrends_table(abs_lintemp, "maxhi_prior_scaled", "Max temp trend"))
 
 
 ## Use prior week heat index to test against cort
@@ -6891,22 +6316,12 @@ s1_weekhi_tres <- s1_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_weekhi_tres <- emmeans(s1_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_weekhi_tres <- format_emmeans_table(s1_lintemp_noint))
 
 
 ## trends
 ##
-(tress1_weekhi_trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_weekhi_trendmax <- format_emtrends_table(s1_lintemp_noint, "maxhi_week_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7016,22 +6431,12 @@ s2_weekhi_tres <- s2_lintemp_addmin
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_weekhi_tres <- emmeans(s2_lintemp_addmin, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_weekhi_tres <- format_emmeans_table(s2_lintemp_addmin))
 
 
 ## trends
 ##
-(tress2_weekhi_trendmax <- emtrends(s2_lintemp_addmin, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_weekhi_trendmax <- format_emtrends_table(s2_lintemp_addmin, "maxhi_week_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7169,11 +6574,7 @@ dat_text_tres_weekhi <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(absweekhi_byhabitat_tres <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(absweekhi_byhabitat_tres <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_tres_weekhi <- mean(data_tres_weekhi |> pull(maxhi_week))
@@ -7216,13 +6617,7 @@ temp_trans_tres_weekhi <- trans_new("temp_trans_tres_weekhi",
 )
 
 
-(tresabs_weekhi_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("maxhi_week_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxhi_week_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_weekhi_trendmax <- format_emtrends_table(abs_lintemp, "maxhi_week_scaled", "Max temp trend"))
 
 
 #### use cumulative prior day hi to predict cort
@@ -7265,22 +6660,12 @@ s1_cumhiday_tres <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumhiday_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumhiday_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(tress1_cumhiday_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_cumhiday_trendmax <- format_emtrends_table(s1_lintemp_addmax, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7390,22 +6775,12 @@ s2_cumhiday_tres <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumhiday_tres <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumhiday_tres <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(tress2_cumhiday_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_cumhiday_trendmax <- format_emtrends_table(s2_lintemp_noint, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7543,11 +6918,7 @@ dat_text_tres_cumhiday <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumhiday_byhabitat_tres <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumhiday_byhabitat_tres <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_tres_cumhiday <- mean(data_tres_cumhiday |> pull(hihours_over_30hi_priorday))
@@ -7590,13 +6961,7 @@ temp_trans_tres_cumhiday <- trans_new("temp_trans_tres_cumhiday",
 )
 
 
-(tresabs_cumhiday_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_cumhiday_trendmax <- format_emtrends_table(abs_lintemp_noint, "hihours_over_30hi_priorday_scaled", "Max temp trend"))
 
 
 #### use cumulative prior week hi to predict cort
@@ -7639,22 +7004,12 @@ s1_cumhiweek_tres <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumhiweek_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumhiweek_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(tress1_cumhiweek_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_cumhiweek_trendmax <- format_emtrends_table(s1_lintemp_addmax, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7764,22 +7119,12 @@ s2_cumhiweek_tres <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumhiweek_tres <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumhiweek_tres <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(tress2_cumhiweek_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_cumhiweek_trendmax <- format_emtrends_table(s2_lintemp_noint, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -7917,11 +7262,7 @@ dat_abs_text_tres_cumhiweek <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumhiweek_byhabitat_tres <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumhiweek_byhabitat_tres <- format_emmeans_table(abs_lintemp))
 
 
 mean_abs_temp_tres_cumhiweek <- mean(data_abs_tres_cumhiweek |> pull(hihours_over_30hi_priorweek))
@@ -7964,13 +7305,7 @@ temp_abs_trans_tres_cumhiweek <- trans_new("temp_trans_tres_cumhiweek",
 )
 
 
-(tresabs_cumhiweek_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("hihours_over_30hi_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihours_over_30hi_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_cumhiweek_trendmax <- format_emtrends_table(abs_lintemp, "hihours_over_30hi_priorweek_scaled", "Max temp trend"))
 
 
 #### use cumulative prior day temp to predict cort
@@ -8013,22 +7348,12 @@ s1_cumdegreeday_tres <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumdegreeday_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumdegreeday_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(tress1_cumdegreeday_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_cumdegreeday_trendmax <- format_emtrends_table(s1_lintemp_addmax, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -8138,22 +7463,12 @@ s2_cumdegreeday_tres <- s2_lintemp
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumdegreeday_tres <- emmeans(s2_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumdegreeday_tres <- format_emmeans_table(s2_lintemp))
 
 
 ## trends
 ##
-(tress2_cumdegreeday_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_cumdegreeday_trendmax <- format_emtrends_table(s2_lintemp, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -8291,11 +7606,7 @@ dat_text_tres_cumdegreeday <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumdegreeday_byhabitat_tres <- emmeans(abs_lintemp, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumdegreeday_byhabitat_tres <- format_emmeans_table(abs_lintemp))
 
 
 mean_temp_tres_cumdegreeday <- mean(data_tres_cumdegreeday |> pull(degreehours_over_30C_priorday))
@@ -8338,13 +7649,7 @@ temp_trans_tres_cumdegreeday <- trans_new("temp_trans_tres_cumdegreeday",
 )
 
 
-(tresabs_cumdegreeday_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("degreehours_over_30C_priorday_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorday_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_cumdegreeday_trendmax <- format_emtrends_table(abs_lintemp, "degreehours_over_30C_priorday_scaled", "Max temp trend"))
 
 
 #### use cumulative prior week temp to predict cort
@@ -8387,22 +7692,12 @@ s1_cumdegreeweek_tres <- s1_lintemp_addmax
 ## Emmeans to check for effect of habitat
 
 
-(s1byhabitat_cumdegreeweek_tres <- emmeans(s1_lintemp_addmax, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s1byhabitat_cumdegreeweek_tres <- format_emmeans_table(s1_lintemp_addmax))
 
 
 ## trends
 ##
-(tress1_cumdegreeweek_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_cumdegreeweek_trendmax <- format_emtrends_table(s1_lintemp_addmax, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -8512,22 +7807,12 @@ s2_cumdegreeweek_tres <- s2_lintemp_noint
 ## Emmeans to check for effect of habitat
 
 
-(s2byhabitat_cumdegreeweek_tres <- emmeans(s2_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(s2byhabitat_cumdegreeweek_tres <- format_emmeans_table(s2_lintemp_noint))
 
 
 ## trends
 ##
-(tress2_cumdegreeweek_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_cumdegreeweek_trendmax <- format_emtrends_table(s2_lintemp_noint, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 ### Sample sizes:
@@ -8665,11 +7950,7 @@ dat_text_tres_cumdegreeweek <- data.frame(
 ## Emmeans to check for effect of habitat
 
 
-(abscumdegreeweek_byhabitat_tres <- emmeans(abs_lintemp_noint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:t.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(abscumdegreeweek_byhabitat_tres <- format_emmeans_table(abs_lintemp_noint))
 
 
 mean_temp_tres_cumdegreeweek <- mean(data_tres_cumdegreeweek |> pull(degreehours_over_30C_priorweek))
@@ -8712,13 +7993,7 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
 )
 
 
-(tresabs_cumdegreeweek_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("degreehours_over_30C_priorweek_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "degreehours_over_30C_priorweek_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_cumdegreeweek_trendmax <- format_emtrends_table(abs_lintemp_noint, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
 
 
 save(list = ls(), file = "data/models_cort.RData")
@@ -8742,38 +8017,7 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
     nest_fledged = `Nestlings Fledging_num`,
     brood_size = `Brood Size_num`
   )
-anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
-  if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint, test = "Chisq") |>
-        tibble() |>
-        rename(Chisq = Deviance) |>
-        mutate(AIC = c(AIC(m_full), AIC(m_single), AIC(m_noint)), .before = Df) |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = Df)
-    }
-    p_col <- "Pr(>Chi)"
-    rnd_cols <- "Chisq"
-  } else {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint) |>
-        tibble() |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = npar)
-    }
-    p_col <- "Pr(>Chisq)"
-    rnd_cols <- c("AIC", "Chisq")
-  }
-  bind_rows(mk_row(m_addmin), mk_row(m_addmax)) |>
-    as_tibble() |>
-    mutate(across(where(is.numeric), ~ round(.x, digits = digits)), P = .data[[p_col]]) |>
-    dplyr::select(Model, AIC, Chisq, P) |>
-    mutate(
-      max_or_min = c(rep("Max temp", times = 3), rep("Min temp", times = 3)),
-      across(all_of(rnd_cols), ~ round(.x, digits = 2)),
-      P = if_else(P < 0.001, "<0.001", as.character(P))
-    ) |>
-    group_by(max_or_min) |>
-    gt()
-}
+source("code/helpers.R")
 
 
 ## ================================================================
@@ -8853,13 +8097,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(weblsurvival_nestpd_trendmax <- emtrends(s_nestpd_WEBL_addmin, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax <- format_emtrends_table(s_nestpd_WEBL_addmin, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_WEBL_addmin$data
@@ -8868,11 +8106,7 @@ data <- s_nestpd_WEBL_addmin$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_webl <- emmeans(s_nestpd_WEBL_addmin, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_webl <- format_emmeans_table(s_nestpd_WEBL_addmin, use_regrid = FALSE))
 
 
 data_webl <- s_nestpd_WEBL_addmin$data
@@ -9002,20 +8236,10 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 (int_tab_survival_nestpd_tres <- anova_int_tab(s_nestpd_TRES, s_nestpd_TRES_addmin, s_nestpd_TRES_addmax, s_nestpd_TRES_noint))
 
 
-(tressurvival_nestpd_trendmax <- emtrends(s_nestpd_TRES_noint, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax <- format_emtrends_table(s_nestpd_TRES_noint, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
-(survival_nestpd_byhabitat_tres <- emmeans(s_nestpd_TRES_noint, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_tres <- format_emmeans_table(s_nestpd_TRES_noint, use_regrid = FALSE))
 
 
 samp_tres <- s_nestpd_TRES_noint$data |>
@@ -9166,13 +8390,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(weblsurvival_nestpd_trendmax_meanmaxhi <- emtrends(s_nestpd_WEBL_addmax, specs = pairwise ~ habitat, var = c("meanmaxhi_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxhi_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax_meanmaxhi <- format_emtrends_table(s_nestpd_WEBL_addmax, "meanmaxhi_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_WEBL_addmax$data
@@ -9181,11 +8399,7 @@ data <- s_nestpd_WEBL_addmax$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_webl_meanmaxhi <- emmeans(s_nestpd_WEBL_addmin, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_webl_meanmaxhi <- format_emmeans_table(s_nestpd_WEBL_addmin, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -9328,13 +8542,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deg
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(weblsurvival_nestpd_trendmax_deghr_30 <- emtrends(s_nestpd_WEBL_addmin, specs = pairwise ~ habitat, var = c("deghr_30_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "deghr_30_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax_deghr_30 <- format_emtrends_table(s_nestpd_WEBL_addmin, "deghr_30_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_WEBL_addmin$data
@@ -9343,11 +8551,7 @@ data <- s_nestpd_WEBL_addmin$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_webl_deghr_30 <- emmeans(s_nestpd_WEBL_addmin, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_webl_deghr_30 <- format_emmeans_table(s_nestpd_WEBL_addmin, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -9490,13 +8694,7 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hih
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(weblsurvival_nestpd_trendmax_hihr_30 <- emtrends(s_nestpd_WEBL_addmax, specs = pairwise ~ habitat, var = c("hihr_30_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihr_30_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax_hihr_30 <- format_emtrends_table(s_nestpd_WEBL_addmax, "hihr_30_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_WEBL_addmax$data
@@ -9505,11 +8703,7 @@ data <- s_nestpd_WEBL_addmax$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_webl_hihr_30 <- emmeans(s_nestpd_WEBL_addmax, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_webl_hihr_30 <- format_emmeans_table(s_nestpd_WEBL_addmax, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -9654,13 +8848,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(tressurvival_nestpd_trendmax_meanmaxhi <- emtrends(s_nestpd_TRES_addmax, specs = pairwise ~ habitat, var = c("meanmaxhi_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxhi_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax_meanmaxhi <- format_emtrends_table(s_nestpd_TRES_addmax, "meanmaxhi_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_TRES_addmax$data
@@ -9669,11 +8857,7 @@ data <- s_nestpd_TRES_addmax$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_tres_meanmaxhi <- emmeans(s_nestpd_TRES_addmax, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_tres_meanmaxhi <- format_emmeans_table(s_nestpd_TRES_addmax, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -9816,13 +9000,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ deg
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(tressurvival_nestpd_trendmax_deghr_30 <- emtrends(s_nestpd_TRES_noint, specs = pairwise ~ habitat, var = c("deghr_30_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "deghr_30_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax_deghr_30 <- format_emtrends_table(s_nestpd_TRES_noint, "deghr_30_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_TRES_noint$data
@@ -9831,11 +9009,7 @@ data <- s_nestpd_TRES_noint$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_tres_deghr_30 <- emmeans(s_nestpd_TRES_noint, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_tres_deghr_30 <- format_emmeans_table(s_nestpd_TRES_noint, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -9978,13 +9152,7 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ hih
 #### Emtrends to calculate effect of max temp in each habitat
 
 
-(tressurvival_nestpd_trendmax_hihr_30 <- emtrends(s_nestpd_TRES_noint, specs = pairwise ~ habitat, var = c("hihr_30_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "hihr_30_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax_hihr_30 <- format_emtrends_table(s_nestpd_TRES_noint, "hihr_30_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data <- s_nestpd_TRES_noint$data
@@ -9993,11 +9161,7 @@ data <- s_nestpd_TRES_noint$data
 ## Emmeans to check for effect of habitat
 
 
-(survival_nestpd_byhabitat_tres_hihr_30 <- emmeans(s_nestpd_TRES_noint, "habitat") |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(survival_nestpd_byhabitat_tres_hihr_30 <- format_emmeans_table(s_nestpd_TRES_noint, use_regrid = FALSE))
 
 
 ### Check for effect of temperature
@@ -10072,6 +9236,7 @@ dat_text_tres <- data.frame(
 save(list = ls(), file = "data/models_survival.RData")
 rm(list = ls())
 gc()
+source("code/helpers.R")
 dat_provis <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds") |>
   mutate(
     year = year(date),
@@ -10317,11 +9482,7 @@ data <- data <- dplyr::filter(
 ## Emmeans to check for effect of habitat
 
 
-(provisbyhabitat_webl <- emmeans(m_linint, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(provisbyhabitat_webl <- format_emmeans_table(m_linint))
 
 
 ### Check for effect of temperature
@@ -10558,11 +9719,7 @@ ggplot_build(fig5_tres)$layout$panel_scales_y
 ## Emmeans to check for effect of habitat
 
 
-(provisbyhabitat_tres <- emmeans(m, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(provisbyhabitat_tres <- format_emmeans_table(m))
 
 
 ### Check for effect of temperature
@@ -10816,11 +9973,7 @@ data <- dplyr::filter(
 ## Emmeans to check for effect of habitat
 
 
-(provisbyhabitat_webl_hi <- emmeans(m, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(provisbyhabitat_webl_hi <- format_emmeans_table(m))
 
 
 ### Check for effect of temperature
@@ -11038,11 +10191,7 @@ data <- data <- dplyr::filter(
 ## Emmeans to check for effect of habitat
 
 
-(provisbyhabitat_tres_hi <- emmeans(m, "habitat") |> regrid() |> pairs() |> as_tibble() |>
-  mutate(
-    across(estimate:z.ratio, ~ round(.x, digits = 2)),
-    across(p.value, ~ round(.x, digits = 3))
-  ) |> gt())
+(provisbyhabitat_tres_hi <- format_emmeans_table(m))
 
 
 ### Check for effect of temperature
@@ -11104,52 +10253,7 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
     nest_fledged = `Nestlings Fledging_num`,
     brood_size = `Brood Size_num`
   )
-scale_cols <- function(data, cols) {
-  data |> mutate(across(all_of(cols), ~ scale(.x)[, 1], .names = "{.col}_scaled"))
-}
-prep_model_data <- function(dat, species, temp_var, min_temp_var, cols_to_scale,
-                            add_sq = TRUE) {
-  d <- dat |>
-    dplyr::filter(Species == species, !is.na(.data[[temp_var]]), !is.na(.data[[min_temp_var]])) |>
-    scale_cols(cols_to_scale)
-  if (add_sq) {
-    sq_col <- paste0(temp_var, "_scaled_sq")
-    d[[sq_col]] <- d[[paste0(temp_var, "_scaled")]]^2
-  }
-  d
-}
-anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
-  if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint, test = "Chisq") |>
-        tibble() |>
-        rename(Chisq = Deviance) |>
-        mutate(AIC = c(AIC(m_full), AIC(m_single), AIC(m_noint)), .before = Df) |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = Df)
-    }
-    p_col <- "Pr(>Chi)"
-    rnd_cols <- "Chisq"
-  } else {
-    mk_row <- function(m_single) {
-      anova(m_full, m_single, m_noint) |>
-        tibble() |>
-        mutate(Model = c("no interaction", "single interaction", "both interacting"), .before = npar)
-    }
-    p_col <- "Pr(>Chisq)"
-    rnd_cols <- c("AIC", "Chisq")
-  }
-  bind_rows(mk_row(m_addmin), mk_row(m_addmax)) |>
-    as_tibble() |>
-    mutate(across(where(is.numeric), ~ round(.x, digits = digits)), P = .data[[p_col]]) |>
-    dplyr::select(Model, AIC, Chisq, P) |>
-    mutate(
-      max_or_min = c(rep("Max temp", times = 3), rep("Min temp", times = 3)),
-      across(all_of(rnd_cols), ~ round(.x, digits = 2)),
-      P = if_else(P < 0.001, "<0.001", as.character(P))
-    ) |>
-    group_by(max_or_min) |>
-    gt()
-}
+source("code/helpers.R")
 
 
 ## ================================================================
@@ -11578,21 +10682,9 @@ s_nestpd_WEBL_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 anova(s_nestpd_WEBL_addmin, prior_model)
 
 
-(weblsurvival_nestpd_trendmax_prior <- emtrends(prior_model, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax_prior <- format_emtrends_table(prior_model, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
-(weblsurvival_nestpd_trendmax <- emtrends(s_nestpd_WEBL_addmin, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(weblsurvival_nestpd_trendmax <- format_emtrends_table(s_nestpd_WEBL_addmin, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data_webl <- s_nestpd_WEBL_addmin$data
@@ -11772,21 +10864,9 @@ s_nestpd_TRES_noint <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ mea
 anova(s_nestpd_TRES_noint, prior_model)
 
 
-(tressurvival_nestpd_trendmax_prior <- emtrends(prior_model, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax_prior <- format_emtrends_table(prior_model, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
-(tressurvival_nestpd_trendmax <- emtrends(s_nestpd_TRES_noint, specs = pairwise ~ habitat, var = c("meanmaxt_nestpd_scaled")) |> test() |> pluck("emtrends") |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxt_nestpd_scaled.trend", Df = "df", `T-ratio` = "z.ratio", P = "p.value") |>
-  gt())
+(tressurvival_nestpd_trendmax <- format_emtrends_table(s_nestpd_TRES_noint, "meanmaxt_nestpd_scaled", "Max temp trend", use_pairwise = TRUE))
 
 
 data_tres <- s_nestpd_TRES_noint$data
@@ -11936,21 +11016,9 @@ s1_webl <- s1_lintemp_noint
 anova(s1_lintemp_noint, prior_model)
 
 
-(webls1trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1trendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
 
-(webls1trendmax <- emtrends(s1_lintemp_noint, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1trendmax <- format_emtrends_table(s1_lintemp_noint, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp_s1_webl <- s1_lintemp_noint@frame |>
@@ -12039,20 +11107,8 @@ s1_tres <- s1_lintemp_addmax
 anova(s1_lintemp_addmax, prior_model)
 
 
-(tress1trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(tress1trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1trendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
+(tress1trendmax <- format_emtrends_table(s1_lintemp_addmax, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp_s1_tres <- s1_lintemp_addmax@frame |>
@@ -12213,20 +11269,8 @@ abs_webl <- abs_lintemp
 anova(abs_lintemp, prior_model)
 
 
-(weblabstrendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(weblabstrendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabstrendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
+(weblabstrendmax <- format_emtrends_table(abs_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp <- abs_lintemp@frame |>
@@ -12380,29 +11424,11 @@ anova(abs_lintemp, prior_model)
 anova(abs_lintemp_addmin, prior_model_addmin)
 
 
-(tresabstrendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabstrendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
 
-(tresabstrendmax <- emtrends(prior_model_addmin, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabstrendmax <- format_emtrends_table(prior_model_addmin, "meanmaxtempI_scaled", "Max temp trend"))
 
-(tresabstrendmax <- emtrends(abs_lintemp_addmin, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabstrendmax <- format_emtrends_table(abs_lintemp_addmin, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp <- abs_lintemp@frame |>
@@ -12546,21 +11572,9 @@ s2_webl <- s2_lintemp
 anova(s2_lintemp, prior_model)
 
 
-(webls2trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2trendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
 
-(webls2trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2trendmax <- format_emtrends_table(s2_lintemp, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp_s2_webl <- s2_lintemp@frame |>
@@ -12704,20 +11718,8 @@ s2_tres <- s2_lintemp_addmin
 anova(s2_lintemp_addmin, prior_model)
 
 
-(tress2trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(tress2trendmax <- emtrends(s2_lintemp_addmin, specs = ~habitat, var = c("meanmaxtempI_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "meanmaxtempI_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2trendmax_prior <- format_emtrends_table(prior_model, "meanmaxtempI_scaled", "Max temp trend"))
+(tress2trendmax <- format_emtrends_table(s2_lintemp_addmin, "meanmaxtempI_scaled", "Max temp trend"))
 
 
 samp_s2_tres <- s2_lintemp_addmin@frame |>
@@ -12861,20 +11863,8 @@ s1_prior_day_webl <- s1_lintemp_addmax
 anova(s1_lintemp_addmax, prior_model)
 
 
-(webls1_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(webls1_priordayt_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls1_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(webls1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp_s1_priordayt_webl <- s1_lintemp_addmax@frame |>
@@ -13018,20 +12008,8 @@ s1_prior_day_tres <- s1_lintemp_addmin
 anova(s1_lintemp_addmax, prior_model)
 
 
-(tress1_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(tress1_priordayt_trendmax <- emtrends(s1_lintemp_addmax, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress1_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(tress1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp_s1_priordayt_tres <- s1_lintemp_addmax@frame |>
@@ -13174,20 +12152,8 @@ abs_webl_priordayt <- abs_lintemp_noint
 anova(abs_lintemp_noint, prior_model)
 
 
-(weblabs_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(weblabs_priordayt_trendmax <- emtrends(abs_lintemp_noint, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(weblabs_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(weblabs_priordayt_trendmax <- format_emtrends_table(abs_lintemp_noint, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp <- abs_lintemp_noint@frame |>
@@ -13332,20 +12298,8 @@ abs_tres_priordayt <- abs_lintemp
 anova(abs_lintemp, prior_model)
 
 
-(tresabs_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(tresabs_priordayt_trendmax <- emtrends(abs_lintemp, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tresabs_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(tresabs_priordayt_trendmax <- format_emtrends_table(abs_lintemp, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp <- abs_lintemp@frame |>
@@ -13490,20 +12444,8 @@ s2_prior_day_webl <- s2_lintemp_noint
 anova(s2_lintemp_noint, prior_model)
 
 
-(webls2_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(webls2_priordayt_trendmax <- emtrends(s2_lintemp_noint, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(webls2_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(webls2_priordayt_trendmax <- format_emtrends_table(s2_lintemp_noint, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp_s2_priordayt_webl <- s2_lintemp_noint@frame |>
@@ -13647,20 +12589,8 @@ s2_prior_day_tres <- s2_lintemp
 anova(s2_lintemp, prior_model)
 
 
-(tress2_priordayt_trendmax_prior <- emtrends(prior_model, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
-(tress2_priordayt_trendmax <- emtrends(s2_lintemp, specs = ~habitat, var = c("maxt_prior_scaled")) |> test() |>
-  mutate(across(where(is.numeric), ~ round(.x, digits = 3)),
-    df = round(df),
-    p.value = if_else(p.value == 0.000, "<0.001", as.character(p.value))
-  ) |>
-  rename(Habitat = "habitat", `Max temp trend` = "maxt_prior_scaled.trend", Df = "df", `T-ratio` = "t.ratio", P = "p.value") |>
-  gt())
+(tress2_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
+(tress2_priordayt_trendmax <- format_emtrends_table(s2_lintemp, "maxt_prior_scaled", "Max temp trend"))
 
 
 samp_s2_priordayt_tres <- s2_lintemp@frame |>
