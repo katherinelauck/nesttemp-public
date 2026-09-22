@@ -34,7 +34,7 @@ library(patchwork)
 #           s2 = stress-induced corticosterone sample
 #           abs = absolute change (s2 - s1)
 # Temp vars:
-#   I suffix (e.g. meanmaxtempI) = Fahrenheit / Imperial units
+#   I / O suffix (e.g. meanmaxtempI) = logger inside / outside the nestbox (deg C)
 #   hi                           = heat index
 #   cum                          = cumulative over the nest/sampling period
 #   priorday / priorweek         = rolling window ending the day/week before sampling

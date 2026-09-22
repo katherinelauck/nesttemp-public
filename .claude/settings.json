@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git -C \"c:\\\\Users\\\\kala7050\\\\projects\\\\nesttemp-public\" stash)",
+      "PowerShell(git -C \"c:\\\\Users\\\\kala7050\\\\projects\\\\nesttemp-public\" status)",
+      "Bash(grep -v \"^<\\\\|^\\\\s*<\\\\|^--$\\\\|^Loading\\\\|^Attaching\\\\|^Welcome\\\\|^Caution\\\\|^See\\\\|^The follow\\\\|^✔\\\\|^✖\\\\|^ℹ\\\\|^──\\\\|^Linking\\\\|^Enabled\\\\|^Disabled\")",
+      "Bash(grep -v \"^$\\\\|^  \\\\|^\\\\t\")",
+      "Bash(grep -v \"^$\\\\|font-family\\\\|padding\\\\|border\\\\|font-size\\\\|color:\\\\|background\\\\|overflow\\\\|width:\")",
+      "Bash(awk 'NR>=6452 && NR<=7535 && /prep_model_data|anova_int_tab/' \"c:/Users/kala7050/projects/nesttemp-public/code/models.R\")",
+      "Bash(awk 'NR>=7536 && NR<=8423 && /prep_model_data|anova_int_tab/' \"c:/Users/kala7050/projects/nesttemp-public/code/models.R\")",
+      "Bash(awk 'NR>=6510 && NR<=7595 && /scale_cols|prep_model_data/' \"c:/Users/kala7050/projects/nesttemp-public/code/models.R\")",
+      "Bash(git show *)",
+      "Bash(/c/Windows/System32/python3.exe --version)",
+      "Bash(/c/Users/kala7050/AppData/Local/miniforge3/python \"C:/Users/kala7050/AppData/Local/Temp/add_helpers.py\")",
+      "Bash(cmd //c \"echo %TEMP%\")",
+      "Bash(# Copy temp file to Windows accessible location *)",
+      "Bash(awk '{print $5, $6, $7, $9}')",
+      "Bash(awk 'NR==1306 { print; while\\(\\(getline line < \"/tmp/tres_section_trimmed.R\"\\) > 0\\) print line; next } 1' c:/Users/kala7050/projects/nesttemp-public/code/models.R)",
+      "Bash(awk '{print $5, $7, $9}')",
+      "Bash(grep -E \"\\\\.png$\")",
+      "PowerShell(Rscript -e \"tryCatch\\(parse\\(file='code/models.R'\\), error = function\\(e\\) cat\\('SYNTAX ERROR:', conditionMessage\\(e\\), '\\\\n'\\)\\)\" 2>&1)",
+      "PowerShell(Rscript -e \"tryCatch\\(parse\\(file='code/models.R'\\), error = function\\(e\\) cat\\('SYNTAX ERROR:', conditionMessage\\(e\\), '\\\\n'\\), warning = function\\(w\\) cat\\('WARNING:', conditionMessage\\(w\\), '\\\\n'\\)\\); cat\\('Parse complete\\\\n'\\)\" 2>&1)",
+      "PowerShell(Rscript -e \"tryCatch\\(parse\\(file='code/models.R'\\), error = function\\(e\\) cat\\('SYNTAX ERROR:', conditionMessage\\(e\\), '\\\\n'\\)\\); cat\\('Parse complete\\\\n'\\)\" 2>&1)",
+      "PowerShell(snakemake --cores 1 2>&1)",
+      "Bash(perl /c/Users/kala7050/projects/nesttemp-public/code/subst_helpers.pl /c/Users/kala7050/projects/nesttemp-public/code/models.R)",
+      "Bash(perl -0777 -i -pe ' *)",
+      "Bash(perl /tmp/fix_data_blocks.pl /c/Users/kala7050/projects/nesttemp-public/code/models.R)"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "C:\\Users\\kala7050\\AppData\\Local\\Temp"
+    ]
+  }
+}
