@@ -30,6 +30,7 @@ rule all:
         "figures/g_abs_provis_coef.html",
         "figures/val_tbl.html",
         "figures/tukeytable_tempbylanduse.html",
+        "figures/meantemp_bylanduse.html",
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
 
@@ -103,6 +104,7 @@ rule tables:
         "figures/g_abs_provis_coef.html",
         "figures/val_tbl.html",
         "figures/tukeytable_tempbylanduse.html",
+        "figures/meantemp_bylanduse.html",
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
     resources:

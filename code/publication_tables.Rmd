@@ -44,309 +44,392 @@ load("data/models_provis.RData")
 ## Temperature by land cover (Tukey HSD)
 
 ```{r}
-t_temp <- read_rds("../data/temp.rds") %>% mutate(site = factor(str_extract(box,"([:alpha:]|[:punct:])+")),
-                                             habitat = fct_collapse(site,
-                                                                    Orchard = c("BRO","MCE","PICO","MCO","FBFO","PG-O-"),
-                                                                    Grassland = c("MBNG","RRRG","PICG","FBFG"),
-                                                                    `Row crop` = c("MBNR","PICR","RRRR","FBFR","PG-C-","RU-C-"),
-                                                                    Forest = c("MBNC","PCC","PCT","RRC","RRE","SFP","PCE")),
-                                             habitat = factor(habitat,levels = c("Forest","Orchard","Grassland","Row crop")))
-wmean <- t_temp %>%
-  group_by(date,habitat,logger_position) %>%
-  summarize(meanmax = mean(maxt),n = n(),.groups = "keep") %>%
-  ungroup(habitat) %>%
-  summarize(wmean = weighted.mean(meanmax,n)) %>%
-  right_join(t_temp,by = c("date","logger_position")) %>%
+t_temp <- read_rds("data/temp.rds") |> mutate(
+  site = factor(str_extract(box, "([:alpha:]|[:punct:])+")),
+  habitat = fct_collapse(site,
+    Orchard = c("BRO", "MCE", "PICO", "MCO", "FBFO", "PG-O-"),
+    Grassland = c("MBNG", "RRRG", "PICG", "FBFG"),
+    `Row crop` = c("MBNR", "PICR", "RRRR", "FBFR", "PG-C-", "RU-C-"),
+    Forest = c("MBNC", "PCC", "PCT", "RRC", "RRE", "SFP", "PCE")
+  ),
+  habitat = factor(habitat, levels = c("Forest", "Orchard", "Grassland", "Row crop"))
+)
+wmean <- t_temp |>
+  group_by(date, habitat, logger_position) |>
+  summarize(meanmax = mean(maxt), n = n(), .groups = "keep") |>
+  ungroup(habitat) |>
+  summarize(wmean = weighted.mean(meanmax, n)) |>
+  right_join(t_temp, by = c("date", "logger_position")) |>
   mutate(resid = maxt - wmean)
 
-(tuk_names <- TukeyHSD(aov(resid~habitat, filter(wmean,logger_position == "O")),conf.level = .95)[[1]] %>% as_tibble(rownames = "comparison") %>%
-    mutate(across(diff:`p adj`,~round(.x,digits = 2)),
-           `p adj` = if_else(`p adj` < .001, "<0.001",as.character(`p adj`))) %>% gt())
 
-gtsave(tuk_names,"../figures/tukeytable_tempbylanduse.html")
+(tuk_names <- TukeyHSD(aov(resid ~ habitat, filter(wmean, logger_position == "O")), conf.level = .95)[[1]] |> as_tibble(rownames = "comparison") |>
+  mutate(across(diff:`p adj`, ~ round(.x, digits = 2)),
+    `p adj` = if_else(`p adj` < .001, "<0.001", as.character(`p adj`))
+  ) |> gt())
+
+gtsave(tuk_names, "figures/tukeytable_tempbylanduse.html")
+```
+
+## Mean temperature by land cover
+
+```{r}
+(temp_by_habitat <- t_temp |>
+  filter(logger_position %in% c("I", "O")) |>
+  group_by(logger_position, habitat) |>
+  summarize(across(c(meant, maxt, mint), ~ round(mean(.x, na.rm = TRUE), digits = 1)),
+    n_logger_days = n(), .groups = "drop"
+  ) |>
+  mutate(logger_position = if_else(logger_position == "I", "Inside", "Outside")) |>
+  gt(rowname_col = "habitat", groupname_col = "logger_position") |>
+  cols_label(meant = "Mean (°C)", maxt = "Mean daily max (°C)", mint = "Mean daily min (°C)", n_logger_days = "Logger-days"))
+
+gtsave(temp_by_habitat, "figures/meantemp_bylanduse.html")
 ```
 
 
 # Sample size tables
 
 ```{r}
-growth <- rbind(t_samp_year_growth_webl$`_data`,t_samp_year_growth_tres$`_data`) %>% dplyr::select(Habitat, `2021`, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Growth ~ Temp * Land cover") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
-  # dplyr::select(-row) %>%
- 
+growth <- rbind(t_samp_year_growth_webl$`_data`, t_samp_year_growth_tres$`_data`) |>
+  dplyr::select(Habitat, `2021`, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Growth ~ Temp * Land cover"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
+# dplyr::select(-row) |>
 
-growth_by_basecort_provis <- rbind(t_ss_year_webl_growthbybasecortprovis$`_data`,t_ss_year_tres_growthbybasecortprovis$`_data`) %>% dplyr::select(Habitat, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",3)),
-         Response = "Growth ~ Baseline cort + Provisioning") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
-  # dplyr::select(-row) %>%
 
-growth_by_abscort_provis <- rbind(t_ss_year_webl_growthbyabscortprovis$`_data`,t_ss_year_tres_growthbyabscortprovis$`_data`) %>% dplyr::select(Habitat, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",3)),
-         Response = "Growth ~ Stress-induced cort + Provisioning") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+growth_by_basecort_provis <- rbind(t_ss_year_webl_growthbybasecortprovis$`_data`, t_ss_year_tres_growthbybasecortprovis$`_data`) |>
+  dplyr::select(Habitat, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 3)),
+    Response = "Growth ~ Baseline cort + Provisioning"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
+# dplyr::select(-row) |>
 
-survival <- rbind(ss_year_survival_webl,ss_year_survival_tres) %>% dplyr::select(Habitat, `2021`, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Survival") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value) %>%
-  mutate(across(everything(),~as.character(.x)))
+growth_by_abscort_provis <- rbind(t_ss_year_webl_growthbyabscortprovis$`_data`, t_ss_year_tres_growthbyabscortprovis$`_data`) |>
+  dplyr::select(Habitat, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 3)),
+    Response = "Growth ~ Stress-induced cort + Provisioning"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-baseline_cort <- rbind(t_ss_year_webl_s1$`_data`,t_ss_year_tres_s1$`_data`) %>% dplyr::select(Habitat, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Baseline corticosterone") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+survival <- rbind(ss_year_survival_webl, ss_year_survival_tres) |>
+  dplyr::select(Habitat, `2021`, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Survival"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |>
+  mutate(across(everything(), ~ as.character(.x)))
 
-s2_cort <- rbind(t_ss_year_webl_s2$`_data`,t_ss_year_tres_s2$`_data`) %>% dplyr::select(Habitat, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Stress-induced corticosterone") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+baseline_cort <- rbind(t_ss_year_webl_s1$`_data`, t_ss_year_tres_s1$`_data`) |>
+  dplyr::select(Habitat, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Baseline corticosterone"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-abs_cort <- rbind(t_ss_year_webl_abs$`_data`,t_ss_year_tres_abs$`_data`) %>% dplyr::select(Habitat, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Stress-induced - baseline corticosterone") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
-  
+s2_cort <- rbind(t_ss_year_webl_s2$`_data`, t_ss_year_tres_s2$`_data`) |>
+  dplyr::select(Habitat, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Stress-induced corticosterone"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-provis <- rbind(t_ss_year_webl_provis$`_data`,t_ss_year_tres_provis$`_data`) %>% dplyr::select(Habitat, `2021`, `2022`, `2023`) %>% 
-  replace_na(replace = list(`2021` = 0,`2022` = 0, `2023` = 0)) %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Provisioning") %>%
-  # mutate(row=row_number()) %>% 
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+abs_cort <- rbind(t_ss_year_webl_abs$`_data`, t_ss_year_tres_abs$`_data`) |>
+  dplyr::select(Habitat, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Stress-induced - baseline corticosterone"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
+
+provis <- rbind(t_ss_year_webl_provis$`_data`, t_ss_year_tres_provis$`_data`) |>
+  dplyr::select(Habitat, `2021`, `2022`, `2023`) |>
+  replace_na(replace = list(`2021` = 0, `2022` = 0, `2023` = 0)) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Provisioning"
+  ) |>
+  # mutate(row=row_number()) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 ```
 
 ```{r}
-# (samp_size_1 <- rbind(growth,growth_by_basecort_provis,growth_by_abscort_provis,survival) %>% gt(rowname_col = "Habitat",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-#   
+# (samp_size_1 <- rbind(growth,growth_by_basecort_provis,growth_by_abscort_provis,survival) |> gt(rowname_col = "Habitat",groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
+#
 #   tab_spanner_delim(
-#     delim="_") %>%
+#     delim="_") |>
 # summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)))
-# 
-# (samp_size_2 <- rbind(provis,baseline_cort,abs_cort) %>% gt(rowname_col = "Habitat",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-#   
+#
+# (samp_size_2 <- rbind(provis,baseline_cort,abs_cort) |> gt(rowname_col = "Habitat",groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
+#
 #   tab_spanner_delim(
-#     delim="_") %>%
+#     delim="_") |>
 # summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE)))
-# 
+#
 # rbind(samp_size_1,samp_size_2)
-# 
+#
 # library(gtExtras)
-# 
-# process_samp <- function(x){gt(x,rowname_col = "Habitat",groupname_col = "Response") %>%
-#     tab_options(data_row.padding = px(1)) %>%
-#   
+#
+# process_samp <- function(x){gt(x,rowname_col = "Habitat",groupname_col = "Response") |>
+#     tab_options(data_row.padding = px(1)) |>
+#
 #   tab_spanner_delim(
-#     delim="_") %>%
+#     delim="_") |>
 # summary_rows(groups = "Response",columns = -c(Habitat),fns = list(id = "Total") ~ sum(.,na.rm = TRUE))
 #     }
-# 
+#
 # samp_size <- gt_two_column_layout(list(samp_size_1,samp_size_2))
-# 
+#
 # gtsave_extra(samp_size,"../figures/full_samp_size_tbl.png")
 
-(samp_size_onecol <- rbind(growth,growth_by_basecort_provis,growth_by_abscort_provis,survival,baseline_cort,s2_cort,abs_cort,provis) %>%
-   mutate(across(everything(),~replace_na(.x,"0, 0")),
-          across(everything(),~str_replace_all(.x,"NA","0"))) %>%
-   gt(rowname_col = "Habitat",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
+(samp_size_onecol <- rbind(growth, growth_by_basecort_provis, growth_by_abscort_provis, survival, baseline_cort, s2_cort, abs_cort, provis) |>
+  mutate(
+    across(everything(), ~ replace_na(.x, "0, 0")),
+    across(everything(), ~ str_replace_all(.x, "NA", "0"))
+  ) |>
+  gt(rowname_col = "Habitat", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_") %>%
-summary_rows(columns = -c(Habitat),fns = list(id = "Total") ~ {
-        t <- str_split(.,", ",simplify = TRUE)
-        if(ncol(t) == 2){
-          t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% paste(t[,2] %>% as.numeric() %>% sum(na.rm = TRUE),sep = ", ")
-        } else {
-          t[,1] %>% as.numeric() %>% sum(na.rm = TRUE) %>% as.character()
-        }
-        
-      })
+    delim = "_"
+  ) |>
+  summary_rows(columns = -c(Habitat), fns = list(id = "Total") ~ {
+    t <- str_split(., ", ", simplify = TRUE)
+    if (ncol(t) == 2) {
+      t[, 1] |>
+        as.numeric() |>
+        sum(na.rm = TRUE) |>
+        paste(t[, 2] |> as.numeric() |> sum(na.rm = TRUE), sep = ", ")
+    } else {
+      t[, 1] |>
+        as.numeric() |>
+        sum(na.rm = TRUE) |>
+        as.character()
+    }
+  })
 )
 
-gtsave(samp_size_onecol,"../figures/full_samp_size_tbl.html")
-
+gtsave(samp_size_onecol, "../figures/full_samp_size_tbl.html")
 ```
 
 
 ## Land cover contrast tables
 
 ```{r}
-growth <- rbind(growthbyhabitat_webl$`_data`,growthbyhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "t.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Growth") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+growth <- rbind(growthbyhabitat_webl$`_data`, growthbyhabitat_tres$`_data`) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "t.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Growth"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-survival <- rbind(survival_nestpd_byhabitat_webl$`_data`,
-                  survival_nestpd_byhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "z.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Survival") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+survival <- rbind(
+  survival_nestpd_byhabitat_webl$`_data`,
+  survival_nestpd_byhabitat_tres$`_data`
+) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "z.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Survival"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-base_cort <- rbind(s1byhabitat_webl$`_data`,
-                  s1byhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "t.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Baseline corticosterone") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+base_cort <- rbind(
+  s1byhabitat_webl$`_data`,
+  s1byhabitat_tres$`_data`
+) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "t.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Baseline corticosterone"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-s2_cort <- rbind(s2byhabitat_webl$`_data`,
-                  s2byhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "t.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Stress-induced corticosterone") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+s2_cort <- rbind(
+  s2byhabitat_webl$`_data`,
+  s2byhabitat_tres$`_data`
+) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "t.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Stress-induced corticosterone"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-abs_cort <- rbind(absbyhabitat_webl$`_data`,
-                  absbyhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "t.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Stress-induced - Baseline corticosterone") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+abs_cort <- rbind(
+  absbyhabitat_webl$`_data`,
+  absbyhabitat_tres$`_data`
+) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "t.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Stress-induced - Baseline corticosterone"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-provis <- rbind(provisbyhabitat_webl$`_data`,
-                  provisbyhabitat_tres$`_data`) %>%
-  rename(Contrast = "contrast",Estimate = "estimate",Df = "df",`Statistic` = "z.ratio",`P-value` = "p.value") %>%
-  mutate(Species = c(rep("Western Bluebird",6),rep("Tree Swallow",6)),
-         Response = "Provisioning") %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Contrast)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+provis <- rbind(
+  provisbyhabitat_webl$`_data`,
+  provisbyhabitat_tres$`_data`
+) |>
+  rename(Contrast = "contrast", Estimate = "estimate", Df = "df", `Statistic` = "z.ratio", `P-value` = "p.value") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 6), rep("Tree Swallow", 6)),
+    Response = "Provisioning"
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Contrast)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-(landcover_contrast <- rbind(growth,survival,base_cort,s2_cort,abs_cort,provis) %>% gt(rowname_col = "Contrast",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-
+(landcover_contrast <- rbind(growth, survival, base_cort, s2_cort, abs_cort, provis) |> gt(rowname_col = "Contrast", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(landcover_contrast,"../figures/full_landcover_contrast_tbl.html")
-
+gtsave(landcover_contrast, "../figures/full_landcover_contrast_tbl.html")
 ```
 
 ## Trend tables
 
 ```{r}
-growth <- rbind(weblgrowthtrendmax$`_data`,tresgrowthtrendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Growth",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+growth <- rbind(weblgrowthtrendmax$`_data`, tresgrowthtrendmax$`_data`) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Growth",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-survival <- rbind(weblsurvival_nestpd_trendmax$`_data`,tressurvival_nestpd_trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Survival",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+survival <- rbind(weblsurvival_nestpd_trendmax$`_data`, tressurvival_nestpd_trendmax$`_data`) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Survival",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-s1_cort <- rbind(webls1trendmax$`_data`,tress1trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Baseline corticosterone",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+s1_cort <- rbind(webls1trendmax$`_data`, tress1trendmax$`_data`) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Baseline corticosterone",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-s2_cort <- rbind(webls2trendmax$`_data`,tress2trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Stress-induced corticosterone",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+s2_cort <- rbind(webls2trendmax$`_data`, tress2trendmax$`_data`) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Stress-induced corticosterone",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-abs_cort <- rbind(weblabstrendmax$`_data`,tresabstrendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",4)),
-         Response = "Stress-induced - baseline corticosterone",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+abs_cort <- rbind(weblabstrendmax$`_data`, tresabstrendmax$`_data`) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)),
+    Response = "Stress-induced - baseline corticosterone",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-provis <- weblprovistrend$`_data` %>%
-  rename(Trend = "Max temp trend",`Statistic` = "Z-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4)),
-         Response = "Provisioning",
-         Trend = as.character(Trend),
-         SE = as.character(SE),
-         Df = as.character(Df),
-         Statistic = as.character(Statistic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Habitat)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+provis <- weblprovistrend$`_data` |>
+  rename(Trend = "Max temp trend", `Statistic` = "Z-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4)),
+    Response = "Provisioning",
+    Trend = as.character(Trend),
+    SE = as.character(SE),
+    Df = as.character(Df),
+    Statistic = as.character(Statistic)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Habitat)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-(trend <- rbind(growth,survival,s1_cort,s2_cort,abs_cort,provis) %>% gt(rowname_col = "Habitat",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-
+(trend <- rbind(growth, survival, s1_cort, s2_cort, abs_cort, provis) |> gt(rowname_col = "Habitat", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(trend,"../figures/trend_tbl.html")
-
+gtsave(trend, "../figures/trend_tbl.html")
 ```
 
 
@@ -355,418 +438,521 @@ gtsave(trend,"../figures/trend_tbl.html")
 I'm going to combine tables in the style of the growth int tables
 
 ```{r}
-growth <- rbind(int_tab_growth_webl$`_data`,int_tab_growth_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  dplyr::filter((max_or_min == "Max temp")) %>%
-  dplyr::select(-max_or_min) %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Growth",
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+growth <- rbind(int_tab_growth_webl$`_data`, int_tab_growth_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  dplyr::filter((max_or_min == "Max temp")) |>
+  dplyr::select(-max_or_min) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Growth",
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-survival <- rbind(int_tab_survival_nestpd_webl$`_data`,int_tab_survival_nestpd_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  dplyr::filter((max_or_min == "Max temp")) %>%
-  dplyr::select(-max_or_min) %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Survival",
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+survival <- rbind(int_tab_survival_nestpd_webl$`_data`, int_tab_survival_nestpd_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  dplyr::filter((max_or_min == "Max temp")) |>
+  dplyr::select(-max_or_min) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Survival",
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-base_cort <- rbind(int_tab_s1_webl$`_data`,int_tab_s1_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  dplyr::filter((max_or_min == "Max temp")) %>%
-  dplyr::select(-max_or_min) %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Baseline corticosterone",
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+base_cort <- rbind(int_tab_s1_webl$`_data`, int_tab_s1_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  dplyr::filter((max_or_min == "Max temp")) |>
+  dplyr::select(-max_or_min) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Baseline corticosterone",
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-s2_cort <- rbind(int_tab_s2_webl$`_data`,int_tab_s2_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  dplyr::filter((max_or_min == "Max temp")) %>%
-  dplyr::select(-max_or_min) %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Stress-induced corticosterone",
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+s2_cort <- rbind(int_tab_s2_webl$`_data`, int_tab_s2_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  dplyr::filter((max_or_min == "Max temp")) |>
+  dplyr::select(-max_or_min) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Stress-induced corticosterone",
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-abs_cort <- rbind(int_tab_abs_webl$`_data`,int_tab_abs_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  dplyr::filter((max_or_min == "Max temp")) %>%
-  dplyr::select(-max_or_min) %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Stress-induced - Baseline corticosterone",
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+abs_cort <- rbind(int_tab_abs_webl$`_data`, int_tab_abs_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  dplyr::filter((max_or_min == "Max temp")) |>
+  dplyr::select(-max_or_min) |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Stress-induced - Baseline corticosterone",
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-provis <- rbind(int_tab_provis_webl$`_data`,int_tab_provis_tres$`_data`) %>%
-  rename(`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",3),rep("Tree Swallow",3)),
-         Response = "Provisioning",
-         Model = rep(c("No interaction",
-                       "Linear temp * LC",
-                       "Squared temp * LC"),2),
-         AIC = as.character(AIC),
-         Chisq = as.character(Chisq),
-         `P-value` = as.character(`P-value`)) %>%
-  pivot_longer(-c(Species, Response, Model)) %>%
-  pivot_wider(names_from=c(Species, name), values_from=value)
+provis <- rbind(int_tab_provis_webl$`_data`, int_tab_provis_tres$`_data`) |>
+  rename(`P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 3), rep("Tree Swallow", 3)),
+    Response = "Provisioning",
+    Model = rep(c(
+      "No interaction",
+      "Linear temp * LC",
+      "Squared temp * LC"
+    ), 2),
+    AIC = as.character(AIC),
+    Chisq = as.character(Chisq),
+    `P-value` = as.character(`P-value`)
+  ) |>
+  pivot_longer(-c(Species, Response, Model)) |>
+  pivot_wider(names_from = c(Species, name), values_from = value)
 
-(int_tab <- rbind(growth,survival,base_cort,s2_cort,abs_cort,provis) %>% gt(rowname_col = "Model",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-
+(int_tab <- rbind(growth, survival, base_cort, s2_cort, abs_cort, provis) |> gt(rowname_col = "Model", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(int_tab,"../figures/int_tbl.html")
+gtsave(int_tab, "../figures/int_tbl.html")
 ```
 
 ## Growth coefficient table
 
 ```{r}
-webl <- summary(g_lintemp_webl) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- summary(g_lintemp_webl) |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- summary(g_lintemp_addmin_tres) %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- summary(g_lintemp_addmin_tres) |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
-
 ```
 
 # covariate name replacement table
 
 ```{r}
-name_key_growth <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Maximum temperature (scaled)",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Minimum temperature (scaled)",
-               "Nestling age",
-               "Julian date of hatching",
-               "Year: 2022",
-               "Year: 2023",
-               "Max temp slope in orchards",
-               "Max temp slope in grasslands",
-               "Max temp slope in row crops",
-               "Min temp slope in orchards",
-               "Min temp slope in grasslands",
-               "Min temp slope in row crops",
-               "Max temp × Julian date"))
+name_key_growth <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Maximum temperature (scaled)",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Minimum temperature (scaled)",
+    "Nestling age",
+    "Julian date of hatching",
+    "Year: 2022",
+    "Year: 2023",
+    "Max temp slope in orchards",
+    "Max temp slope in grasslands",
+    "Max temp slope in row crops",
+    "Min temp slope in orchards",
+    "Min temp slope in grasslands",
+    "Min temp slope in row crops",
+    "Max temp × Julian date"
+  )
+)
 ```
 
 
 ```{r}
-
-(g_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_growth$new[match(Covariate, name_key_growth$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(g_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_growth$new[match(Covariate, name_key_growth$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(g_coef,"../figures/growth_coef.html")
-
+gtsave(g_coef, "../figures/growth_coef.html")
 ```
 
 
 ## Coefficients for survival
 
 ```{r}
-webl <- s_nestpd_WEBL_addmin %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>%
+webl <- s_nestpd_WEBL_addmin |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`z value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|z|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- s_nestpd_TRES_noint %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>%
+tres <- s_nestpd_TRES_noint |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`z value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|z|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_s <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Maximum temperature (scaled)",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Minimum temperature (scaled)",
-               "Julian date of hatching",
-               "Year: 2022",
-               "Year: 2023",
-               "Site: PG",
-               "Site: RR",
-               "Site: WI",
-               "Max temp slope in orchards",
-               "Max temp slope in grasslands",
-               "Max temp slope in row crops"))
+name_key_s <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Maximum temperature (scaled)",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Minimum temperature (scaled)",
+    "Julian date of hatching",
+    "Year: 2022",
+    "Year: 2023",
+    "Site: PG",
+    "Site: RR",
+    "Site: WI",
+    "Max temp slope in orchards",
+    "Max temp slope in grasslands",
+    "Max temp slope in row crops"
+  )
+)
 ```
 
 ```{r}
-
-(s_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`Z-value` = `z value`,P = `Pr(>|z|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_s$new[match(Covariate, name_key_s$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(s_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `Z-value` = `z value`, P = `Pr(>|z|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_s$new[match(Covariate, name_key_s$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(s_coef,"../figures/survival_coef.html")
-
+gtsave(s_coef, "../figures/survival_coef.html")
 ```
 
 ## Coefficients for baseline cort
 
 ```{r}
-webl <- s1_prior_day_webl %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- s1_prior_day_webl |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- s1_prior_day_tres %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- s1_prior_day_tres |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_s1 <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Maximum temperature (scaled)",
-               "Minimum temperature (scaled)",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Nestling age",
-               "Julian date of hatching",
-               "Year: 2023",
-               "Min temp slope in orchards",
-               "Min temp slope in grasslands",
-               "Min temp slope in row crops",
-               "Max temp slope in orchards",
-               "Max temp slope in grasslands",
-               "Max temp slope in row crops"))
+name_key_s1 <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Maximum temperature (scaled)",
+    "Minimum temperature (scaled)",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Nestling age",
+    "Julian date of hatching",
+    "Year: 2023",
+    "Min temp slope in orchards",
+    "Min temp slope in grasslands",
+    "Min temp slope in row crops",
+    "Max temp slope in orchards",
+    "Max temp slope in grasslands",
+    "Max temp slope in row crops"
+  )
+)
 ```
 
 ```{r}
-
-(s1_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_s1$new[match(Covariate, name_key_s1$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(s1_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_s1$new[match(Covariate, name_key_s1$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(s1_coef,"../figures/s1_coef.html")
-
+gtsave(s1_coef, "../figures/s1_coef.html")
 ```
 
 
 ## Coefficients for abs cort
 
 ```{r}
-webl <- abs_webl_priordayt %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- abs_webl_priordayt |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- abs_tres_priordayt %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- abs_tres_priordayt |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_abs <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Maximum temperature (scaled)",
-               "Minimum temperature (scaled)",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Nestling age",
-               "Julian date of hatching",
-               "Year: 2023",
-               "Max temp slope in orchards",
-               "Max temp slope in grasslands",
-               "Max temp slope in row crops",
-               "Min temp slope in orchards",
-               "Min temp slope in grasslands",
-               "Min temp slope in row crops"))
+name_key_abs <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Maximum temperature (scaled)",
+    "Minimum temperature (scaled)",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Nestling age",
+    "Julian date of hatching",
+    "Year: 2023",
+    "Max temp slope in orchards",
+    "Max temp slope in grasslands",
+    "Max temp slope in row crops",
+    "Min temp slope in orchards",
+    "Min temp slope in grasslands",
+    "Min temp slope in row crops"
+  )
+)
 ```
 
 ```{r}
-
-(abs_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_abs$new[match(Covariate, name_key_abs$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(abs_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_abs$new[match(Covariate, name_key_abs$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(abs_coef,"../figures/abs_coef.html")
-
+gtsave(abs_coef, "../figures/abs_coef.html")
 ```
 
 ## Coefficients for s2 cort
 
 ```{r}
-webl <- s2_webl %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- s2_webl |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- s2_tres %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- s2_tres |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_s2 <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Maximum temperature (scaled)",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Minimum temperature (scaled)",
-               "Nestling age",
-               "Julian date of hatching",
-               "Year: 2023",
-               "Max temp slope in orchards",
-               "Max temp slope in grasslands",
-               "Max temp slope in row crops",
-               "Min temp slope in orchards",
-               "Min temp slope in grasslands",
-               "Min temp slope in row crops"))
+name_key_s2 <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Maximum temperature (scaled)",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Minimum temperature (scaled)",
+    "Nestling age",
+    "Julian date of hatching",
+    "Year: 2023",
+    "Max temp slope in orchards",
+    "Max temp slope in grasslands",
+    "Max temp slope in row crops",
+    "Min temp slope in orchards",
+    "Min temp slope in grasslands",
+    "Min temp slope in row crops"
+  )
+)
 ```
 
 ```{r}
-
-(s2_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_s2$new[match(Covariate, name_key_s2$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(s2_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_s2$new[match(Covariate, name_key_s2$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(s2_coef,"../figures/s2_coef.html")
-
+gtsave(s2_coef, "../figures/s2_coef.html")
 ```
 
 ## Coefficients for provis
 
 ```{r}
 library(magrittr)
-webl <- provis_webl %>% summary() %>% coef() %>% extract2(1) %>% as_tibble(rownames = "Covariate") %>%
-    dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>%
+webl <- provis_webl |>
+  summary() |>
+  coef() |>
+  extract2(1) |>
+  as_tibble(rownames = "Covariate") |>
+  dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`z value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|z|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- provis_tres %>% summary() %>% coef() %>% extract2(1) %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`z value`,~round(.x,digits = 2)),
-           across(`Pr(>|z|)`,~round(.x,digits = 3))) %>%
+tres <- provis_tres |>
+  summary() |>
+  coef() |>
+  extract2(1) |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`z value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|z|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_provis <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Linear effect of mean temp",
-               "Land cover: Orchard",
-               "Land cover: Grassland",
-               "Land cover: Row crop",
-               "Quadratic effect of mean temp",
-               "Julian date of hatching",
-               "Linear effect of time of day",
-               "Quadratic effect of time of day",
-               "Nestling age",
-               "Year: 2022",
-               "Year: 2023",
-               "Mean temp slope in orchards",
-               "Mean temp slope in grasslands",
-               "Mean temp slope in row crops",
-               "Linear effect of mean temp",
-               "Mean temp slope in orchards",
-               "Slope of quadratic mean temp in orchards",
-               "Mean temp slope in grasslands",
-               "Slope of quadratic mean temp in grasslands",
-               "Mean temp slope in row crops",
-               "Slope of quadratic mean temp in row crop"))
+name_key_provis <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Linear effect of mean temp",
+    "Land cover: Orchard",
+    "Land cover: Grassland",
+    "Land cover: Row crop",
+    "Quadratic effect of mean temp",
+    "Julian date of hatching",
+    "Linear effect of time of day",
+    "Quadratic effect of time of day",
+    "Nestling age",
+    "Year: 2022",
+    "Year: 2023",
+    "Mean temp slope in orchards",
+    "Mean temp slope in grasslands",
+    "Mean temp slope in row crops",
+    "Linear effect of mean temp",
+    "Mean temp slope in orchards",
+    "Slope of quadratic mean temp in orchards",
+    "Mean temp slope in grasslands",
+    "Slope of quadratic mean temp in grasslands",
+    "Mean temp slope in row crops",
+    "Slope of quadratic mean temp in row crop"
+  )
+)
 ```
 
 ```{r}
-
-(provis_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`Z-value` = `z value`,P = `Pr(>|z|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_provis$new[match(Covariate, name_key_provis$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(provis_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `Z-value` = `z value`, P = `Pr(>|z|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_provis$new[match(Covariate, name_key_provis$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(provis_coef,"../figures/provis_coef.html")
-
+gtsave(provis_coef, "../figures/provis_coef.html")
 ```
 
 
@@ -774,98 +960,128 @@ gtsave(provis_coef,"../figures/provis_coef.html")
 
 ```{r}
 library(magrittr)
-webl <- g_provis_cort_webl %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- g_provis_cort_webl |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- g_provis_cort_tres %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- g_provis_cort_tres |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_s1_provis <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Baseline corticosterone (scaled)",
-               "Mean provisioning rate (scaled)",
-               "Linear effect of max temp",
-               "Quadratic effect of max temp",
-               "Mean humidity (scaled)",
-               "Nestling age (scaled)",
-               "Nestling condition (scaled)"))
+name_key_s1_provis <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Baseline corticosterone (scaled)",
+    "Mean provisioning rate (scaled)",
+    "Linear effect of max temp",
+    "Quadratic effect of max temp",
+    "Mean humidity (scaled)",
+    "Nestling age (scaled)",
+    "Nestling condition (scaled)"
+  )
+)
 ```
 
 ```{r}
-
-(g_s1_provis_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_s1_provis$new[match(Covariate, name_key_s1_provis$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(g_s1_provis_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_s1_provis$new[match(Covariate, name_key_s1_provis$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(g_s1_provis_coef,"../figures/g_s1_provis_coef.html")
-
+gtsave(g_s1_provis_coef, "../figures/g_s1_provis_coef.html")
 ```
 
 ## Coefficients for growth ~ abs + provis
 
 ```{r}
 library(magrittr)
-webl <- g_provis_abscort_webl %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+webl <- g_provis_abscort_webl |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Western Bluebird")
 
-tres <- g_provis_abscort_tres %>% summary() %>% coef() %>% as_tibble(rownames = "Covariate") %>%
-    # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") %>%
-    mutate(across(Estimate:`t value`,~round(.x,digits = 2)),
-           across(`Pr(>|t|)`,~round(.x,digits = 3))) %>%
+tres <- g_provis_abscort_tres |>
+  summary() |>
+  coef() |>
+  as_tibble(rownames = "Covariate") |>
+  # dplyr::filter(Covariate != "poly(mean_temp_scaled, 2)1") |>
+  mutate(
+    across(Estimate:`t value`, ~ round(.x, digits = 2)),
+    across(`Pr(>|t|)`, ~ round(.x, digits = 3))
+  ) |>
   mutate(Species = "Tree Swallow")
 ```
 
 ```{r}
-name_key_abs_provis <- tibble(old = c(webl$Covariate,tres$Covariate) %>% unique(),
-       new = c("Intercept","Stress-induced corticosterone (scaled)",
-               "Mean provisioning rate (scaled)",
-               "Maximum temperature (scaled)",
-               "Minimum temperature (scaled)",
-               "Mean humidity (scaled)",
-               "Nestling age (scaled)",
-               "Nestling condition (scaled)"))
+name_key_abs_provis <- tibble(
+  old = c(webl$Covariate, tres$Covariate) |> unique(),
+  new = c(
+    "Intercept", "Stress-induced corticosterone (scaled)",
+    "Mean provisioning rate (scaled)",
+    "Maximum temperature (scaled)",
+    "Minimum temperature (scaled)",
+    "Mean humidity (scaled)",
+    "Nestling age (scaled)",
+    "Nestling condition (scaled)"
+  )
+)
 ```
 
 ```{r}
-
-(g_abs_provis_coef <- rbind(webl,tres) %>%
-  rename(SD = `Std. Error`,`T-value` = `t value`,P = `Pr(>|t|)`) %>%
-   filter(!Covariate=="(Intercept)") %>%
-   mutate(Covariate = name_key_abs_provis$new[match(Covariate, name_key_abs_provis$old)]) %>%
-  pivot_longer(-c(Species,Covariate)) %>%
-  mutate(value = as.character(value),
-         value = if_else(name == "P" & value == "0","<0.001",value)) %>%
-  pivot_wider(names_from = c(Species,name),values_from = value) %>% gt() %>%
-  tab_options(data_row.padding = px(1)) %>%
+(g_abs_provis_coef <- rbind(webl, tres) |>
+  rename(SD = `Std. Error`, `T-value` = `t value`, P = `Pr(>|t|)`) |>
+  filter(!Covariate == "(Intercept)") |>
+  mutate(Covariate = name_key_abs_provis$new[match(Covariate, name_key_abs_provis$old)]) |>
+  pivot_longer(-c(Species, Covariate)) |>
+  mutate(
+    value = as.character(value),
+    value = if_else(name == "P" & value == "0", "<0.001", value)
+  ) |>
+  pivot_wider(names_from = c(Species, name), values_from = value) |> gt() |>
+  tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(g_abs_provis_coef,"../figures/g_abs_provis_coef.html")
-
+gtsave(g_abs_provis_coef, "../figures/g_abs_provis_coef.html")
 ```
 
 ## Tree swallow provisioning polynomial trends
 
 ```{r}
-gtsave(tresprovistrend,"../figures/tresprovistrend.html")
+gtsave(tresprovistrend, "../figures/tresprovistrend.html")
 ```
 
 #### Validation table
@@ -887,149 +1103,197 @@ predictors: meanmax temp week, max temp day, max hi week, max hi day, cum deg >3
 
 
 ```{r}
-growth <- rbind(weblgrowthtrendmax$`_data`,tresgrowthtrendmax$`_data`,
-                weblgrowthtrendmaxhiweek$`_data`,tresgrowthtrendmaxhiweek$`_data`,
-                weblgrowthtrenddeghr30week$`_data`,tresgrowthtrenddeghr30week$`_data`,
-                weblgrowthtrendhihr25week$`_data`,tresgrowthtrendhihr25week$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = rep(c(rep("Western Bluebird",4),rep("Tree Swallow",4)),4),
-         Response = "Growth",
-         Predictor = c(rep("Mean max temp over prior week",8),
-                       rep("Mean max heat index over prior week",8),
-                       rep("Cumulative degree-hours >30\u00b0C",8),
-                       rep("Cumulative heat index-hours >30\u00b0C",8)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+growth <- rbind(
+  weblgrowthtrendmax$`_data`, tresgrowthtrendmax$`_data`,
+  weblgrowthtrendmaxhiweek$`_data`, tresgrowthtrendmaxhiweek$`_data`,
+  weblgrowthtrenddeghr30week$`_data`, tresgrowthtrenddeghr30week$`_data`,
+  weblgrowthtrendhihr25week$`_data`, tresgrowthtrendhihr25week$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)), 4),
+    Response = "Growth",
+    Predictor = c(
+      rep("Mean max temp over prior week", 8),
+      rep("Mean max heat index over prior week", 8),
+      rep("Cumulative degree-hours >30\u00b0C", 8),
+      rep("Cumulative heat index-hours >30\u00b0C", 8)
+    ),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-survival <- rbind(weblsurvival_nestpd_trendmax$`_data`,tressurvival_nestpd_trendmax$`_data`,
-                  weblsurvival_nestpd_trendmax_meanmaxhi$`_data`,tressurvival_nestpd_trendmax_meanmaxhi$`_data`,
-                  weblsurvival_nestpd_trendmax_deghr_30$`_data`,tressurvival_nestpd_trendmax_deghr_30$`_data`,
-                  weblsurvival_nestpd_trendmax_hihr_30$`_data`,tressurvival_nestpd_trendmax_hihr_30$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = rep(c(rep("Western Bluebird",4),rep("Tree Swallow",4)),4),
-         Response = "Survival",
-         Predictor = c(rep("Mean max temp over prior week",8),
-                       rep("Mean max heat index over prior week",8),
-                       rep("Cumulative degree-hours >30\u00b0C",8),
-                       rep("Cumulative heat index-hours >30\u00b0C",8)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+survival <- rbind(
+  weblsurvival_nestpd_trendmax$`_data`, tressurvival_nestpd_trendmax$`_data`,
+  weblsurvival_nestpd_trendmax_meanmaxhi$`_data`, tressurvival_nestpd_trendmax_meanmaxhi$`_data`,
+  weblsurvival_nestpd_trendmax_deghr_30$`_data`, tressurvival_nestpd_trendmax_deghr_30$`_data`,
+  weblsurvival_nestpd_trendmax_hihr_30$`_data`, tressurvival_nestpd_trendmax_hihr_30$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)), 4),
+    Response = "Survival",
+    Predictor = c(
+      rep("Mean max temp over prior week", 8),
+      rep("Mean max heat index over prior week", 8),
+      rep("Cumulative degree-hours >30\u00b0C", 8),
+      rep("Cumulative heat index-hours >30\u00b0C", 8)
+    ),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-s1_cort <- rbind(webls1trendmax$`_data`,tress1trendmax$`_data`,
-                 webls1_priordayt_trendmax$`_data`,tress1_priordayt_trendmax$`_data`,
-                 webls1_weekhi_trendmax$`_data`,tress1_weekhi_trendmax$`_data`,
-                 webls1_priordaymaxhhi_trendmax$`_data`,tress1_priordaymaxhhi_trendmax$`_data`,
-                 webls1_cumdegreeweek_trendmax$`_data`,tress1_cumdegreeweek_trendmax$`_data`,
-                 webls1_cumhiweek_trendmax$`_data`,tress1_cumhiweek_trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = rep(c(rep("Western Bluebird",4),rep("Tree Swallow",4)),6),
-         Response = "Baseline corticosterone",
-         Predictor = c(rep("Mean max temp over prior week",8),
-                       rep("Max temp over prior day",8),
-                       rep("Mean max heat index over prior week",8),
-                       rep("Max heat index over prior day",8),
-                       rep("Cumulative degree-hours >30\u00b0C",8),
-                       rep("Cumulative heat index-hours >30\u00b0C",8)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+s1_cort <- rbind(
+  webls1trendmax$`_data`, tress1trendmax$`_data`,
+  webls1_priordayt_trendmax$`_data`, tress1_priordayt_trendmax$`_data`,
+  webls1_weekhi_trendmax$`_data`, tress1_weekhi_trendmax$`_data`,
+  webls1_priordaymaxhhi_trendmax$`_data`, tress1_priordaymaxhhi_trendmax$`_data`,
+  webls1_cumdegreeweek_trendmax$`_data`, tress1_cumdegreeweek_trendmax$`_data`,
+  webls1_cumhiweek_trendmax$`_data`, tress1_cumhiweek_trendmax$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)), 6),
+    Response = "Baseline corticosterone",
+    Predictor = c(
+      rep("Mean max temp over prior week", 8),
+      rep("Max temp over prior day", 8),
+      rep("Mean max heat index over prior week", 8),
+      rep("Max heat index over prior day", 8),
+      rep("Cumulative degree-hours >30\u00b0C", 8),
+      rep("Cumulative heat index-hours >30\u00b0C", 8)
+    ),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-s2_cort <- rbind(webls2trendmax$`_data`,tress2trendmax$`_data`,
-                 webls2_priordayt_trendmax$`_data`,tress2_priordayt_trendmax$`_data`,
-                 webls2_weekhi_trendmax$`_data`,tress2_weekhi_trendmax$`_data`,
-                 webls2_priordaymaxhhi_trendmax$`_data`,tress2_priordaymaxhhi_trendmax$`_data`,
-                 webls2_cumdegreeweek_trendmax$`_data`,tress2_cumdegreeweek_trendmax$`_data`,
-                 webls2_cumhiweek_trendmax$`_data`,tress2_cumhiweek_trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = rep(c(rep("Western Bluebird",4),rep("Tree Swallow",4)),6),
-         Response = "Stress-induced corticosterone",
-         Predictor = c(rep("Mean max temp over prior week",8),
-                       rep("Max temp over prior day",8),
-                       rep("Mean max heat index over prior week",8),
-                       rep("Max heat index over prior day",8),
-                       rep("Cumulative degree-hours >30\u00b0C",8),
-                       rep("Cumulative heat index-hours >30\u00b0C",8)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+s2_cort <- rbind(
+  webls2trendmax$`_data`, tress2trendmax$`_data`,
+  webls2_priordayt_trendmax$`_data`, tress2_priordayt_trendmax$`_data`,
+  webls2_weekhi_trendmax$`_data`, tress2_weekhi_trendmax$`_data`,
+  webls2_priordaymaxhhi_trendmax$`_data`, tress2_priordaymaxhhi_trendmax$`_data`,
+  webls2_cumdegreeweek_trendmax$`_data`, tress2_cumdegreeweek_trendmax$`_data`,
+  webls2_cumhiweek_trendmax$`_data`, tress2_cumhiweek_trendmax$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)), 6),
+    Response = "Stress-induced corticosterone",
+    Predictor = c(
+      rep("Mean max temp over prior week", 8),
+      rep("Max temp over prior day", 8),
+      rep("Mean max heat index over prior week", 8),
+      rep("Max heat index over prior day", 8),
+      rep("Cumulative degree-hours >30\u00b0C", 8),
+      rep("Cumulative heat index-hours >30\u00b0C", 8)
+    ),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-abs_cort <- rbind(weblabstrendmax$`_data`,tresabstrendmax$`_data`,
-                  weblabs_priordayt_trendmax$`_data`,tresabs_priordayt_trendmax$`_data`,
-                  weblabs_weekhi_trendmax$`_data`,tresabs_weekhi_trendmax$`_data`,
-                  weblabs_priordaymaxhhi_trendmax$`_data`,tresabs_priordaymaxhhi_trendmax$`_data`,
-                  weblabs_cumdegreeweek_trendmax$`_data`,tresabs_cumdegreeweek_trendmax$`_data`,
-                  weblabs_cumhiweek_trendmax$`_data`,tresabs_cumhiweek_trendmax$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "T-ratio",`P-value` = "P") %>%
-  mutate(Species = rep(c(rep("Western Bluebird",4),rep("Tree Swallow",4)),6),
-         Response = "Stress-induced - baseline corticosterone",
-         Predictor = c(rep("Mean max temp over prior week",8),
-                       rep("Max temp over prior day",8),
-                       rep("Mean max heat index over prior week",8),
-                       rep("Max heat index over prior day",8),
-                       rep("Cumulative degree-hours >30\u00b0C",8),
-                       rep("Cumulative heat index-hours >30\u00b0C",8)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+abs_cort <- rbind(
+  weblabstrendmax$`_data`, tresabstrendmax$`_data`,
+  weblabs_priordayt_trendmax$`_data`, tresabs_priordayt_trendmax$`_data`,
+  weblabs_weekhi_trendmax$`_data`, tresabs_weekhi_trendmax$`_data`,
+  weblabs_priordaymaxhhi_trendmax$`_data`, tresabs_priordaymaxhhi_trendmax$`_data`,
+  weblabs_cumdegreeweek_trendmax$`_data`, tresabs_cumdegreeweek_trendmax$`_data`,
+  weblabs_cumhiweek_trendmax$`_data`, tresabs_cumhiweek_trendmax$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "T-ratio", `P-value` = "P") |>
+  mutate(
+    Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 4)), 6),
+    Response = "Stress-induced - baseline corticosterone",
+    Predictor = c(
+      rep("Mean max temp over prior week", 8),
+      rep("Max temp over prior day", 8),
+      rep("Mean max heat index over prior week", 8),
+      rep("Max heat index over prior day", 8),
+      rep("Cumulative degree-hours >30\u00b0C", 8),
+      rep("Cumulative heat index-hours >30\u00b0C", 8)
+    ),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-provis <- rbind(weblprovistrend$`_data` %>% mutate(degree = "linear"),tresprovistrend$`_data`,
-                weblprovistrend_hi$`_data`,tresprovistrend_hi$`_data`) %>%
-  rename(Trend = "Max temp trend",`Statistic` = "Z-ratio",`P-value` = "P") %>%
-  mutate(Species = c(rep("Western Bluebird",4),rep("Tree Swallow",8),rep("Western Bluebird",8),rep("Tree Swallow",8)),
-         Response = "Provisioning",
-         Predictor = c(rep("Mean hourly temperature",12),rep("Mean hourly heat index",16)),
-         sig = if_else(`P-value` == "<0.001","***",
-                       if_else(as.numeric(`P-value`) < .01, "**",
-                               if_else(as.numeric(`P-value`) < .05,"*",""))),
-         Estimate = paste0(as.character(Trend),sig)) %>%
-  dplyr::select(Species, Response, Predictor, Habitat, Estimate, degree) %>%
-  pivot_wider(names_from = degree,values_from = Estimate) %>%
-  mutate(quadratic = replace_na(quadratic, "NA"),
-         Estimate = paste0(linear,", ",quadratic)) %>%
-  dplyr::select(-c(linear,quadratic)) %>%
-  group_by(Response) %>%
-  pivot_longer(-c(Species, Response, Predictor,Habitat)) %>%
-  pivot_wider(names_from=c(Species, Habitat), values_from=value) %>%
+provis <- rbind(
+  weblprovistrend$`_data` |> mutate(degree = "linear"), tresprovistrend$`_data`,
+  weblprovistrend_hi$`_data`, tresprovistrend_hi$`_data`
+) |>
+  rename(Trend = "Max temp trend", `Statistic` = "Z-ratio", `P-value` = "P") |>
+  mutate(
+    Species = c(rep("Western Bluebird", 4), rep("Tree Swallow", 8), rep("Western Bluebird", 8), rep("Tree Swallow", 8)),
+    Response = "Provisioning",
+    Predictor = c(rep("Mean hourly temperature", 12), rep("Mean hourly heat index", 16)),
+    sig = if_else(`P-value` == "<0.001", "***",
+      if_else(as.numeric(`P-value`) < .01, "**",
+        if_else(as.numeric(`P-value`) < .05, "*", "")
+      )
+    ),
+    Estimate = paste0(as.character(Trend), sig)
+  ) |>
+  dplyr::select(Species, Response, Predictor, Habitat, Estimate, degree) |>
+  pivot_wider(names_from = degree, values_from = Estimate) |>
+  mutate(
+    quadratic = replace_na(quadratic, "NA"),
+    Estimate = paste0(linear, ", ", quadratic)
+  ) |>
+  dplyr::select(-c(linear, quadratic)) |>
+  group_by(Response) |>
+  pivot_longer(-c(Species, Response, Predictor, Habitat)) |>
+  pivot_wider(names_from = c(Species, Habitat), values_from = value) |>
   dplyr::select(-name)
 
-(trend <- rbind(growth,survival,s1_cort,s2_cort,abs_cort,provis) %>% gt(rowname_col = "Predictor",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
-
+(trend <- rbind(growth, survival, s1_cort, s2_cort, abs_cort, provis) |> gt(rowname_col = "Predictor", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(trend,"../figures/val_tbl.html")
+gtsave(trend, "../figures/val_tbl.html")
 ```
 
 ## Validation table for interaction of max temp and julian day
@@ -1039,11 +1303,12 @@ load("../data/models_seasonal.RData")
 ```
 
 ```{r}
-(trend_jday <- rbind(growth,survival,s1_priorday,s1_priorweek,abs_priorday,abs_priorweek,s2_priorday,s2_priorweek,provis) %>% gt(rowname_col = "Model",groupname_col = "Response") %>% tab_options(data_row.padding = px(1)) %>%
+(trend_jday <- rbind(growth, survival, s1_priorday, s1_priorweek, abs_priorday, abs_priorweek, s2_priorday, s2_priorweek, provis) |> gt(rowname_col = "Model", groupname_col = "Response") |> tab_options(data_row.padding = px(1)) |>
   tab_spanner_delim(
-    delim="_"))
+    delim = "_"
+  ))
 
-gtsave(trend_jday,"../figures/val_tmaxxjday_tbl.html")
+gtsave(trend_jday, "../figures/val_tmaxxjday_tbl.html")
 ```
 
 

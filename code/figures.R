@@ -278,16 +278,18 @@ ggplot_build(fig_tres_s2)$layout$panel_scales_y
 
 (p_full <- ggarrange(
   fig4_tres + ylim(.0011, 118) + labs(title = element_blank()) + theme(
-    text = element_text(size = 12), axis.ticks.y = element_blank(),
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
+    text = element_text(size = 12),
+    # axis.ticks.y = element_blank(),
+    # axis.text.y = element_blank(),
+    # axis.title.y = element_blank(),
     axis.title.x = element_blank(),
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
   fig_tres_s2 + ylim(.0011, 118) + labs(title = element_blank()) + theme(
-    text = element_text(size = 12), axis.ticks.y = element_blank(),
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
+    text = element_text(size = 12),
+    # axis.ticks.y = element_blank(),
+    # axis.text.y = element_blank(),
+    # axis.title.y = element_blank(),
     axis.title.x = element_text(hjust = 2.8),
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
