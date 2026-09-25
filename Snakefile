@@ -10,6 +10,8 @@ rule all:
         "figures/fig5_provis_by_temp_hab.png",       # Fig 4: provisioning ~ temp x habitat
         # Supplement figures
         "figures/dag3.png",                           # Fig S1: DAG
+        "figures/conceptual.png",                     # Conceptual diagram of hypotheses (draft)
+        "figures/dag_conceptual.png",                 # DAG + conceptual diagram side by side (draft)
         "figures/max-weightedmean_outside.png",      # Fig S2: temp anomaly by land cover
         "figures/fig3_survival_by_temp_hab.png",     # Fig S3: survival ~ max temp x habitat
         "figures/figs2_s1cort_by_priordayt_hab.png", # Fig S4: baseline cort ~ prior-day temp
@@ -73,6 +75,8 @@ rule figures:
         "figures/fig3_survival_by_temp_hab.png",
         "figures/fig5_provis_by_temp_hab.png",
         "figures/dag3.png",
+        "figures/conceptual.png",
+        "figures/dag_conceptual.png",
         "figures/max-weightedmean_outside.png",
     resources:
         runtime = "30m",
