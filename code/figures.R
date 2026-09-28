@@ -347,7 +347,7 @@ ggsave("figures/fig5_provis_by_temp_hab.png", p_full, width = 6.25, height = 4)
 library(dagitty)
 library(ggdag)
 
-dag <- dagify(`Growth/survival` ~ Nestling_cort + Condition + Provisioning + Humidity + Temperature + Nest_ID + Age,
+dag <- dagify(Growth_survival ~ Nestling_cort + Condition + Provisioning + Humidity + Temperature + Nest_ID + Age,
   Nestling_cort ~ Site + Mother_cort + Land_cover + Provisioning + Humidity + Temperature + Brood_size + Age,
   Condition ~ Nestling_cort + Provisioning + Brood_size,
   Provisioning ~ Land_cover + Year + Mother_cort + Site + Humidity + Temperature + Brood_size + Age,
@@ -360,18 +360,19 @@ dag <- dagify(`Growth/survival` ~ Nestling_cort + Condition + Provisioning + Hum
   Nest_ID ~ ~Year,
   Age ~ Nest_ID,
   Site ~ Year,
-  outcome = "Growth/survival",
+  outcome = "Growth_survival",
   exposure = c("Temperature", "Land_cover", "Nestling_cort", "Provisioning")
 )
 
 dag_tidy <- node_status(dag, layout = "nicely") |>
   pull_dag_data() |>
-  mutate(label = str_replace_all(name, "_", " "))
+  # dagitty can't parse "/" in node names, so the outcome is relabeled here
+  mutate(label = if_else(name == "Growth_survival", "Growth/survival", str_replace_all(name, "_", " ")))
 
 layout_span <- 14 # layout size used while pulling in outliers; max_gap is relative to this
 max_gap <- 3 # farthest a node may sit from its nearest neighbor, in plot units
-layout_width <- 9 # final layout width in plot units (and inches in the saved figure)
-layout_height <- 14 # final layout height; larger than width makes the DAG vertical
+layout_width <- 14 # final layout width in plot units (and inches in the saved figure)
+layout_height <- 9 # final layout height; smaller than width makes the DAG horizontal
 
 # Rescale layout to a 0-layout_span square so the sizes below are in predictable units
 rescale_layout <- function(d) {
@@ -392,16 +393,19 @@ node_pos <- tibble(
   y = node_pos$y[nn] + (node_pos$y - node_pos$y[nn]) * shrink
 )
 
-# Rotate so the layout's long axis runs vertically
+# Rotate so the layout's long axis runs horizontally
 node_pca <- prcomp(node_pos[, c("x", "y")])
 node_pos <- node_pos |>
-  mutate(x = node_pca$x[, 2], y = node_pca$x[, 1])
+  mutate(x = node_pca$x[, 1], y = node_pca$x[, 2])
+# PCA axis signs are arbitrary; flip if needed so the DAG reads left to right, ending at the outcome
+if (node_pos$x[node_pos$name == "Growth_survival"] < 0) node_pos$x <- -node_pos$x
 
 # Fit the layout to a layout_width x layout_height rectangle
 fit_layout <- function(d) {
   x_rng <- range(c(d$x, d$xend), na.rm = TRUE)
   y_rng <- range(c(d$y, d$yend), na.rm = TRUE)
-  mutate(d,
+  mutate(
+    d,
     across(c(x, xend), ~ (.x - x_rng[1]) / diff(x_rng) * layout_width),
     across(c(y, yend), ~ (.x - y_rng[1]) / diff(y_rng) * layout_height)
   )
@@ -471,128 +475,187 @@ ggsave("figures/dag3.png", plot = p, width = layout_width, height = layout_heigh
 
 ## --- Conceptual diagram ---
 
-# Land cover moderates the effects of heat (H2-H4), so those arrows point at the heat -> response
-# arrows rather than at nodes. Reuses the node and arrow settings from the DAG so the panels match.
+# Panel A: hypothesized paths (H1-H5). Panels B-G: predicted patterns for each hypothesis.
+# Land cover colors match scale_fill_viridis(discrete = TRUE) in the habitat figures.
 
-concept_width <- 9.5
-concept_arrow <- arrow(length = unit(10, "pt"), type = "closed")
-land_x <- c(0.3, 1.9) # land cover bar left/right edges
-spine_x <- land_x[2] + 0.2 # vertical line that land cover arrows start from
+land_cover_cols <- setNames(viridis(4), c("Forest", "Orchard", "Grassland", "Row crop"))
+concept_text_size <- 3.6 # geom_text size in panel A (mm)
 
-concept_nodes <- tribble(
-  ~name, ~x, ~y, ~status,
-  "Nest temperature", 6, 12.5, "exposure",
-  "Corticosterone", 4, 8, "exposure",
-  "Provisioning", 8, 8, "exposure",
-  "Growth & survival", 6, 3, "outcome"
+path_nodes <- tribble(
+  ~name, ~label, ~x, ~y,
+  "land", "Land cover", 0.9, 2,
+  "temp", "Nest box\ntemperature", 3.4, 2,
+  "cort", "Nestling\ncorticosterone", 6.3, 3.4,
+  "provis", "Parental\nprovisioning", 6.3, 0.6,
+  "growth", "Nestling growth\n& survival", 9.2, 2
 ) |>
-  mutate(
-    a = node_char_width * nchar(name) + node_pad,
-    fill = if_else(status == "outcome", hue_pal()(2)[2], hue_pal()(2)[1]) # match DAG colors
-  )
+  mutate(hw = if_else(name == "growth", 0.95, 0.8), hh = 0.42) # box half-width and half-height
 
-land_covers <- tibble(
-  habitat = c("Forest", "Orchard", "Grassland", "Row crop"),
-  ymax = 13 - 0:3 * 2.75,
-  ymin = ymax - 2.75,
-  fill = viridis(4), # matches scale_fill_viridis(discrete = TRUE) in habitat figures
-  text_colour = c("white", "white", "black", "black")
-)
-
-concept_edges <- tribble(
-  ~from, ~to, ~label, ~label_t,
-  "Nest temperature", "Corticosterone", "+", 0.85,
-  "Nest temperature", "Provisioning", "−", 0.85,
-  "Nest temperature", "Growth & survival", "−", 0.9,
-  "Corticosterone", "Growth & survival", "H5 (+Δcort)", 0.5,
-  "Provisioning", "Growth & survival", "H5 (+)", 0.5
+# Moderated = the effect of heat on this response differs among land covers
+path_edges <- tribble(
+  ~from, ~to, ~hyp, ~moderated,
+  "land", "temp", "H1", FALSE,
+  "temp", "growth", "H2", TRUE,
+  "temp", "cort", "H3", TRUE,
+  "temp", "provis", "H4", TRUE,
+  "cort", "growth", "H5", FALSE,
+  "provis", "growth", "H5", FALSE
 ) |>
-  left_join(dplyr::select(concept_nodes, from = name, x, y, a_from = a), by = "from") |>
-  left_join(dplyr::select(concept_nodes, to = name, xend = x, yend = y, a_to = a), by = "to") |>
+  left_join(dplyr::select(path_nodes, from = name, x, y, hw_from = hw, hh_from = hh), by = "from") |>
+  left_join(dplyr::select(path_nodes, to = name, xend = x, yend = y, hw_to = hw, hh_to = hh), by = "to") |>
   mutate(
     dx = xend - x,
     dy = yend - y,
     len = sqrt(dx^2 + dy^2),
-    trim_from = oval_radius(a_from, node_b, dx, dy) + arrow_gap,
-    trim_to = oval_radius(a_to, node_b, dx, dy) + arrow_gap,
+    # distance from box center to box edge along the edge direction, plus a small gap
+    trim_from = pmin(hw_from / abs(dx / len), hh_from / abs(dy / len)) + 0.08,
+    trim_to = pmin(hw_to / abs(dx / len), hh_to / abs(dy / len)) + 0.08,
     x0 = x + dx / len * trim_from,
     y0 = y + dy / len * trim_from,
     x1 = xend - dx / len * trim_to,
     y1 = yend - dy / len * trim_to,
-    label_x = x0 + (x1 - x0) * label_t,
-    label_y = y0 + (y1 - y0) * label_t
+    mid_x = (x0 + x1) / 2,
+    mid_y = (y0 + y1) / 2
   )
 
-# Land cover arrows end on the heat -> response arrow at height y
-concept_mods <- tribble(
-  ~label, ~from, ~to, ~y,
-  "H3: open agriculture", "Nest temperature", "Corticosterone", 11.2,
-  "H4: open land covers", "Nest temperature", "Provisioning", 10.2,
-  "H2: agriculture", "Nest temperature", "Growth & survival", 5.5
-) |>
-  left_join(dplyr::select(concept_nodes, from = name, fx = x, fy = y), by = "from") |>
-  left_join(dplyr::select(concept_nodes, to = name, tx = x, ty = y), by = "to") |>
-  mutate(xend = fx + (y - fy) / (ty - fy) * (tx - fx) - arrow_gap)
-
-temp_node <- filter(concept_nodes, name == "Nest temperature")
-
-(p_concept <- ggplot() +
-  geom_rect(
-    data = land_covers,
-    aes(xmin = land_x[1], xmax = land_x[2], ymin = ymin, ymax = ymax, fill = fill),
-    alpha = node_alpha
-  ) +
-  geom_text(
-    data = land_covers,
-    aes(x = mean(land_x), y = (ymin + ymax) / 2, label = habitat, colour = text_colour),
-    size = node_text_size * 0.8
-  ) +
-  annotate("text", x = mean(land_x), y = 13.4, label = "Land cover", size = node_text_size) +
-  annotate("segment", x = spine_x, xend = spine_x, y = 2, yend = 13, linewidth = 0.8) +
-  annotate("segment",
-    x = spine_x, y = temp_node$y, xend = temp_node$x - temp_node$a - arrow_gap, yend = temp_node$y,
-    arrow = concept_arrow
-  ) +
-  annotate("text",
-    x = spine_x + 0.15, y = temp_node$y + 0.15, label = "H1: less tree cover",
-    hjust = 0, vjust = 0, size = node_text_size * 0.8
-  ) +
-  geom_segment(
-    data = concept_mods,
-    aes(x = spine_x, y = y, xend = xend, yend = y),
-    linetype = "dashed", arrow = concept_arrow
-  ) +
-  geom_text(
-    data = concept_mods,
-    aes(x = spine_x + 0.15, y = y + 0.15, label = label),
-    hjust = 0, vjust = 0, size = node_text_size * 0.8
-  ) +
-  geom_segment(data = concept_edges, aes(x = x0, y = y0, xend = x1, yend = y1), arrow = concept_arrow) +
-  geom_label(
-    data = concept_edges,
-    aes(x = label_x, y = label_y, label = label),
-    size = node_text_size * 0.8, label.size = 0
-  ) +
-  ggforce::geom_ellipse(
-    data = concept_nodes,
-    aes(x0 = x, y0 = y, a = a, b = node_b, angle = 0, fill = fill),
-    colour = NA, alpha = node_alpha
-  ) +
-  geom_text(data = concept_nodes, aes(x = x, y = y, label = name), size = node_text_size) +
-  scale_fill_identity() +
-  scale_colour_identity() +
-  coord_fixed(xlim = c(0, concept_width), ylim = c(0, layout_height)) +
-  theme_void())
-ggsave("figures/conceptual.png", plot = p_concept, width = concept_width, height = layout_height)
-
-# DAG (A) with conceptual diagram (B) to its right
-(p_dag_concept <- patchwork::wrap_plots(p, p_concept, nrow = 1, widths = c(layout_width, concept_width)) +
-  patchwork::plot_annotation(tag_levels = "A"))
-ggsave("figures/dag_conceptual.png",
-  plot = p_dag_concept,
-  width = layout_width + concept_width, height = layout_height
+# Four-tile land cover swatch centered at (x, y)
+swatch <- function(x, y, w = 0.14, h = 0.2) {
+  tibble(
+    xmin = x + (0:3 - 2) * w, xmax = xmin + w,
+    ymin = y - h / 2, ymax = y + h / 2,
+    fill = unname(land_cover_cols)
+  )
+}
+land_node <- filter(path_nodes, name == "land")
+mod_edges <- filter(path_edges, moderated)
+swatches <- bind_rows(
+  swatch(land_node$x, land_node$y - 0.18),
+  pmap(list(mod_edges$mid_x + 0.5, mod_edges$mid_y), swatch) |> bind_rows(),
+  swatch(7.9, 0.6)
 )
 
+(p_paths <- ggplot() +
+  geom_segment(
+    data = path_edges,
+    aes(x = x0, y = y0, xend = x1, yend = y1),
+    linewidth = 0.6, arrow = arrow(length = unit(7, "pt"), type = "closed")
+  ) +
+  geom_rect(
+    data = path_nodes,
+    aes(xmin = x - hw, xmax = x + hw, ymin = y - hh, ymax = y + hh),
+    fill = "grey92", colour = "grey40", linewidth = 0.4
+  ) +
+  geom_text(
+    data = filter(path_nodes, name != "land"),
+    aes(x = x, y = y, label = label),
+    size = concept_text_size, lineheight = 0.9
+  ) +
+  annotate("text", x = land_node$x, y = land_node$y + 0.15, label = land_node$label, size = concept_text_size) +
+  geom_rect(
+    data = swatches,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill),
+    colour = "white", linewidth = 0.3
+  ) +
+  geom_point(data = path_edges, aes(x = mid_x, y = mid_y), shape = 21, size = 8, fill = "white", stroke = 0.6) +
+  geom_text(data = path_edges, aes(x = mid_x, y = mid_y, label = hyp), size = concept_text_size * 0.85, fontface = "bold") +
+  annotate("text",
+    x = 8.25, y = 0.6, hjust = 0, lineheight = 0.9, size = concept_text_size * 0.85,
+    label = "Effect of heat differs\namong land covers"
+  ) +
+  scale_fill_identity() +
+  coord_fixed(xlim = c(0, 10.3), ylim = c(0, 4), expand = FALSE) +
+  theme_void())
+
+# Stylized prediction panels: shapes only, no data or axis values
+theme_prediction <- theme_classic(base_size = 10) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    axis.line = element_line(arrow = arrow(length = unit(4, "pt"), type = "closed")),
+    plot.title = element_text(size = 10, face = "bold"),
+    legend.position = "none"
+  )
+
+heat <- seq(0, 1, length.out = 2)
+
+# Heat effect on a response that fans out from a shared starting point, one line per land cover
+heat_lines <- function(slopes, start) {
+  tibble(habitat = names(land_cover_cols), slope = slopes) |>
+    crossing(heat = heat) |>
+    mutate(response = start + slope * heat, habitat = factor(habitat, levels = names(land_cover_cols)))
+}
+
+# Draw colored lines over a dark outline so the yellow row crop line stays visible
+outlined_lines <- function(d) {
+  list(
+    geom_line(data = d, aes(group = habitat), colour = "grey20", linewidth = 1.9),
+    geom_line(data = d, aes(colour = habitat), linewidth = 1.2)
+  )
+}
+
+(p_h1 <- tibble(habitat = factor(names(land_cover_cols), levels = names(land_cover_cols)), temp = c(1, 2, 2, 3)) |>
+  ggplot(aes(x = habitat, y = temp, fill = habitat)) +
+  geom_col(width = 0.7, colour = "grey20", linewidth = 0.3) +
+  scale_x_discrete(labels = c("Forest", "Orchard", "Grass-\nland", "Row\ncrop")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = land_cover_cols) +
+  labs(title = "H1", x = NULL, y = "Nest box temperature") +
+  theme_prediction +
+  theme(axis.text.x = element_text(size = 7.5)))
+
+(p_h2 <- ggplot(mapping = aes(x = heat, y = response)) +
+  outlined_lines(heat_lines(c(-0.15, -0.4, -0.47, -0.75), 0.9)) +
+  scale_colour_manual(values = land_cover_cols) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "H2", x = "Heat", y = "Nestling growth") +
+  theme_prediction +
+  theme(axis.text.x = element_blank()))
+
+# H3: cort rises and the stress-induced minus baseline difference (delta) falls more with heat in open agriculture
+(p_h3_cort <- ggplot(mapping = aes(x = heat, y = response)) +
+  outlined_lines(heat_lines(c(0.1, 0.23, 0.3, 0.6), 0.2)) +
+  scale_colour_manual(values = land_cover_cols) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "H3", x = "Heat", y = "Baseline & stress-
+induced cort") +
+  theme_prediction +
+  theme(axis.text.x = element_blank()))
+
+(p_h3_delta <- ggplot(mapping = aes(x = heat, y = response)) +
+  outlined_lines(heat_lines(c(-0.1, -0.23, -0.3, -0.6), 0.8)) +
+  scale_colour_manual(values = land_cover_cols) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "H3", x = "Heat", y = "Δ cort") +
+  theme_prediction +
+  theme(axis.text.x = element_blank()))
+
+(p_h4 <- ggplot(mapping = aes(x = heat, y = response)) +
+  outlined_lines(heat_lines(c(-0.15, -0.4, -0.47, -0.75), 0.9)) +
+  scale_colour_manual(values = land_cover_cols) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "H4", x = "Heat", y = "Provisioning") +
+  theme_prediction +
+  theme(axis.text.x = element_blank()))
+
+(p_h5 <- tibble(x = heat, response = 0.15 + 0.7 * heat) |>
+  ggplot(aes(x = x, y = response)) +
+  geom_line(linewidth = 1.2, colour = "grey20") +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "H5", x = "Provisioning or Δ cort", y = "Nestling growth") +
+  theme_prediction +
+  theme(axis.text.x = element_blank()))
+
+# Prediction panels are wrapped as one element so they share a single tag and keep their H1-H5 titles
+p_predictions <- patchwork::wrap_plots(p_h1, p_h2, p_h3_cort, p_h3_delta, p_h4, p_h5, nrow = 1) &
+  theme(plot.margin = margin(14, 5.5, 5.5, 5.5)) # top margin leaves room for the (b) tag
+
+(p_concept <- patchwork::wrap_plots(
+  p_paths,
+  patchwork::wrap_elements(full = p_predictions),
+  ncol = 1, heights = c(1.3, 1)
+) +
+  patchwork::plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")"))
+ggsave("figures/conceptual.png", plot = p_concept, width = 12, height = 6.5, bg = "white")
 
 
 ## --- Temp anomaly figure ---
