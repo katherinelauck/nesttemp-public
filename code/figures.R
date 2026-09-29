@@ -20,7 +20,7 @@ load("data/models_growth.RData")
 (fig6_provis_webl <- predict_response(g_provis_cort_webl, terms = c("provis_mean_scaled"), bias_correction = TRUE, margin = "empirical") %>%
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
-  xlab("Provisioning") +
+  xlab("Nest visits/hour") +
   ylab("Growth (g/day)") +
   theme(text = element_text(size = 24)) +
   labs(title = element_blank()) +
@@ -88,7 +88,7 @@ load("data/models_growth.RData")
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
-  xlab("Provisioning (visits/hr)") +
+  xlab("Nest visits/hr") +
   ylab("Growth (g/day)") +
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +

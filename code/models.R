@@ -9209,7 +9209,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -9423,7 +9423,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -9649,7 +9649,7 @@ hi_30min_trans_webl <- trans_new("hi_30min_trans_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean heat index (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab(" (Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -9842,7 +9842,7 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean heat index (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour)") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -12456,7 +12456,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour)") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -12483,7 +12483,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -12508,7 +12508,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
@@ -12657,7 +12657,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -12685,7 +12685,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -12711,7 +12711,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Provisioning (count/hour)") +
+  ylab("Nest visits/hour") +
   theme(text = element_text(size = 16)) +
   labs(title = "TRES provis: maxsq interaction with LC, but not with linear max") +
   scale_x_continuous(
@@ -12942,7 +12942,7 @@ provis <- rbind(
   rename(Trend = "Max temp trend", `Statistic` = "Z-ratio", `P-value` = "P") |>
   mutate(
     Species = rep(c(rep("Western Bluebird", 4), rep("Tree Swallow", 8)), 2),
-    Response = "Provisioning ~ Average hourly temperature",
+    Response = "Nest visits/hour ~ Average hourly temperature",
     Model = c(
       rep("No maximum temperature * day of year interaction", 12),
       rep("Maximum temperature * day of year interaction", 12)
