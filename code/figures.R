@@ -581,7 +581,7 @@ heat <- seq(0, 1, length.out = 2)
 # Heat effect on a response that fans out from a shared starting point, one line per land cover
 heat_lines <- function(slopes, start) {
   tibble(habitat = names(land_cover_cols), slope = slopes) |>
-    crossing(heat = heat) |>
+    tidyr::crossing(heat = heat) |>
     mutate(response = start + slope * heat, habitat = factor(habitat, levels = names(land_cover_cols)))
 }
 
