@@ -108,7 +108,8 @@ snakemake --cores 1 figures  # or a single rule/target
 | File | Manuscript item |
 |---|---|
 | `fig2_growth_by_temp_hab.png` | Fig 2: growth ~ max temperature × habitat |
-| `fig4_abscort_by_temp_hab.png` | Fig 3: corticosterone ~ max temperature × habitat |
+| `fig3_abscort_by_temp_hab.png` | Fig 3: corticosterone ~ max temperature × habitat (WEBL) |
+| `figS5_abscort_by_temp_hab_tres.png` | TRES corticosterone ~ max temperature × habitat |
 | `fig5_provis_by_temp_hab.png` | Fig 4: provisioning ~ temperature × habitat |
 | `dag3.png` | Fig S1: causal DAG |
 | `max-weightedmean_outside.png` | Fig S2: temperature anomaly by land cover |

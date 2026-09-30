@@ -6,13 +6,14 @@ rule all:
     input:
         # Main text figures
         "figures/fig2_growth_by_temp_hab.png",       # Fig 2: growth ~ max temp x habitat
-        "figures/fig4_abscort_by_temp_hab.png",      # Fig 3: cort ~ max temp x habitat
+        "figures/fig3_abscort_by_temp_hab.png",      # Fig 3: cort ~ max temp x habitat (WEBL)
         "figures/fig5_provis_by_temp_hab.png",       # Fig 4: provisioning ~ temp x habitat
         # Supplement figures
         "figures/dag3.png",                           # Fig S1: DAG
         "figures/conceptual.png",                     # Conceptual diagram of hypotheses and predictions (draft)
         "figures/max-weightedmean_outside.png",      # Fig S2: temp anomaly by land cover
         "figures/fig3_survival_by_temp_hab.png",     # Fig S3: survival ~ max temp x habitat
+        "figures/figS5_abscort_by_temp_hab_tres.png", # TRES cort ~ max temp x habitat
         "figures/figs2_s1cort_by_priordayt_hab.png", # Fig S4: baseline cort ~ prior-day temp
         "figures/fig6_growth_by_temp_hab.png",       # Fig S5: growth ~ provisioning + cort
         "figures/s1bypriordaymaxhhixhab_TRES.png",   # Fig S6: TRES baseline cort ~ heat index
@@ -34,6 +35,7 @@ rule all:
         "figures/meantemp_bylanduse.html",
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
+        "figures/val_oldnew_survival_tbl.html",
 
 
 rule model_all:
@@ -68,7 +70,8 @@ rule figures:
     output:
         "figures/fig2_growth_by_temp_hab.png",
         "figures/fig6_growth_by_temp_hab.png",
-        "figures/fig4_abscort_by_temp_hab.png",
+        "figures/fig3_abscort_by_temp_hab.png",
+        "figures/figS5_abscort_by_temp_hab_tres.png",
         "figures/figs2_s1cort_by_priordayt_hab.png",
         "figures/s1bypriordaymaxhhixhab_TRES.png",
         "figures/fig3_survival_by_temp_hab.png",
@@ -109,6 +112,7 @@ rule tables:
         "figures/meantemp_bylanduse.html",
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
+        "figures/val_oldnew_survival_tbl.html",
     resources:
         runtime = "4h",
     shell:

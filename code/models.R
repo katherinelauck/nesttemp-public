@@ -59,6 +59,9 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
     juliandate_inc = yday(inc_date),
     juliandate_hatch = yday(hatch_date),
     year_fct = factor(year),
+    # must precede the site recode below, which collapses sub-sites
+    old_box = site %in% c("MBNG", "PCC", "PCE", "WI") |
+      (site %in% c("MBNC", "RRRG") & year %in% c(2021, 2022)),
     site = case_match(
       site,
       c("MBNC", "MBNG", "MBNR") ~ "MB",
@@ -259,13 +262,13 @@ data <- prep_model_data(
 )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_growth_webl <- mean(data |> pull(meanmintempI))
+sd_mintemp_growth_webl <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_growth_webl <- trans_new("mintemp_trans_growth_webl",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_growth_webl) + mean_mintemp_growth_webl
   },
   inverse = function(x) {
     x
@@ -283,12 +286,12 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_growth_webl,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_growth_webl) / sd_mintemp_growth_webl,
+      (12 - mean_mintemp_growth_webl) / sd_mintemp_growth_webl,
+      (16 - mean_mintemp_growth_webl) / sd_mintemp_growth_webl,
+      (20 - mean_mintemp_growth_webl) / sd_mintemp_growth_webl
     ),
   ) +
   geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -1577,13 +1580,13 @@ data <- dplyr::filter(dat_growth, Species == "TRES", !is.na(meanmaxtempI), meanm
   )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_growth_tres <- mean(data |> pull(meanmintempI))
+sd_mintemp_growth_tres <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_growth_tres <- trans_new("mintemp_trans_growth_tres",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_growth_tres) + mean_mintemp_growth_tres
   },
   inverse = function(x) {
     x
@@ -1601,12 +1604,12 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_growth_tres,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_growth_tres) / sd_mintemp_growth_tres,
+      (12 - mean_mintemp_growth_tres) / sd_mintemp_growth_tres,
+      (16 - mean_mintemp_growth_tres) / sd_mintemp_growth_tres,
+      (20 - mean_mintemp_growth_tres) / sd_mintemp_growth_tres
     ),
     # breaks = c(20,30,40,50),
     # labels = c("20","30","40","50"),
@@ -2283,13 +2286,13 @@ data <- prep_model_data(
 )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_s1_webl <- mean(data |> pull(meanmintempI))
+sd_mintemp_s1_webl <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_s1_webl <- trans_new("mintemp_trans_s1_webl",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_s1_webl) + mean_mintemp_s1_webl
   },
   inverse = function(x) {
     x
@@ -2307,15 +2310,15 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_s1_webl,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (10 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (14 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (18 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (10 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (12 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (14 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (16 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (18 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl,
+      (20 - mean_mintemp_s1_webl) / sd_mintemp_s1_webl
     ),
   ) +
   geom_text(data = dat_text_s1_webl, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -2461,13 +2464,13 @@ data <- prep_model_data(
 )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_abs_webl <- mean(data |> pull(meanmintempI))
+sd_mintemp_abs_webl <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_abs_webl <- trans_new("mintemp_trans_abs_webl",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_abs_webl) + mean_mintemp_abs_webl
   },
   inverse = function(x) {
     x
@@ -2485,15 +2488,15 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = "WEBL; min temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_abs_webl,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (10 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (14 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (18 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (10 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (12 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (14 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (16 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (18 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl,
+      (20 - mean_mintemp_abs_webl) / sd_mintemp_abs_webl
     ),
   ) +
   geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -3906,7 +3909,7 @@ temp_trans_s2_cumhiday_webl <- trans_new("temp_trans_s2_cumhiday_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Max heat index over prior week (\u00b0C)") +
-  ylab("Baseline corticosterone (ng/mL)") +
+  ylab("Stress-induced corticosterone (ng/mL)") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -4479,7 +4482,7 @@ temp_trans_s1_cumdegreeday_webl <- trans_new("temp_trans_s1_cumdegreeday_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Cumulative degree-hours >30\u00b0C over prior week") +
-  ylab("Stress-induced corticosterone (ng/mL)") +
+  ylab("Baseline corticosterone (ng/mL)") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -4594,7 +4597,7 @@ temp_trans_s2_cumdegreeday_webl <- trans_new("temp_trans_s2_cumdegreeday_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Cumulative degree-hours >30\u00b0C over prior week") +
-  ylab("Baseline corticosterone (ng/mL)") +
+  ylab("Stress-induced corticosterone (ng/mL)") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -5208,13 +5211,13 @@ data <- prep_model_data(
 )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_s1_tres <- mean(data |> pull(meanmintempI))
+sd_mintemp_s1_tres <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_s1_tres <- trans_new("mintemp_trans_s1_tres",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_s1_tres) + mean_mintemp_s1_tres
   },
   inverse = function(x) {
     x
@@ -5232,15 +5235,15 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_s1_tres,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (10 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (14 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (18 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (10 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (12 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (14 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (16 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (18 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres,
+      (20 - mean_mintemp_s1_tres) / sd_mintemp_s1_tres
     ),
   ) +
   geom_text(data = dat_text_s1_tres, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -5518,13 +5521,13 @@ data <- prep_model_data(
 )
 
 
-mean_temp <- mean(data |> pull(meanmintempI))
-sd_temp <- sd(data |> pull(meanmintempI))
+mean_mintemp_abs_tres <- mean(data |> pull(meanmintempI))
+sd_mintemp_abs_tres <- sd(data |> pull(meanmintempI))
 
 
-temp_trans <- trans_new("temp_trans",
+mintemp_trans_abs_tres <- trans_new("mintemp_trans_abs_tres",
   transform = function(x) {
-    (x * sd_temp) + mean_temp
+    (x * sd_mintemp_abs_tres) + mean_mintemp_abs_tres
   },
   inverse = function(x) {
     x
@@ -5542,15 +5545,15 @@ temp_trans <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans,
+    trans = mintemp_trans_abs_tres,
     breaks = c(
-      (8 - mean_temp) / sd_temp,
-      (10 - mean_temp) / sd_temp,
-      (12 - mean_temp) / sd_temp,
-      (14 - mean_temp) / sd_temp,
-      (16 - mean_temp) / sd_temp,
-      (18 - mean_temp) / sd_temp,
-      (20 - mean_temp) / sd_temp
+      (8 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (10 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (12 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (14 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (16 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (18 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres,
+      (20 - mean_mintemp_abs_tres) / sd_mintemp_abs_tres
     ),
   ) +
   geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -8004,6 +8007,9 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
     juliandate_inc = yday(inc_date),
     juliandate_hatch = yday(hatch_date),
     year_fct = factor(year),
+    # must precede the site recode below, which collapses sub-sites
+    old_box = site %in% c("MBNG", "PCC", "PCE", "WI") |
+      (site %in% c("MBNC", "RRRG") & year %in% c(2021, 2022)),
     site = case_match(
       site,
       c("MBNC", "MBNG", "MBNR") ~ "MB",
@@ -8146,6 +8152,28 @@ dat_text_webl <- data.frame(
   theme(legend.position = "none")
 )
 
+s_nestpd_WEBL_addmin_oldnew <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled * habitat + meanmint_nestpd_scaled + juliandate_hatch_scaled + old_box + year_fct + site,
+  family = binomial(link = "logit"),
+  data = dat_webl_nestpd
+)
+
+summary(s_nestpd_WEBL_addmin_oldnew)
+
+(lrt_tab_survival_nestpd_webl_oldnew <- anova(s_nestpd_WEBL_addmin, s_nestpd_WEBL_addmin_oldnew, test = "Chisq") |>
+  tibble() |>
+  rename(Chisq = Deviance) |>
+  mutate(AIC = c(AIC(s_nestpd_WEBL_addmin), AIC(s_nestpd_WEBL_addmin_oldnew)), .before = Df) |>
+  mutate(Model = c("Without box age", "With box age"), .before = AIC) |>
+  mutate(across(where(is.numeric), ~ round(.x, digits = 4)),
+    P = `Pr(>Chi)`
+  ) |>
+  dplyr::select(Model, AIC, Chisq, P) |>
+  mutate(
+    across(c(AIC, Chisq), ~ round(.x, digits = 2)),
+    P = if_else(P < 0.001, "<0.001", as.character(P))
+  ) |>
+  gt())
+
 
 ### TRES
 
@@ -8251,13 +8279,35 @@ dat_tres <- predict_response(s_nestpd_TRES_noint, terms = c("habitat"))
   annotate(geom = "text", x = c(1, 2, 3, 4), y = Inf, hjust = .5, vjust = 1, label = c("a", "ab", "b", "b"))
 )
 
+s_nestpd_TRES_noint_oldnew <- glm(cbind(nest_fledged, clutch_size - nest_fledged) ~ meanmaxt_nestpd_scaled + meanmint_nestpd_scaled + habitat + old_box + juliandate_hatch_scaled + year_fct + site,
+  family = binomial(link = "logit"),
+  data = dat_tres_nestpd
+)
+
+summary(s_nestpd_TRES_noint_oldnew)
+
+(lrt_tab_survival_nestpd_tres_oldnew <- anova(s_nestpd_TRES_noint, s_nestpd_TRES_noint_oldnew, test = "Chisq") |>
+  tibble() |>
+  rename(Chisq = Deviance) |>
+  mutate(AIC = c(AIC(s_nestpd_TRES_noint), AIC(s_nestpd_TRES_noint_oldnew)), .before = Df) |>
+  mutate(Model = c("Without box age", "With box age"), .before = AIC) |>
+  mutate(across(where(is.numeric), ~ round(.x, digits = 4)),
+    P = `Pr(>Chi)`
+  ) |>
+  dplyr::select(Model, AIC, Chisq, P) |>
+  mutate(
+    across(c(AIC, Chisq), ~ round(.x, digits = 2)),
+    P = if_else(P < 0.001, "<0.001", as.character(P))
+  ) |>
+  gt())
+
 
 ## combined survival results for manuscript
 
 
 library(egg)
 ggplot_build(fig3_webl)$layout$panel_scales_y
-(p_full <- ggarrange(fig3_webl + theme(text = element_text(size = 12)), fig3_tres + theme(text = element_text(size = 12), axis.title.y = element_blank()),
+(p_fig3_survival <- ggarrange(fig3_webl + theme(text = element_text(size = 12)), fig3_tres + theme(text = element_text(size = 12), axis.title.y = element_blank()),
   ncol = 2,
   labels = c("(a): Western Bluebird", "(b): Tree Swallow")
 ))
@@ -8333,13 +8383,13 @@ data <- s_nestpd_WEBL_addmax$data
 data_webl <- s_nestpd_WEBL_addmax$data
 
 
-mean_temp_webl <- mean(data_webl |> pull(meanmaxhi_nestpd), na.rm = TRUE)
-sd_temp_webl <- sd(data_webl |> pull(meanmaxhi_nestpd), na.rm = TRUE)
+mean_temp_webl_meanmaxhi <- mean(data_webl |> pull(meanmaxhi_nestpd), na.rm = TRUE)
+sd_temp_webl_meanmaxhi <- sd(data_webl |> pull(meanmaxhi_nestpd), na.rm = TRUE)
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_meanmaxhi <- trans_new("temp_trans_webl_meanmaxhi",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_meanmaxhi) + mean_temp_webl_meanmaxhi
   },
   inverse = function(x) {
     x
@@ -8380,13 +8430,13 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_meanmaxhi,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl # ,
+      (20 - mean_temp_webl_meanmaxhi) / sd_temp_webl_meanmaxhi,
+      (25 - mean_temp_webl_meanmaxhi) / sd_temp_webl_meanmaxhi,
+      (30 - mean_temp_webl_meanmaxhi) / sd_temp_webl_meanmaxhi,
+      (35 - mean_temp_webl_meanmaxhi) / sd_temp_webl_meanmaxhi,
+      (40 - mean_temp_webl_meanmaxhi) / sd_temp_webl_meanmaxhi # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -8460,13 +8510,13 @@ data <- s_nestpd_WEBL_addmin$data
 data_webl <- s_nestpd_WEBL_addmin$data
 
 
-mean_temp_webl <- mean(data_webl |> pull(deghr_30), na.rm = TRUE)
-sd_temp_webl <- sd(data_webl |> pull(deghr_30), na.rm = TRUE)
+mean_temp_webl_deghr30 <- mean(data_webl |> pull(deghr_30), na.rm = TRUE)
+sd_temp_webl_deghr30 <- sd(data_webl |> pull(deghr_30), na.rm = TRUE)
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_deghr30 <- trans_new("temp_trans_webl_deghr30",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_deghr30) + mean_temp_webl_deghr30
   },
   inverse = function(x) {
     x
@@ -8507,14 +8557,14 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_deghr30,
     breaks = c(
-      (0 - mean_temp_webl) / sd_temp_webl,
-      (2000 - mean_temp_webl) / sd_temp_webl,
-      (4000 - mean_temp_webl) / sd_temp_webl,
-      (6000 - mean_temp_webl) / sd_temp_webl,
-      (8000 - mean_temp_webl) / sd_temp_webl # ,
-      # (10000-mean_temp_webl)/sd_temp_webl#,
+      (0 - mean_temp_webl_deghr30) / sd_temp_webl_deghr30,
+      (2000 - mean_temp_webl_deghr30) / sd_temp_webl_deghr30,
+      (4000 - mean_temp_webl_deghr30) / sd_temp_webl_deghr30,
+      (6000 - mean_temp_webl_deghr30) / sd_temp_webl_deghr30,
+      (8000 - mean_temp_webl_deghr30) / sd_temp_webl_deghr30 # ,
+      # (10000-mean_temp_webl_deghr30)/sd_temp_webl_deghr30#,
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "dotted", "Row crop" = "dotted")) +
@@ -8587,13 +8637,13 @@ data <- s_nestpd_WEBL_addmax$data
 data_webl <- s_nestpd_WEBL_addmax$data
 
 
-mean_temp_webl <- mean(data_webl |> pull(hihr_30), na.rm = TRUE)
-sd_temp_webl <- sd(data_webl |> pull(hihr_30), na.rm = TRUE)
+mean_temp_webl_hihr30 <- mean(data_webl |> pull(hihr_30), na.rm = TRUE)
+sd_temp_webl_hihr30 <- sd(data_webl |> pull(hihr_30), na.rm = TRUE)
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_hihr30 <- trans_new("temp_trans_webl_hihr30",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_hihr30) + mean_temp_webl_hihr30
   },
   inverse = function(x) {
     x
@@ -8634,14 +8684,14 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_hihr30,
     breaks = c(
-      (0 - mean_temp_webl) / sd_temp_webl,
-      (3000 - mean_temp_webl) / sd_temp_webl,
-      (6000 - mean_temp_webl) / sd_temp_webl,
-      (9000 - mean_temp_webl) / sd_temp_webl,
-      (12000 - mean_temp_webl) / sd_temp_webl,
-      (15000 - mean_temp_webl) / sd_temp_webl # ,
+      (0 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30,
+      (3000 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30,
+      (6000 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30,
+      (9000 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30,
+      (12000 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30,
+      (15000 - mean_temp_webl_hihr30) / sd_temp_webl_hihr30 # ,
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "dotted", "Row crop" = "dotted")) +
@@ -8716,13 +8766,13 @@ data <- s_nestpd_TRES_addmax$data
 data_tres <- s_nestpd_TRES_addmax$data
 
 
-mean_temp_tres <- mean(data_tres |> pull(meanmaxhi_nestpd), na.rm = TRUE)
-sd_temp_tres <- sd(data_tres |> pull(meanmaxhi_nestpd), na.rm = TRUE)
+mean_temp_tres_meanmaxhi <- mean(data_tres |> pull(meanmaxhi_nestpd), na.rm = TRUE)
+sd_temp_tres_meanmaxhi <- sd(data_tres |> pull(meanmaxhi_nestpd), na.rm = TRUE)
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_meanmaxhi <- trans_new("temp_trans_tres_meanmaxhi",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_meanmaxhi) + mean_temp_tres_meanmaxhi
   },
   inverse = function(x) {
     x
@@ -8763,13 +8813,13 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_meanmaxhi,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres # ,
+      (20 - mean_temp_tres_meanmaxhi) / sd_temp_tres_meanmaxhi,
+      (25 - mean_temp_tres_meanmaxhi) / sd_temp_tres_meanmaxhi,
+      (30 - mean_temp_tres_meanmaxhi) / sd_temp_tres_meanmaxhi,
+      (35 - mean_temp_tres_meanmaxhi) / sd_temp_tres_meanmaxhi,
+      (40 - mean_temp_tres_meanmaxhi) / sd_temp_tres_meanmaxhi # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -8843,13 +8893,13 @@ data <- s_nestpd_TRES_noint$data
 data_tres <- s_nestpd_TRES_noint$data
 
 
-mean_temp_tres <- mean(data_tres |> pull(deghr_30), na.rm = TRUE)
-sd_temp_tres <- sd(data_tres |> pull(deghr_30), na.rm = TRUE)
+mean_temp_tres_deghr30 <- mean(data_tres |> pull(deghr_30), na.rm = TRUE)
+sd_temp_tres_deghr30 <- sd(data_tres |> pull(deghr_30), na.rm = TRUE)
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_deghr30 <- trans_new("temp_trans_tres_deghr30",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_deghr30) + mean_temp_tres_deghr30
   },
   inverse = function(x) {
     x
@@ -8890,14 +8940,14 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_deghr30,
     breaks = c(
-      (0 - mean_temp_tres) / sd_temp_tres,
-      (2000 - mean_temp_tres) / sd_temp_tres,
-      (4000 - mean_temp_tres) / sd_temp_tres,
-      (6000 - mean_temp_tres) / sd_temp_tres,
-      (8000 - mean_temp_tres) / sd_temp_tres # ,
-      # (10000-mean_temp_tres)/sd_temp_tres#,
+      (0 - mean_temp_tres_deghr30) / sd_temp_tres_deghr30,
+      (2000 - mean_temp_tres_deghr30) / sd_temp_tres_deghr30,
+      (4000 - mean_temp_tres_deghr30) / sd_temp_tres_deghr30,
+      (6000 - mean_temp_tres_deghr30) / sd_temp_tres_deghr30,
+      (8000 - mean_temp_tres_deghr30) / sd_temp_tres_deghr30 # ,
+      # (10000-mean_temp_tres_deghr30)/sd_temp_tres_deghr30#,
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "solid", "Grassland" = "solid", "Row crop" = "solid")) +
@@ -8970,13 +9020,13 @@ data <- s_nestpd_TRES_noint$data
 data_tres <- s_nestpd_TRES_noint$data
 
 
-mean_temp_tres <- mean(data_tres |> pull(hihr_30), na.rm = TRUE)
-sd_temp_tres <- sd(data_tres |> pull(hihr_30), na.rm = TRUE)
+mean_temp_tres_hihr30 <- mean(data_tres |> pull(hihr_30), na.rm = TRUE)
+sd_temp_tres_hihr30 <- sd(data_tres |> pull(hihr_30), na.rm = TRUE)
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_hihr30 <- trans_new("temp_trans_tres_hihr30",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_hihr30) + mean_temp_tres_hihr30
   },
   inverse = function(x) {
     x
@@ -9017,14 +9067,14 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_hihr30,
     breaks = c(
-      (0 - mean_temp_tres) / sd_temp_tres,
-      (3000 - mean_temp_tres) / sd_temp_tres,
-      (6000 - mean_temp_tres) / sd_temp_tres,
-      (9000 - mean_temp_tres) / sd_temp_tres,
-      (12000 - mean_temp_tres) / sd_temp_tres,
-      (15000 - mean_temp_tres) / sd_temp_tres # ,
+      (0 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30,
+      (3000 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30,
+      (6000 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30,
+      (9000 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30,
+      (12000 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30,
+      (15000 - mean_temp_tres_hihr30) / sd_temp_tres_hihr30 # ,
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "dotted", "Row crop" = "dotted")) +
@@ -9451,15 +9501,17 @@ temp_trans_tres <- trans_new("temp_trans_tres",
 library(egg)
 ggplot_build(fig5_webl)$layout$panel_scales_y
 ggplot_build(fig5_tres)$layout$panel_scales_y
-(p_full <- ggarrange(
+(p_fig5_provis <- ggarrange(
   fig5_webl + ylim(0, 40) + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
-    axis.title.x = element_blank()
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ), fig5_tres + labs(title = element_blank()) + ylim(0, 40) + theme(
     text = element_text(size = 12), axis.ticks.y = element_blank(),
     axis.text.y = element_blank(),
     axis.title.y = element_blank(),
-    axis.title.x = element_text(hjust = -.8)
+    axis.title.x = element_text(hjust = -.8),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
   ncol = 2,
   labels = c("(a): Western Bluebird", "(b): Tree Swallow")
@@ -9649,7 +9701,7 @@ hi_30min_trans_webl <- trans_new("hi_30min_trans_webl",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean heat index (\u00b0C)") +
-  ylab(" (Nest visits/hour") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
@@ -9842,13 +9894,13 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean heat index (\u00b0C)") +
-  ylab("Nest visits/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
   labs(title = "TRES provis: max * LC interaction") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = hi_30min_trans_tres,
     breaks = c(
       (20 - mean_hi_30min_tres) / sd_hi_30min_tres,
       (25 - mean_hi_30min_tres) / sd_hi_30min_tres,
@@ -9859,7 +9911,7 @@ hi_30min_trans_tres <- trans_new("hi_30min_trans_tres",
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "dotted")) +
   ylim(0, 60) +
-  geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
+  geom_text(data = dat_text_tres_hi, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
   theme(legend.position = "none")
 )
 
@@ -9912,7 +9964,7 @@ data <- data <- dplyr::filter(
 library(egg)
 ggplot_build(fig5_webl_hi)$layout$panel_scales_y
 ggplot_build(fig5_tres_hi)$layout$panel_scales_y
-(p_full <- ggarrange(
+(p_fig5_provis_hi <- ggarrange(
   fig5_webl_hi + ylim(0, 55.9) + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
     axis.title.x = element_blank()
@@ -9942,6 +9994,9 @@ dat_surv <- read_rds("data/survival_attempt.rds") |>
     juliandate_inc = yday(inc_date),
     juliandate_hatch = yday(hatch_date),
     year_fct = factor(year),
+    # must precede the site recode below, which collapses sub-sites
+    old_box = site %in% c("MBNG", "PCC", "PCE", "WI") |
+      (site %in% c("MBNC", "RRRG") & year %in% c(2021, 2022)),
     site = case_match(
       site,
       c("MBNC", "MBNG", "MBNR") ~ "MB",
@@ -10039,20 +10094,20 @@ dat_text_webl <- data.frame(
 )
 
 
-mean_temp_webl <- mean(data_webl |> pull(meanmaxtempI))
-sd_temp_webl <- sd(data_webl |> pull(meanmaxtempI))
+mean_temp_webl_growth <- mean(data_webl |> pull(meanmaxtempI))
+sd_temp_webl_growth <- sd(data_webl |> pull(meanmaxtempI))
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_growth <- trans_new("temp_trans_webl_growth",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_growth) + mean_temp_webl_growth
   },
   inverse = function(x) {
     x
   }
 )
 
-(fig2_webl <- predict_response(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig2_webl_seas_prior <- predict_response(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10065,13 +10120,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_growth,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (25 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (30 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (35 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (40 - mean_temp_webl_growth) / sd_temp_webl_growth
     ),
   ) +
   geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -10079,7 +10134,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(fig2_webl <- predict_response(g_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig2_webl_seas_hab <- predict_response(g_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10092,13 +10147,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_growth,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (25 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (30 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (35 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (40 - mean_temp_webl_growth) / sd_temp_webl_growth
     ),
   ) +
   geom_text(data = dat_text_webl, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -10106,7 +10161,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(plott <- predict_response(g_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig2_webl_seas_date <- predict_response(g_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10114,13 +10169,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   # labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_growth,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (25 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (30 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (35 - mean_temp_webl_growth) / sd_temp_webl_growth,
+      (40 - mean_temp_webl_growth) / sd_temp_webl_growth
     ),
   )
 )
@@ -10222,13 +10277,13 @@ data_tres <- dplyr::filter(dat_growth, Species == "TRES", !is.na(meanmaxtempI), 
   )
 
 
-mean_temp_tres <- mean(data_tres |> pull(meanmaxtempI))
-sd_temp_tres <- sd(data_tres |> pull(meanmaxtempI))
+mean_temp_tres_growth <- mean(data_tres |> pull(meanmaxtempI))
+sd_temp_tres_growth <- sd(data_tres |> pull(meanmaxtempI))
 
 
-temp_trans_tres <- trans_new("temp_trans",
+temp_trans_tres_growth <- trans_new("temp_trans",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_growth) + mean_temp_tres_growth
   },
   inverse = function(x) {
     x
@@ -10236,7 +10291,7 @@ temp_trans_tres <- trans_new("temp_trans",
 )
 
 
-(fig2_tres <- predict_response(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig2_tres_seas_prior <- predict_response(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10249,20 +10304,20 @@ temp_trans_tres <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_growth,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (25 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (30 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (35 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (40 - mean_temp_tres_growth) / sd_temp_tres_growth
     ),
   ) +
   theme(legend.position = "none")
 )
 
 
-(fig2_tres <- predict_response(g_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig2_tres_seas_hab <- predict_response(g_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10275,13 +10330,13 @@ temp_trans_tres <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_growth,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (25 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (30 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (35 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (40 - mean_temp_tres_growth) / sd_temp_tres_growth
     ),
   ) +
   geom_text(data = dat_text_tres, mapping = aes(x = -Inf, y = Inf, label = label), hjust = -.2, vjust = 1.2, inherit.aes = FALSE) +
@@ -10289,7 +10344,7 @@ temp_trans_tres <- trans_new("temp_trans",
 )
 
 
-(plott <- predict_response(g_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig2_tres_seas_date <- predict_response(g_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10297,13 +10352,13 @@ temp_trans_tres <- trans_new("temp_trans",
   theme(text = element_text(size = 16)) +
   # labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_growth,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (25 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (30 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (35 - mean_temp_tres_growth) / sd_temp_tres_growth,
+      (40 - mean_temp_tres_growth) / sd_temp_tres_growth
     ),
   )
 )
@@ -10358,13 +10413,13 @@ anova(s_nestpd_WEBL_addmin, prior_model)
 data_webl <- s_nestpd_WEBL_addmin$data
 
 
-mean_temp_webl <- mean(data_webl |> pull(meanmaxt_nestpd), na.rm = TRUE)
-sd_temp_webl <- sd(data_webl |> pull(meanmaxt_nestpd), na.rm = TRUE)
+mean_temp_webl_surv <- mean(data_webl |> pull(meanmaxt_nestpd), na.rm = TRUE)
+sd_temp_webl_surv <- sd(data_webl |> pull(meanmaxt_nestpd), na.rm = TRUE)
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_surv <- trans_new("temp_trans_webl_surv",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_surv) + mean_temp_webl_surv
   },
   inverse = function(x) {
     x
@@ -10381,7 +10436,7 @@ dat_text_webl <- data.frame(
   group = factor(samp_webl$habitat)
 )
 
-(fig3_webl <- predict_response(prior_model, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
+(fig3_webl_seas_prior <- predict_response(prior_model, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10393,13 +10448,13 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_surv,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl # ,
+      (20 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (25 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (30 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (35 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (40 - mean_temp_webl_surv) / sd_temp_webl_surv # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -10409,7 +10464,7 @@ dat_text_webl <- data.frame(
 )
 
 
-(fig3_webl <- predict_response(s_nestpd_WEBL_addmin, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
+(fig3_webl_seas_hab <- predict_response(s_nestpd_WEBL_addmin, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10421,13 +10476,13 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_surv,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl # ,
+      (20 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (25 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (30 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (35 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (40 - mean_temp_webl_surv) / sd_temp_webl_surv # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -10437,7 +10492,7 @@ dat_text_webl <- data.frame(
 )
 
 
-(plott <- predict_response(s_nestpd_WEBL_addmin, terms = c("meanmaxt_nestpd_scaled [all]", "juliandate_hatch_scaled"), bias_correction = TRUE) |>
+(fig3_webl_seas_date <- predict_response(s_nestpd_WEBL_addmin, terms = c("meanmaxt_nestpd_scaled [all]", "juliandate_hatch_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10445,13 +10500,13 @@ dat_text_webl <- data.frame(
   theme(text = element_text(size = 16)) +
   # labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_webl_surv,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (25 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (30 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (35 - mean_temp_webl_surv) / sd_temp_webl_surv,
+      (40 - mean_temp_webl_surv) / sd_temp_webl_surv
     ),
   )
 )
@@ -10506,13 +10561,13 @@ anova(s_nestpd_TRES_noint, prior_model)
 data_tres <- s_nestpd_TRES_noint$data
 
 
-mean_temp_tres <- mean(data_tres |> pull(meanmaxt_nestpd), na.rm = TRUE)
-sd_temp_tres <- sd(data_tres |> pull(meanmaxt_nestpd), na.rm = TRUE)
+mean_temp_tres_surv <- mean(data_tres |> pull(meanmaxt_nestpd), na.rm = TRUE)
+sd_temp_tres_surv <- sd(data_tres |> pull(meanmaxt_nestpd), na.rm = TRUE)
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_surv <- trans_new("temp_trans_tres_surv",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_surv) + mean_temp_tres_surv
   },
   inverse = function(x) {
     x
@@ -10529,7 +10584,7 @@ dat_text_tres <- data.frame(
   group = factor(samp_tres$habitat)
 )
 
-(fig3_tres <- predict_response(prior_model, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
+(fig3_tres_seas_prior <- predict_response(prior_model, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10541,13 +10596,13 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_surv,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres # ,
+      (20 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (25 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (30 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (35 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (40 - mean_temp_tres_surv) / sd_temp_tres_surv # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -10557,7 +10612,7 @@ dat_text_tres <- data.frame(
 )
 
 
-(fig3_tres <- predict_response(s_nestpd_TRES_noint, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
+(fig3_tres_seas_hab <- predict_response(s_nestpd_TRES_noint, terms = c("meanmaxt_nestpd_scaled [all]", "habitat")) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10569,13 +10624,13 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_surv,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres # ,
+      (20 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (25 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (30 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (35 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (40 - mean_temp_tres_surv) / sd_temp_tres_surv # ,
       # (45-mean_temp)/sd_temp
     ),
   ) +
@@ -10585,7 +10640,7 @@ dat_text_tres <- data.frame(
 )
 
 
-(plott <- predict_response(s_nestpd_TRES_noint, terms = c("meanmaxt_nestpd_scaled [all]", "juliandate_hatch_scaled"), bias_correction = TRUE) |>
+(fig3_tres_seas_date <- predict_response(s_nestpd_TRES_noint, terms = c("meanmaxt_nestpd_scaled [all]", "juliandate_hatch_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10593,13 +10648,13 @@ dat_text_tres <- data.frame(
   theme(text = element_text(size = 16)) +
   # labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_surv,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (25 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (30 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (35 - mean_temp_tres_surv) / sd_temp_tres_surv,
+      (40 - mean_temp_tres_surv) / sd_temp_tres_surv
     ),
   )
 )
@@ -10679,7 +10734,7 @@ temp_trans_s1_webl <- trans_new("temp_trans_s1_webl",
   }
 )
 
-(figs2_webl <- ggpredict(s1_lintemp_noint, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(figs2_webl_seas_date <- ggpredict(s1_lintemp_noint, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10769,7 +10824,7 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
   }
 )
 
-(figs2_tres <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]"), bias_correction = TRUE) |>
+(figs2_tres_seas_prior <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10819,7 +10874,7 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
   }
 )
 
-(figs2_tres <- ggpredict(s1_lintemp_addmax, terms = c("meanmaxtempI_scaled [all]"), bias_correction = TRUE) |>
+(figs2_tres_seas_temp <- ggpredict(s1_lintemp_addmax, terms = c("meanmaxtempI_scaled [all]"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10840,7 +10895,7 @@ temp_trans_s1_tres <- trans_new("temp_trans_s1_tres",
 )
 
 
-(figs2_tres <- ggpredict(s1_lintemp_addmax, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(figs2_tres_seas_date <- ggpredict(s1_lintemp_addmax, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10918,20 +10973,20 @@ dat_text_webl <- data.frame(
 )
 
 
-mean_temp_webl <- mean(data_webl |> pull(meanmaxtempI))
-sd_temp_webl <- sd(data_webl |> pull(meanmaxtempI))
+mean_temp_webl_abs <- mean(data_webl |> pull(meanmaxtempI))
+sd_temp_webl_abs <- sd(data_webl |> pull(meanmaxtempI))
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_abs <- trans_new("temp_trans_webl_abs",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_abs) + mean_temp_webl_abs
   },
   inverse = function(x) {
     x
   }
 )
 
-(fig4_webl <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_webl_seas_prior <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10943,13 +10998,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = "WEBL cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_abs,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (25 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (30 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (35 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (40 - mean_temp_webl_abs) / sd_temp_webl_abs
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "dotted")) +
@@ -10959,7 +11014,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(fig4_webl <- ggpredict(abs_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_webl_seas_hab <- ggpredict(abs_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -10971,13 +11026,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = "WEBL cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_abs,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (25 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (30 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (35 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (40 - mean_temp_webl_abs) / sd_temp_webl_abs
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "dotted")) +
@@ -10987,7 +11042,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(fig4_webl <- ggpredict(abs_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig4_webl_seas_date <- ggpredict(abs_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -10995,13 +11050,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = "WEBL cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_abs,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (25 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (30 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (35 - mean_temp_webl_abs) / sd_temp_webl_abs,
+      (40 - mean_temp_webl_abs) / sd_temp_webl_abs
     ),
   ) # +
 )
@@ -11076,20 +11131,20 @@ dat_text_tres <- data.frame(
 )
 
 
-mean_temp_tres <- mean(data_tres |> pull(meanmaxtempI))
-sd_temp_tres <- sd(data_tres |> pull(meanmaxtempI))
+mean_temp_tres_abs <- mean(data_tres |> pull(meanmaxtempI))
+sd_temp_tres_abs <- sd(data_tres |> pull(meanmaxtempI))
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_abs <- trans_new("temp_trans_tres_abs",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_abs) + mean_temp_tres_abs
   },
   inverse = function(x) {
     x
   }
 )
 
-(fig4_tres <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_tres_seas_prior <- ggpredict(prior_model_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11101,13 +11156,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_abs,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (25 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (30 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (35 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (40 - mean_temp_tres_abs) / sd_temp_tres_abs
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "solid", "Grassland" = "dashed", "Row crop" = "dotted")) +
@@ -11116,7 +11171,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
 )
 
 
-(fig4_tres <- ggpredict(abs_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_tres_seas_hab <- ggpredict(abs_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11128,13 +11183,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_abs,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (25 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (30 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (35 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (40 - mean_temp_tres_abs) / sd_temp_tres_abs
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "dotted", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "dotted")) +
@@ -11143,7 +11198,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
 )
 
 
-(fig4_tres <- ggpredict(abs_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig4_tres_seas_date <- ggpredict(abs_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -11151,13 +11206,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES cort; max temp * habitat interaction") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_abs,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (25 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (30 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (35 - mean_temp_tres_abs) / sd_temp_tres_abs,
+      (40 - mean_temp_tres_abs) / sd_temp_tres_abs
     ),
   ) # +
 )
@@ -11235,7 +11290,7 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
   }
 )
 
-(fig_webl_s2 <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_webl_s2_seas_prior <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11262,7 +11317,7 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
 )
 
 
-(fig_webl_s2 <- ggpredict(s2_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_webl_s2_seas_hab <- ggpredict(s2_lintemp, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11289,7 +11344,7 @@ temp_trans_s2_webl <- trans_new("temp_trans_s2_webl",
 )
 
 
-(fig_webl_s2 <- ggpredict(s2_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig_webl_s2_seas_date <- ggpredict(s2_lintemp, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -11380,7 +11435,7 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
   }
 )
 
-(fig_tres_s2 <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_tres_s2_seas_prior <- ggpredict(prior_model, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11407,7 +11462,7 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
 )
 
 
-(fig_tres_s2 <- ggpredict(s2_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_tres_s2_seas_hab <- ggpredict(s2_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11434,7 +11489,7 @@ temp_trans_s2_tres <- trans_new("temp_trans_s2_tres",
 )
 
 
-(fig_tres_s2 <- ggpredict(s2_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig_tres_s2_seas_date <- ggpredict(s2_lintemp_addmin, terms = c("meanmaxtempI_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean daily max temp over preceding week (\u00b0C)") +
@@ -11525,7 +11580,7 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
   }
 )
 
-(figs2_priordayt_webl <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(figs2_priordayt_webl_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11552,7 +11607,7 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
 )
 
 
-(figs2_priordayt_webl <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(figs2_priordayt_webl_seas_hab <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11579,7 +11634,7 @@ temp_trans_s1_priordayt_webl <- trans_new("temp_trans_s1_priordayt_webl",
 )
 
 
-(figs2_priordayt_webl <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(figs2_priordayt_webl_seas_date <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -11605,7 +11660,7 @@ data_s1_priordayt_tres <- prep_model_data(
 )
 
 prior_model <- lmerTest::lmer(
-  sqrt(cort_s1) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
+  sqrt(cort_s1) ~ maxt_prior_scaled * habitat + mint_prior_scaled + age_scaled + juliandate_scaled + year_fct +
     (1 | attempt_id),
   data = data_s1_priordayt_tres
 )
@@ -11639,14 +11694,14 @@ s1_lintemp_noint <- lmerTest::lmer(
 s1_prior_day_tres <- s1_lintemp_addmin
 
 
-anova(s1_lintemp_addmax, prior_model)
+anova(s1_lintemp_addmin, prior_model)
 
 
 (tress1_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
-(tress1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmax, "maxt_prior_scaled", "Max temp trend"))
+(tress1_priordayt_trendmax <- format_emtrends_table(s1_lintemp_addmin, "maxt_prior_scaled", "Max temp trend"))
 
 
-samp_s1_priordayt_tres <- s1_lintemp_addmax@frame |>
+samp_s1_priordayt_tres <- s1_lintemp_addmin@frame |>
   group_by(habitat) |>
   summarize(count = n())
 
@@ -11670,7 +11725,7 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
   }
 )
 
-(figs2_priordayt_tres <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(figs2_priordayt_tres_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11697,7 +11752,7 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
 )
 
 
-(figs2_priordayt_tres <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(figs2_priordayt_tres_seas_hab <- ggpredict(s1_lintemp_addmin, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11724,7 +11779,7 @@ temp_trans_s1_priordayt_tres <- trans_new("temp_trans_s1_priordayt_tres",
 )
 
 
-(figs2_priordayt_tres <- ggpredict(s1_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(figs2_priordayt_tres_seas_date <- ggpredict(s1_lintemp_addmin, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -11814,7 +11869,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
   }
 )
 
-(fig4_webl_priordayt <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_webl_priordayt_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11841,7 +11896,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
 )
 
 
-(fig4_webl_priordayt <- ggpredict(abs_lintemp_noint, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_webl_priordayt_seas_hab <- ggpredict(abs_lintemp_noint, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11868,7 +11923,7 @@ temp_trans_webl_priordayt <- trans_new("temp_trans_webl_priordayt",
 )
 
 
-(fig4_webl_priordayt <- ggpredict(abs_lintemp_noint, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig4_webl_priordayt_seas_date <- ggpredict(abs_lintemp_noint, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -11960,7 +12015,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
   }
 )
 
-(fig4_tres_priordayt <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_tres_priordayt_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -11987,7 +12042,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
 )
 
 
-(fig4_tres_priordayt <- ggpredict(abs_lintemp, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig4_tres_priordayt_seas_hab <- ggpredict(abs_lintemp, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12014,7 +12069,7 @@ temp_trans_tres_priordayt <- trans_new("temp_trans_tres_priordayt",
 )
 
 
-(fig4_tres_priordayt <- ggpredict(abs_lintemp, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig4_tres_priordayt_seas_date <- ggpredict(abs_lintemp, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -12041,7 +12096,7 @@ data_s2_priordayt_webl <- prep_model_data(
 )
 
 prior_model <- lmerTest::lmer(
-  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled + habitat + age_scaled + juliandate_scaled + year_fct +
+  sqrt(cort_s2) ~ maxt_prior_scaled + mint_prior_scaled * habitat + age_scaled + juliandate_scaled + year_fct +
     (1 | attempt_id),
   data = data_s2_priordayt_webl
 )
@@ -12075,14 +12130,14 @@ s2_lintemp_noint <- lmerTest::lmer(
 s2_prior_day_webl <- s2_lintemp_noint
 
 
-anova(s2_lintemp_noint, prior_model)
+anova(s2_lintemp_addmax, prior_model)
 
 
 (webls2_priordayt_trendmax_prior <- format_emtrends_table(prior_model, "maxt_prior_scaled", "Max temp trend"))
-(webls2_priordayt_trendmax <- format_emtrends_table(s2_lintemp_noint, "maxt_prior_scaled", "Max temp trend"))
+(webls2_priordayt_trendmax <- format_emtrends_table(s2_lintemp_addmax, "maxt_prior_scaled", "Max temp trend"))
 
 
-samp_s2_priordayt_webl <- s2_lintemp_noint@frame |>
+samp_s2_priordayt_webl <- s2_lintemp_addmax@frame |>
   group_by(habitat) |>
   summarize(count = n())
 
@@ -12106,7 +12161,7 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
   }
 )
 
-(fig_priordayt_webl_s2 <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_priordayt_webl_s2_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12133,7 +12188,7 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
 )
 
 
-(fig_priordayt_webl_s2 <- ggpredict(s2_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_priordayt_webl_s2_seas_hab <- ggpredict(s2_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12160,7 +12215,7 @@ temp_trans_s2_priordayt_webl <- trans_new("temp_trans_s2_priordayt_webl",
 )
 
 
-(fig_priordayt_webl_s2 <- ggpredict(s2_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig_priordayt_webl_s2_seas_date <- ggpredict(s2_lintemp_addmax, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -12251,7 +12306,7 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
   }
 )
 
-(fig_priordayt_tres_s2 <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_priordayt_tres_s2_seas_prior <- ggpredict(prior_model, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12278,7 +12333,7 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
 )
 
 
-(fig_priordayt_tres_s2 <- ggpredict(s2_lintemp, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig_priordayt_tres_s2_seas_hab <- ggpredict(s2_lintemp, terms = c("maxt_prior_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12305,7 +12360,7 @@ temp_trans_s2_priordayt_tres <- trans_new("temp_trans_s2_priordayt_tres",
 )
 
 
-(fig_priordayt_tres_s2 <- ggpredict(s2_lintemp, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
+(fig_priordayt_tres_s2_seas_date <- ggpredict(s2_lintemp, terms = c("maxt_prior_scaled [all]", "juliandate_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Max temp over prior day (\u00b0C)") +
@@ -12437,38 +12492,38 @@ data_webl <- dplyr::filter(
   ))
 
 
-mean_temp_webl <- mean(data_webl |> pull(mean_temp))
-sd_temp_webl <- sd(data_webl |> pull(mean_temp))
+mean_temp_webl_provis <- mean(data_webl |> pull(mean_temp))
+sd_temp_webl_provis <- sd(data_webl |> pull(mean_temp))
 
 
-temp_trans_webl <- trans_new("temp_trans_webl",
+temp_trans_webl_provis <- trans_new("temp_trans_webl_provis",
   transform = function(x) {
-    (x * sd_temp_webl) + mean_temp_webl
+    (x * sd_temp_webl_provis) + mean_temp_webl_provis
   },
   inverse = function(x) {
     x
   }
 )
 
-(fig5_webl <- predict_response(prior_model, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig5_webl_seas_prior <- predict_response(prior_model, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
   facet_wrap(~group, ncol = 2) +
   xlab("Mean temperature (\u00b0C)") +
-  ylab("Nest visits/hour)") +
+  ylab("Nest visits/hour") +
   scale_fill_viridis(discrete = TRUE) +
   scale_color_viridis(discrete = TRUE) +
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_provis,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (25 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (30 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (35 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (40 - mean_temp_webl_provis) / sd_temp_webl_provis
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "dashed", "Grassland" = "solid", "Row crop" = "dotted")) +
@@ -12477,7 +12532,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(fig5_webl <- predict_response(m_linint, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig5_webl_seas_hab <- predict_response(m_linint, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12489,13 +12544,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_provis,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (25 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (30 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (35 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (40 - mean_temp_webl_provis) / sd_temp_webl_provis
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "solid", "Grassland" = "solid", "Row crop" = "dotted")) +
@@ -12504,7 +12559,7 @@ temp_trans_webl <- trans_new("temp_trans_webl",
 )
 
 
-(fig5_webl <- predict_response(m_linint, terms = c("mean_temp_scaled [all]", "julian_date_scaled"), bias_correction = TRUE) |>
+(fig5_webl_seas_date <- predict_response(m_linint, terms = c("mean_temp_scaled [all]", "julian_date_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean temperature (\u00b0C)") +
@@ -12512,13 +12567,13 @@ temp_trans_webl <- trans_new("temp_trans_webl",
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
-    trans = temp_trans_webl,
+    trans = temp_trans_webl_provis,
     breaks = c(
-      (20 - mean_temp_webl) / sd_temp_webl,
-      (25 - mean_temp_webl) / sd_temp_webl,
-      (30 - mean_temp_webl) / sd_temp_webl,
-      (35 - mean_temp_webl) / sd_temp_webl,
-      (40 - mean_temp_webl) / sd_temp_webl
+      (20 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (25 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (30 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (35 - mean_temp_webl_provis) / sd_temp_webl_provis,
+      (40 - mean_temp_webl_provis) / sd_temp_webl_provis
     ),
   ) # +
 )
@@ -12638,20 +12693,20 @@ data_tres <- dplyr::filter(
   ))
 
 
-mean_temp_tres <- mean(data_tres |> pull(mean_temp))
-sd_temp_tres <- sd(data_tres |> pull(mean_temp))
+mean_temp_tres_provis <- mean(data_tres |> pull(mean_temp))
+sd_temp_tres_provis <- sd(data_tres |> pull(mean_temp))
 
 
-temp_trans_tres <- trans_new("temp_trans_tres",
+temp_trans_tres_provis <- trans_new("temp_trans_tres_provis",
   transform = function(x) {
-    (x * sd_temp_tres) + mean_temp_tres
+    (x * sd_temp_tres_provis) + mean_temp_tres_provis
   },
   inverse = function(x) {
     x
   }
 )
 
-(fig5_tres <- ggpredict(prior_model, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig5_tres_seas_prior <- ggpredict(prior_model, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12663,13 +12718,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES provis: maxsq interaction with LC, but not with linear max") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_provis,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (25 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (30 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (35 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (40 - mean_temp_tres_provis) / sd_temp_tres_provis
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "dotted", "Grassland" = "dotted", "Row crop" = "dotted")) +
@@ -12679,7 +12734,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
 )
 
 
-(fig5_tres <- ggpredict(m, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
+(fig5_tres_seas_hab <- ggpredict(m, terms = c("mean_temp_scaled [all]", "habitat"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   aes(linetype = .data[["group"]]) +
   theme_classic() +
@@ -12691,13 +12746,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES provis: maxsq interaction with LC, but not with linear max") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_provis,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (25 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (30 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (35 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (40 - mean_temp_tres_provis) / sd_temp_tres_provis
     ),
   ) +
   scale_linetype_manual(values = c("Forest" = "solid", "Orchard" = "dotted", "Grassland" = "dotted", "Row crop" = "dotted")) +
@@ -12707,7 +12762,7 @@ temp_trans_tres <- trans_new("temp_trans_tres",
 )
 
 
-(fig5_tres <- ggpredict(prior_model, terms = c("mean_temp_scaled [all]", "julian_date_scaled"), bias_correction = TRUE) |>
+(fig5_tres_seas_date <- ggpredict(m, terms = c("mean_temp_scaled [all]", "julian_date_scaled"), bias_correction = TRUE) |>
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
   theme_classic() +
   xlab("Mean temperature (\u00b0C)") +
@@ -12715,13 +12770,13 @@ temp_trans_tres <- trans_new("temp_trans_tres",
   theme(text = element_text(size = 16)) +
   labs(title = "TRES provis: maxsq interaction with LC, but not with linear max") +
   scale_x_continuous(
-    trans = temp_trans_tres,
+    trans = temp_trans_tres_provis,
     breaks = c(
-      (20 - mean_temp_tres) / sd_temp_tres,
-      (25 - mean_temp_tres) / sd_temp_tres,
-      (30 - mean_temp_tres) / sd_temp_tres,
-      (35 - mean_temp_tres) / sd_temp_tres,
-      (40 - mean_temp_tres) / sd_temp_tres
+      (20 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (25 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (30 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (35 - mean_temp_tres_provis) / sd_temp_tres_provis,
+      (40 - mean_temp_tres_provis) / sd_temp_tres_provis
     ),
   ) # +
 )

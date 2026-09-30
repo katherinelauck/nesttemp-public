@@ -11,6 +11,33 @@ library(dagitty)
 library(ggdag)
 library(lubridate)
 
+# Land cover palette used in every figure: viridis, trimmed so the yellow end stays visible on white.
+# Panels loaded from models_*.RData get land_cover_scales added so every figure uses the same colours.
+land_cover_cols <- setNames(viridis(4, begin = 0, end = 0.9), c("Forest", "Orchard", "Grassland", "Row crop"))
+land_cover_scales <- scale_fill_manual(values = land_cover_cols, aesthetics = c("fill", "colour"))
+
+# Set the alpha of the raw-data points in a ggeffects plot (models.R builds them at 0.35).
+# The point layer is shallow-copied so the plot object loaded from .RData isn't modified in place
+# (ggproto(NULL, layer) can't be used here: it recurses in ggplot2's method lookup).
+set_dot_alpha <- function(p, alpha = 0.25) {
+  p$layers <- lapply(p$layers, function(l) {
+    if (!inherits(l$geom, "GeomPoint")) {
+      return(l)
+    }
+    l_copy <- rlang::env_clone(l)
+    class(l_copy) <- class(l)
+    l_copy$aes_params$alpha <- alpha
+    l_copy
+  })
+  p
+}
+
+# ggarrange panel labels: inset from the corner so the bold italic text isn't clipped at the image edge
+label_args <- list(
+  gp = grid::gpar(font = 4, cex = 1.2),
+  x = unit(4, "pt"), y = unit(1, "npc") - unit(4, "pt")
+)
+
 
 ## --- Growth figures ---
 
@@ -22,7 +49,7 @@ load("data/models_growth.RData")
   theme_classic() +
   xlab("Nest visits/hour") +
   ylab("Growth (g/day)") +
-  theme(text = element_text(size = 24)) +
+  theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
   scale_x_continuous(
     trans = provis_trans_webl,
@@ -35,7 +62,7 @@ load("data/models_growth.RData")
     )
   ) +
   theme(legend.position = "none") +
-  annotate(geom = "text", label = "N = 40", x = -Inf, y = -Inf, size = 7, hjust = -.2, vjust = -.5))
+  annotate(geom = "text", label = "N = 40", x = -Inf, y = -Inf, hjust = -.2, vjust = -.5))
 
 (fig6_corts1_webl <- predict_response(g_provis_cort_webl, terms = c("cort_s1_scaled [all]"), bias_correction = TRUE, margin = "empirical") %>%
   plot(line_size = 1.5, alpha = .2, show_data = TRUE, limit_range = TRUE) +
@@ -155,29 +182,32 @@ ggplot_build(fig6_corts1_webl)$layout$panel_scales_y
 ggplot_build(fig6_corts1_tres)$layout$panel_scales_y
 ggplot_build(fig6_abscort_webl)$layout$panel_scales_y
 ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
-(p_full <- ggarrange(
-  fig6_provis_webl + theme(
+(p_fig6_growth <- ggarrange(
+  set_dot_alpha(fig6_provis_webl) + theme(
     text = element_text(size = 12),
     legend.position = "none",
     axis.title.x = element_blank(),
-    axis.title.y = element_text(hjust = -3)
+    axis.title.y = element_text(hjust = -2.3),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
-  fig6_provis_tres + theme(
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    text = element_text(size = 12),
-    axis.title.y = element_blank(),
-    legend.position = "none",
-    axis.title.x = element_text(hjust = -.7)
-  ) +
+  set_dot_alpha(fig6_provis_tres) + xlab("Nest visits/hour") +
+    theme(
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      text = element_text(size = 12),
+      axis.title.y = element_blank(),
+      legend.position = "none",
+      axis.title.x = element_text(hjust = -.3),
+      plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+    ) +
     ylim(-.183, 2.73),
-  fig6_corts1_webl + theme(
+  set_dot_alpha(fig6_corts1_webl) + theme(
     text = element_text(size = 12),
     legend.position = "none",
     axis.title.x = element_blank(),
     axis.title.y = element_blank()
   ),
-  fig6_corts1_tres + theme(
+  set_dot_alpha(fig6_corts1_tres) + theme(
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     text = element_text(size = 12),
@@ -186,13 +216,13 @@ ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
     axis.title.x = element_text(hjust = -2.7)
   ) +
     ylim(-.183, 2.73),
-  fig6_abscort_webl + theme(
+  set_dot_alpha(fig6_abscort_webl) + theme(
     text = element_text(size = 12),
     legend.position = "none",
     axis.title.x = element_blank(),
     axis.title.y = element_blank()
   ),
-  fig6_abscort_tres + xlab("Stress-induced - Baseline corticosterone (ng/\U00B5L)") + theme(
+  set_dot_alpha(fig6_abscort_tres) + xlab("Stress-induced - Baseline corticosterone (ng/\U00B5L)") + theme(
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     text = element_text(size = 12),
@@ -202,9 +232,10 @@ ggplot_build(fig6_abscort_tres)$layout$panel_scales_y
   ) +
     ylim(-.183, 2.73),
   ncol = 2,
-  labels = c("(a): Western Bluebird", "(b): Tree Swallow", "", "", "", "")
+  labels = c("(a): Western Bluebird", "(b): Tree Swallow", "", "", "", ""),
+  label.args = label_args
 ))
-ggsave("figures/fig6_growth_by_temp_hab.png", p_full, width = 6.25, height = 8)
+ggsave("figures/fig6_growth_by_temp_hab.png", p_fig6_growth, width = 6.25, height = 8)
 
 # Fig 2: WEBL + TRES growth ~ max temp x habitat
 (fig2_tres <- ggpredict(g_lintemp_addmin_tres, terms = c("meanmaxtempI_scaled [all]", "habitat"), bias_correction = TRUE) %>%
@@ -214,8 +245,7 @@ ggsave("figures/fig6_growth_by_temp_hab.png", p_full, width = 6.25, height = 8)
   facet_wrap(~group, ncol = 2) +
   xlab("Mean daily max temp over preceding week (°C)") +
   ylab("Growth (g/day)") +
-  scale_fill_viridis(discrete = TRUE) +
-  scale_color_viridis(discrete = TRUE) +
+  land_cover_scales +
   scale_linetype_manual(values = c("Forest" = "dashed", "Orchard" = "dotted", "Grassland" = "solid", "Row crop" = "solid")) +
   theme(text = element_text(size = 16)) +
   labs(title = element_blank()) +
@@ -233,18 +263,25 @@ ggsave("figures/fig6_growth_by_temp_hab.png", p_full, width = 6.25, height = 8)
   theme(legend.position = "none"))
 ggplot_build(fig2_webl)$layout$panel_scales_y
 ggplot_build(fig2_tres)$layout$panel_scales_y
-(p_full <- ggarrange(fig2_webl + theme(text = element_text(size = 12), axis.title.x = element_blank()),
-  fig2_tres + ylim(-1.09, 3.42) + theme(
+(p_fig2_growth <- ggarrange(
+  set_dot_alpha(fig2_webl) + land_cover_scales + theme(
+    text = element_text(size = 12),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+  ),
+  set_dot_alpha(fig2_tres) + ylim(-1.09, 3.42) + theme(
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     text = element_text(size = 12),
     axis.title.y = element_blank(),
-    axis.title.x = element_text(hjust = 2.8)
+    axis.title.x = element_text(hjust = 2.8),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
   ncol = 2,
-  labels = c("(a): Western Bluebird", "(b): Tree Swallow")
+  labels = c("(a): Western Bluebird", "(b): Tree Swallow"),
+  label.args = label_args
 ))
-ggsave("figures/fig2_growth_by_temp_hab.png", p_full, width = 6.25, height = 4)
+ggsave("figures/fig2_growth_by_temp_hab.png", p_fig2_growth, width = 6.25, height = 4)
 
 
 ## --- Cort figures ---
@@ -256,28 +293,29 @@ library(egg)
 ggplot_build(fig4_webl)$layout$panel_scales_y
 ggplot_build(fig_webl_s2)$layout$panel_scales_y
 
-(p_full <- ggarrange(
-  fig4_webl + ylim(0.0065, 139) + ylab("Stress-induced - Baseline corticosterone (ng/µL)") + labs(title = element_blank()) + theme(
+(p_fig3_abscort <- ggarrange(
+  set_dot_alpha(fig4_webl) + land_cover_scales + ylim(0.0065, 139) + ylab("Stress-induced - Baseline corticosterone (ng/µL)") + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
     axis.title.x = element_blank(),
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
-  fig_webl_s2 + ylim(0.0065, 139) + labs(title = element_blank()) + theme(
+  set_dot_alpha(fig_webl_s2) + land_cover_scales + ylab("Stress-induced corticosterone (ng/µL)") + ylim(0.0065, 139) + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
     axis.title.x = element_text(hjust = 2),
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
   ncol = 2,
-  labels = c("(a)   Western Bluebird", "(b)")
+  labels = c("(a)   Western Bluebird", "(b)"),
+  label.args = label_args
 ))
 
-ggsave("figures/fig3_abscort_by_temp_hab.png", p_full, width = 6.25, height = 4.3)
+ggsave("figures/fig3_abscort_by_temp_hab.png", p_fig3_abscort, width = 6.25, height = 4.3)
 
 ggplot_build(fig4_tres)$layout$panel_scales_y
 ggplot_build(fig_tres_s2)$layout$panel_scales_y
 
-(p_full <- ggarrange(
-  fig4_tres + ylim(.0011, 118) + labs(title = element_blank()) + theme(
+(p_figS5_abscort_tres <- ggarrange(
+  set_dot_alpha(fig4_tres) + land_cover_scales + ylab("Stress-induced - baseline corticosterone (ng/µL)") + ylim(.0011, 118) + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
     # axis.ticks.y = element_blank(),
     # axis.text.y = element_blank(),
@@ -285,7 +323,7 @@ ggplot_build(fig_tres_s2)$layout$panel_scales_y
     axis.title.x = element_blank(),
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
-  fig_tres_s2 + ylim(.0011, 118) + labs(title = element_blank()) + theme(
+  set_dot_alpha(fig_tres_s2) + land_cover_scales + ylab("Stress-induced corticosterone (ng/µL)") + ylim(.0011, 118) + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
     # axis.ticks.y = element_blank(),
     # axis.text.y = element_blank(),
@@ -294,20 +332,22 @@ ggplot_build(fig_tres_s2)$layout$panel_scales_y
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
   ncol = 2,
-  labels = c("(a) Tree Swallow", "(b)")
+  labels = c("(a) Tree Swallow", "(b)"),
+  label.args = label_args
 ))
 
-ggsave("figures/figS5_abscort_by_temp_hab_tres.png", p_full, width = 6.25, height = 4.3)
+ggsave("figures/figS5_abscort_by_temp_hab_tres.png", p_figS5_abscort_tres, width = 6.25, height = 4.3)
 
 # Fig S4: baseline cort ~ prior-day temp
 ggplot_build(figs2_priordayt_webl)$layout$panel_scales_y
 ggplot_build(figs2_priordayt_tres)$layout$panel_scales_y
-(p_full <- ggarrange(
-  figs2_priordayt_webl + ylim(0.0812, 17.9) + ylab("Baseline corticosterone (ng/µL)") + labs(title = element_blank()) + theme(
+(p_figS4_s1cort <- ggarrange(
+  set_dot_alpha(figs2_priordayt_webl) + land_cover_scales + ylim(0.0812, 17.9) + ylab("Baseline corticosterone (ng/µL)") + labs(title = element_blank()) + theme(
     text = element_text(size = 12),
-    axis.title.x = element_blank()
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
   ),
-  figs2_priordayt_tres +
+  set_dot_alpha(figs2_priordayt_tres) + land_cover_scales +
     ylim(0.0812, 17.9) +
     labs(title = element_blank()) +
     theme(
@@ -315,31 +355,65 @@ ggplot_build(figs2_priordayt_tres)$layout$panel_scales_y
       axis.ticks.y = element_blank(),
       axis.text.y = element_blank(),
       axis.title.y = element_blank(),
-      axis.title.x = element_text(hjust = -2)
+      axis.title.x = element_text(hjust = -2),
+      plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
     ),
   ncol = 2,
-  labels = c("(a): Western Bluebird", "(b): Tree Swallow")
+  labels = c("(a): Western Bluebird", "(b): Tree Swallow"),
+  label.args = label_args
 ))
-ggsave("figures/figs2_s1cort_by_priordayt_hab.png", p_full, width = 6.25, height = 4)
+ggsave("figures/figs2_s1cort_by_priordayt_hab.png", p_figS4_s1cort, width = 6.25, height = 4)
 
 # Fig S6: TRES baseline cort ~ heat index (single panel, no assembly needed)
-ggsave("figures/s1bypriordaymaxhhixhab_TRES.png", plot = figs2_priordaymaxhhi_tres, width = 10, height = 6.6)
+ggsave("figures/s1bypriordaymaxhhixhab_TRES.png", plot = set_dot_alpha(figs2_priordaymaxhhi_tres) + land_cover_scales + ylab("Baseline corticosterone (ng/µL)"), width = 10, height = 6.6)
 
 
 ## --- Survival figure ---
 
 load("data/models_survival.RData")
 
-# Fig S3: survival ~ max temp x habitat (p_full from RData is the fig3 assembly)
-ggsave("figures/fig3_survival_by_temp_hab.png", p_full, width = 6.25, height = 4)
+# Fig S3: survival ~ max temp x habitat
+# Reassembled here (layout from models.R) so the panels pick up land_cover_scales and the label margin
+(p_fig3_survival <- ggarrange(
+  fig3_webl + land_cover_scales + theme(
+    text = element_text(size = 12),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+  ),
+  fig3_tres + land_cover_scales + theme(
+    text = element_text(size = 12),
+    axis.title.y = element_blank(),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+  ),
+  ncol = 2,
+  labels = c("(a): Western Bluebird", "(b): Tree Swallow"),
+  label.args = label_args
+))
+ggsave("figures/fig3_survival_by_temp_hab.png", p_fig3_survival, width = 6.25, height = 4)
 
 
 ## --- Provisioning figure ---
 
 load("data/models_provis.RData")
 
-# Fig 5: provisioning ~ max temp x habitat (p_full from RData is the fig5 assembly)
-ggsave("figures/fig5_provis_by_temp_hab.png", p_full, width = 6.25, height = 4)
+# Fig 5: provisioning ~ max temp x habitat
+# Reassembled here (layout from models.R) so the panels pick up land_cover_scales
+(p_fig5_provis <- ggarrange(
+  set_dot_alpha(fig5_webl) + land_cover_scales + ylim(0, 40) + labs(title = element_blank()) + theme(
+    text = element_text(size = 12),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+  ), set_dot_alpha(fig5_tres) + land_cover_scales + labs(title = element_blank()) + ylim(0, 40) + theme(
+    text = element_text(size = 12), axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(hjust = -.8),
+    plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5)
+  ),
+  ncol = 2,
+  labels = c("(a): Western Bluebird", "(b): Tree Swallow"),
+  label.args = label_args
+))
+ggsave("figures/fig5_provis_by_temp_hab.png", p_fig5_provis, width = 6.25, height = 4)
 
 
 ## --- DAG figure ---
@@ -476,9 +550,8 @@ ggsave("figures/dag3.png", plot = p, width = layout_width, height = layout_heigh
 ## --- Conceptual diagram ---
 
 # Panel A: hypothesized paths (H1-H5). Panels B-G: predicted patterns for each hypothesis.
-# Land cover colors match scale_fill_viridis(discrete = TRUE) in the habitat figures.
+# Land cover colors come from land_cover_cols at the top of this script, shared with the habitat figures.
 
-land_cover_cols <- setNames(viridis(4), c("Forest", "Orchard", "Grassland", "Row crop"))
 concept_text_size <- 3.6 # geom_text size in panel A (mm)
 
 path_nodes <- tribble(
@@ -585,7 +658,7 @@ heat_lines <- function(slopes, start) {
     mutate(response = start + slope * heat, habitat = factor(habitat, levels = names(land_cover_cols)))
 }
 
-# Draw colored lines over a dark outline so the yellow row crop line stays visible
+# Draw colored lines over a dark outline so the light yellow-green line stays visible
 outlined_lines <- function(d) {
   list(
     geom_line(data = d, aes(group = habitat), colour = "grey20", linewidth = 1.9),
@@ -687,7 +760,7 @@ wmean <- t %>%
   ylab("Hot temperature anomaly (C)") +
   labs(title = element_blank(), fill = "Cover type") +
   annotate("text", x = c(1:4), y = 16, label = c("a", "b", "c", "d")) +
-  scale_fill_viridis(discrete = TRUE) +
+  land_cover_scales +
   theme_classic() +
   theme(text = element_text(size = 16)))
 ggsave("figures/max-weightedmean_outside.png", out, width = 6, height = 4)
