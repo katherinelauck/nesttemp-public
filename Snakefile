@@ -36,6 +36,7 @@ rule all:
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
         "figures/val_oldnew_survival_tbl.html",
+        "figures/val_rawcort_tbl.html",
 
 
 rule model_all:
@@ -43,7 +44,8 @@ rule model_all:
     # Previously split into 5 parallel rules; ~7 min total so sequential is fine.
     input:
         data          = "data/growth_cort_provis_manytempmeasures.rds",
-        surv          = "data/survival_attempt.rds",
+        rawcort       = "data/growth_cort_provis_manytempmeasures_rawcort.rds",
+        surv         = "data/survival_attempt.rds",
         provis        = "data/provis_with_attempt_1h_combined_mobilenetv3-original_dataset.h5.rds",
         provis_season = "data/provis_manytempmeasures.rds",
         script        = "code/models.R",
@@ -113,6 +115,7 @@ rule tables:
         "figures/tresprovistrend.html",
         "figures/val_tmaxxjday_tbl.html",
         "figures/val_oldnew_survival_tbl.html",
+        "figures/val_rawcort_tbl.html",
     resources:
         runtime = "4h",
     shell:

@@ -54,6 +54,9 @@ dat_provis <- read_rds("data/provis_with_attempt_1h_combined_mobilenetv3-origina
 dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") |>
   mutate(year_fct = as.factor(year))
 
+dat_growth_rawcort <- read_rds("data/growth_cort_provis_manytempmeasures_rawcort.rds") |>
+  mutate(year_fct = as.factor(year))
+
 dat_surv <- read_rds("data/survival_attempt.rds") |>
   mutate(
     juliandate_inc = yday(inc_date),
@@ -2141,6 +2144,8 @@ rm(list = ls())
 gc()
 source("code/helpers.R")
 dat_growth <- read_rds("data/growth_cort_provis_manytempmeasures.rds") |>
+  mutate(year_fct = as.factor(year))
+dat_growth_rawcort <- read_rds("data/growth_cort_provis_manytempmeasures_rawcort.rds") |>
   mutate(year_fct = as.factor(year))
 
 
@@ -7997,6 +8002,124 @@ temp_trans_tres_cumdegreeweek <- trans_new("temp_trans_tres_cumdegreeweek",
 
 
 (tresabs_cumdegreeweek_trendmax <- format_emtrends_table(abs_lintemp_noint, "degreehours_over_30C_priorweek_scaled", "Max temp trend"))
+
+
+#### Validation: raw (uncleaned) cort values
+# Same model-choice process as above, fit to dat_growth_rawcort (no replicate values
+# dropped, no s1/s2 swaps). Raw abs_change_cort has negative values, so the raw abs
+# models use sqrt(abs_change_cort - min + 0.01) within each species' model data.
+
+shift_abs <- function(d) {
+  d |> mutate(abs_change_cort_shift = abs_change_cort - min(abs_change_cort, na.rm = TRUE) + 0.01)
+}
+
+## s1, prior week
+
+data_s1_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+)
+m_s1_rawcort_webl <- fit_int_models(data_s1_rawcort_webl, "sqrt(cort_s1)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_s1_rawcort_webl <- anova_int_tab(m_s1_rawcort_webl$full, m_s1_rawcort_webl$addmin, m_s1_rawcort_webl$addmax, m_s1_rawcort_webl$noint, digits = 3))
+(webls1trendmax_rawcort <- format_emtrends_table(m_s1_rawcort_webl$noint, "meanmaxtempI_scaled", "Max temp trend"))
+
+data_s1_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+)
+m_s1_rawcort_tres <- fit_int_models(data_s1_rawcort_tres, "sqrt(cort_s1)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_s1_rawcort_tres <- anova_int_tab(m_s1_rawcort_tres$full, m_s1_rawcort_tres$addmin, m_s1_rawcort_tres$addmax, m_s1_rawcort_tres$noint, digits = 3))
+(tress1trendmax_rawcort <- format_emtrends_table(m_s1_rawcort_tres$addmax, "meanmaxtempI_scaled", "Max temp trend"))
+
+## s1, prior day
+
+data_s1_priordayt_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+)
+m_s1_priordayt_rawcort_webl <- fit_int_models(data_s1_priordayt_rawcort_webl, "sqrt(cort_s1)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_s1_priordayt_rawcort_webl <- anova_int_tab(m_s1_priordayt_rawcort_webl$full, m_s1_priordayt_rawcort_webl$addmin, m_s1_priordayt_rawcort_webl$addmax, m_s1_priordayt_rawcort_webl$noint, digits = 3))
+(webls1_priordayt_trendmax_rawcort <- format_emtrends_table(m_s1_priordayt_rawcort_webl$noint, "maxt_prior_scaled", "Max temp trend"))
+
+data_s1_priordayt_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+)
+m_s1_priordayt_rawcort_tres <- fit_int_models(data_s1_priordayt_rawcort_tres, "sqrt(cort_s1)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_s1_priordayt_rawcort_tres <- anova_int_tab(m_s1_priordayt_rawcort_tres$full, m_s1_priordayt_rawcort_tres$addmin, m_s1_priordayt_rawcort_tres$addmax, m_s1_priordayt_rawcort_tres$noint, digits = 3))
+(tress1_priordayt_trendmax_rawcort <- format_emtrends_table(m_s1_priordayt_rawcort_tres$addmax, "maxt_prior_scaled", "Max temp trend"))
+
+## s2, prior week
+
+data_s2_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+)
+m_s2_rawcort_webl <- fit_int_models(data_s2_rawcort_webl, "sqrt(cort_s2)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_s2_rawcort_webl <- anova_int_tab(m_s2_rawcort_webl$full, m_s2_rawcort_webl$addmin, m_s2_rawcort_webl$addmax, m_s2_rawcort_webl$noint, digits = 3))
+(webls2trendmax_rawcort <- format_emtrends_table(m_s2_rawcort_webl$full, "meanmaxtempI_scaled", "Max temp trend"))
+
+data_s2_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+)
+m_s2_rawcort_tres <- fit_int_models(data_s2_rawcort_tres, "sqrt(cort_s2)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_s2_rawcort_tres <- anova_int_tab(m_s2_rawcort_tres$full, m_s2_rawcort_tres$addmin, m_s2_rawcort_tres$addmax, m_s2_rawcort_tres$noint, digits = 3))
+(tress2trendmax_rawcort <- format_emtrends_table(m_s2_rawcort_tres$addmin, "meanmaxtempI_scaled", "Max temp trend"))
+
+## s2, prior day
+
+data_s2_priordayt_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+)
+m_s2_priordayt_rawcort_webl <- fit_int_models(data_s2_priordayt_rawcort_webl, "sqrt(cort_s2)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_s2_priordayt_rawcort_webl <- anova_int_tab(m_s2_priordayt_rawcort_webl$full, m_s2_priordayt_rawcort_webl$addmin, m_s2_priordayt_rawcort_webl$addmax, m_s2_priordayt_rawcort_webl$noint, digits = 3))
+(webls2_priordayt_trendmax_rawcort <- format_emtrends_table(m_s2_priordayt_rawcort_webl$noint, "maxt_prior_scaled", "Max temp trend"))
+
+data_s2_priordayt_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+)
+m_s2_priordayt_rawcort_tres <- fit_int_models(data_s2_priordayt_rawcort_tres, "sqrt(cort_s2)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_s2_priordayt_rawcort_tres <- anova_int_tab(m_s2_priordayt_rawcort_tres$full, m_s2_priordayt_rawcort_tres$addmin, m_s2_priordayt_rawcort_tres$addmax, m_s2_priordayt_rawcort_tres$noint, digits = 3))
+(tress2_priordayt_trendmax_rawcort <- format_emtrends_table(m_s2_priordayt_rawcort_tres$full, "maxt_prior_scaled", "Max temp trend"))
+
+## abs, prior week
+
+data_abs_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+) |> shift_abs()
+m_abs_rawcort_webl <- fit_int_models(data_abs_rawcort_webl, "sqrt(abs_change_cort_shift)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_abs_rawcort_webl <- anova_int_tab(m_abs_rawcort_webl$full, m_abs_rawcort_webl$addmin, m_abs_rawcort_webl$addmax, m_abs_rawcort_webl$noint, digits = 3))
+(weblabstrendmax_rawcort <- format_emtrends_table(m_abs_rawcort_webl$full, "meanmaxtempI_scaled", "Max temp trend"))
+
+data_abs_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "meanmaxtempI", "meanmintempI",
+  c("gweight", "meanmaxtempI", "meanmintempI", "juliandate", "brood_size", "age")
+) |> shift_abs()
+m_abs_rawcort_tres <- fit_int_models(data_abs_rawcort_tres, "sqrt(abs_change_cort_shift)", "meanmaxtempI_scaled", "meanmintempI_scaled")
+(int_tab_abs_rawcort_tres <- anova_int_tab(m_abs_rawcort_tres$full, m_abs_rawcort_tres$addmin, m_abs_rawcort_tres$addmax, m_abs_rawcort_tres$noint, digits = 3))
+(tresabstrendmax_rawcort <- format_emtrends_table(m_abs_rawcort_tres$full, "meanmaxtempI_scaled", "Max temp trend"))
+
+## abs, prior day
+
+data_abs_priordayt_rawcort_webl <- prep_model_data(
+  dat_growth_rawcort, "WEBL", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+) |> shift_abs()
+m_abs_priordayt_rawcort_webl <- fit_int_models(data_abs_priordayt_rawcort_webl, "sqrt(abs_change_cort_shift)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_abs_priordayt_rawcort_webl <- anova_int_tab(m_abs_priordayt_rawcort_webl$full, m_abs_priordayt_rawcort_webl$addmin, m_abs_priordayt_rawcort_webl$addmax, m_abs_priordayt_rawcort_webl$noint, digits = 3))
+(weblabs_priordayt_trendmax_rawcort <- format_emtrends_table(m_abs_priordayt_rawcort_webl$noint, "maxt_prior_scaled", "Max temp trend"))
+
+data_abs_priordayt_rawcort_tres <- prep_model_data(
+  dat_growth_rawcort, "TRES", "maxt_prior", "mint_prior",
+  c("gweight", "maxt_prior", "mint_prior", "juliandate", "brood_size", "age")
+) |> shift_abs()
+m_abs_priordayt_rawcort_tres <- fit_int_models(data_abs_priordayt_rawcort_tres, "sqrt(abs_change_cort_shift)", "maxt_prior_scaled", "mint_prior_scaled")
+(int_tab_abs_priordayt_rawcort_tres <- anova_int_tab(m_abs_priordayt_rawcort_tres$full, m_abs_priordayt_rawcort_tres$addmin, m_abs_priordayt_rawcort_tres$addmax, m_abs_priordayt_rawcort_tres$noint, digits = 3))
+(tresabs_priordayt_trendmax_rawcort <- format_emtrends_table(m_abs_priordayt_rawcort_tres$full, "maxt_prior_scaled", "Max temp trend"))
 
 
 save(list = ls(), file = "data/models_cort.RData")

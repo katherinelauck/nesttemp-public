@@ -1352,3 +1352,69 @@ gtsave(trend_jday, "../figures/val_tmaxxjday_tbl.html")
 gtsave(oldnew_survival, "../figures/val_oldnew_survival_tbl.html")
 ```
 
+## Validation table for raw vs cleaned corticosterone
+
+```{r}
+# models_seasonal.RData reuses the cleaned trend names, so read them from models_cort.RData
+cort_env <- new.env()
+load("../data/models_cort.RData", envir = cort_env)
+
+# Each ... argument is named with its row label and holds c(WEBL trend object name, TRES trend object name)
+val_rawcort_rows <- function(response, ...) {
+  imap(list(...), function(nms, pred) {
+    bind_rows(
+      cort_env[[nms[1]]]$`_data` |> mutate(Species = "Western Bluebird"),
+      cort_env[[nms[2]]]$`_data` |> mutate(Species = "Tree Swallow")
+    ) |>
+      mutate(Predictor = pred)
+  }) |>
+    bind_rows() |>
+    rename(Trend = "Max temp trend", `P-value` = "P") |>
+    mutate(
+      Response = response,
+      sig = if_else(`P-value` == "<0.001", "***",
+        if_else(as.numeric(`P-value`) < .01, "**",
+          if_else(as.numeric(`P-value`) < .05, "*", "")
+        )
+      ),
+      Estimate = paste0(as.character(Trend), sig)
+    ) |>
+    dplyr::select(Species, Response, Predictor, Habitat, Estimate) |>
+    pivot_wider(names_from = c(Species, Habitat), values_from = Estimate)
+}
+
+s1_rawcort <- val_rawcort_rows("Baseline corticosterone",
+  "Mean max temp over prior week (cleaned)" = c("webls1trendmax", "tress1trendmax"),
+  "Mean max temp over prior week (raw)" = c("webls1trendmax_rawcort", "tress1trendmax_rawcort"),
+  "Max temp over prior day (cleaned)" = c("webls1_priordayt_trendmax", "tress1_priordayt_trendmax"),
+  "Max temp over prior day (raw)" = c("webls1_priordayt_trendmax_rawcort", "tress1_priordayt_trendmax_rawcort")
+)
+
+s2_rawcort <- val_rawcort_rows("Stress-induced corticosterone",
+  "Mean max temp over prior week (cleaned)" = c("webls2trendmax", "tress2trendmax"),
+  "Mean max temp over prior week (raw)" = c("webls2trendmax_rawcort", "tress2trendmax_rawcort"),
+  "Max temp over prior day (cleaned)" = c("webls2_priordayt_trendmax", "tress2_priordayt_trendmax"),
+  "Max temp over prior day (raw)" = c("webls2_priordayt_trendmax_rawcort", "tress2_priordayt_trendmax_rawcort")
+)
+
+abs_rawcort <- val_rawcort_rows("Stress-induced - baseline corticosterone",
+  "Mean max temp over prior week (cleaned)" = c("weblabstrendmax", "tresabstrendmax"),
+  "Mean max temp over prior week (raw)" = c("weblabstrendmax_rawcort", "tresabstrendmax_rawcort"),
+  "Max temp over prior day (cleaned)" = c("weblabs_priordayt_trendmax", "tresabs_priordayt_trendmax"),
+  "Max temp over prior day (raw)" = c("weblabs_priordayt_trendmax_rawcort", "tresabs_priordayt_trendmax_rawcort")
+)
+
+(rawcort_tbl <- rbind(s1_rawcort, s2_rawcort, abs_rawcort) |>
+  gt(rowname_col = "Predictor", groupname_col = "Response") |>
+  tab_options(data_row.padding = px(1)) |>
+  tab_spanner_delim(
+    delim = "_"
+  ) |>
+  tab_footnote(
+    footnote = "Raw stress-induced - baseline values include negative differences, so raw models use sqrt(x - min(x) + 0.01) rather than sqrt(x); raw slopes are on a slightly different scale than cleaned slopes.",
+    locations = cells_row_groups(groups = "Stress-induced - baseline corticosterone")
+  ))
+
+gtsave(rawcort_tbl, "../figures/val_rawcort_tbl.html")
+```
+

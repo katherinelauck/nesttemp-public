@@ -35,6 +35,23 @@ make_temp_trans <- function(data, col) {
   )
 }
 
+# Fit the four habitat-interaction variants used for model choice. response is a
+# string (e.g. "sqrt(cort_s1)"); max_var / min_var are scaled temp column names.
+# Returns list(full, addmin, addmax, noint) in anova_int_tab() argument order.
+fit_int_models <- function(data, response, max_var, min_var) {
+  covars <- "age_scaled + juliandate_scaled + year_fct + (1 | attempt_id)"
+  fit <- function(temp_terms) {
+    f <- as.formula(paste(response, "~", temp_terms, "+", covars))
+    lmerTest::lmer(f, data = data)
+  }
+  list(
+    full   = fit(paste0(max_var, " * habitat + ", min_var, " * habitat")),
+    addmin = fit(paste0(max_var, " * habitat + ", min_var)),
+    addmax = fit(paste0(max_var, " + ", min_var, " * habitat")),
+    noint  = fit(paste0(max_var, " + ", min_var, " + habitat"))
+  )
+}
+
 anova_int_tab <- function(m_full, m_addmin, m_addmax, m_noint, digits = 4) {
   if (inherits(m_full, "glm") && !inherits(m_full, "lmerMod")) {
     mk_row <- function(m_single) {
